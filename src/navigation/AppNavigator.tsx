@@ -16,13 +16,14 @@ import ProductsScreen from '../screen/ProductsScreen';
 import SearchResultScreen from '../screen/SearchResultScreen';
 import SettingsScreen from '../screen/SettingsScreen';
 import ProductDetailScreen from '../screen/ProductDetailScreen';
+import WishlistScreen from '../screen/WishlistScreen';
 
 type TabKey = 'home' | 'wishlist' | 'shop' | 'notification' | 'profile' | 'settings';
 
 const TABS: TabKey[] = ['home', 'wishlist', 'shop', 'notification', 'profile'];
 const SLIDE_DISTANCE = 30;
-const OUT_DURATION = 120;
-const IN_DURATION = 160;
+const OUT_DURATION = 50;
+const IN_DURATION = 50;
 
 interface User {
   id: string;
@@ -48,6 +49,32 @@ function extractCount(data: any): number {
   return 0;
 }
 
+interface CategoryItem {
+  id: number;
+  name: string;
+  image?: string | null;
+}
+
+interface BrandItem {
+  id: number;
+  name: string;
+  image?: string | null;
+  brand_image?: string;
+  total_products?: number;
+}
+
+interface ProductCard {
+  id: number;
+  [key: string]: any;
+}
+
+interface RoomType {
+  room_id: number;
+  room_name: string;
+  images: string[];
+  count: number;
+}
+
 export default function AppNavigator({ user, token, onLogout }: { user?: User | null; token?: string | null; onLogout?: () => void }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -61,17 +88,88 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [previousSearchQuery, setPreviousSearchQuery] = useState<string | null>(null);
   const [searchSourceProductId, setSearchSourceProductId] = useState<number | null>(null);
 
+  // Home screen data - persists across navigation
+  const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
+  const [homeBrands, setHomeBrands] = useState<BrandItem[]>([]);
+  const [homeFeaturedProducts, setHomeFeaturedProducts] = useState<ProductCard[]>([]);
+  const [homeRoomTypes, setHomeRoomTypes] = useState<RoomType[]>([]);
+  const [homeLoadingFeatured, setHomeLoadingFeatured] = useState(false);
+  const homeInitialFetchRef = useRef(false);
+
+  // Wishlist data - persists across navigation
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [wishlistRefreshing, setWishlistRefreshing] = useState(false);
+  const wishlistInitialFetchRef = useRef(false);
+
+  const { authService } = require('../services/authService');
+  const { productService } = require('../services/productService');
+
   useEffect(() => {
     if (!token) return;
+
+    // Fetch cart count
     const headers = { Authorization: `Bearer ${token}` };
-    Promise.all([
-      axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers }),
-      axios.get(`${API_CONFIG.BASE_URL}/wishlist`, { headers }),
-    ]).then(([cartRes, wishlistRes]) => {
-      setCartCount(extractCount(cartRes.data));
-      setWishlistCount(extractCount(wishlistRes.data));
-    }).catch(() => {});
+    axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers })
+      .then(cartRes => setCartCount(extractCount(cartRes.data)))
+      .catch(() => {});
+
+    // Fetch home screen data ONCE when token becomes available
+    if (!homeInitialFetchRef.current) {
+      homeInitialFetchRef.current = true;
+      fetchHomeData();
+    }
+
+    // Fetch wishlist data ONCE when token becomes available
+    if (!wishlistInitialFetchRef.current) {
+      wishlistInitialFetchRef.current = true;
+      fetchWishlistData();
+    }
   }, [token]);
+
+  const fetchHomeData = async () => {
+    if (!token) return;
+
+    try {
+      console.log('🔄 Fetching home data...');
+      setHomeLoadingFeatured(true);
+      const [categoryData, brandData, productData, roomData] = await Promise.all([
+        authService.getCategories(token),
+        authService.getBrandsWithProducts(token, 6),
+        productService.getProductCards(token),
+        axios.get(`${API_CONFIG.BASE_URL}/room-types`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(res => res.data?.data || []).catch(() => []),
+      ]);
+
+      setHomeCategories(categoryData.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)));
+      setHomeBrands(brandData);
+      setHomeFeaturedProducts(Array.isArray(productData) ? productData.slice(0, 4) : []);
+      setHomeRoomTypes(roomData);
+      console.log('✅ Home data loaded');
+    } catch (error: any) {
+      console.error('Home data fetch error:', error);
+    } finally {
+      setHomeLoadingFeatured(false);
+    }
+  };
+
+  const fetchWishlistData = async (isRefreshing = false) => {
+    if (!token) return;
+
+    try {
+      const setLoading = isRefreshing ? setWishlistRefreshing : setWishlistLoading;
+      setLoading(true);
+      const data = await productService.getWishlist(token);
+      setWishlistItems(data);
+      setWishlistCount(data.length);
+    } catch (error: any) {
+      console.error('Wishlist fetch error:', error);
+    } finally {
+      const setLoading = isRefreshing ? setWishlistRefreshing : setWishlistLoading;
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!searchVisible) return;
@@ -227,6 +325,33 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               setIsDarkMode={setIsDarkMode}
               onBack={() => navigateTo('profile')}
             />
+          ) : activeTab === 'wishlist' ? (
+            <>
+              <AppHeader
+                user={user}
+                cartCount={cartCount}
+                onCartPress={() => navigateTo('notification')}
+                onCameraPress={() => {
+                  console.log('Camera pressed');
+                }}
+                onSearchPress={() => {
+                  setSearchSourceProductId(null);
+                  setPreviousTab(activeTabRef.current);
+                  setSearchVisible(true);
+                }}
+              />
+              <WishlistScreen
+                token={token}
+                wishlistItems={wishlistItems}
+                loading={wishlistLoading}
+                refreshing={wishlistRefreshing}
+                onRefresh={() => fetchWishlistData(true)}
+                onProductPress={(id: number) => {
+                  setPreviousSearchQuery(null);
+                  setSelectedProductId(id);
+                }}
+              />
+            </>
           ) : activeTab === 'profile' ? (
             <ProfileScreen
               user={user}
@@ -249,10 +374,26 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                   setSearchVisible(true);
                 }}
               />
-              <HomeScreen token={token} user={user} isDarkMode={isDarkMode} onProductPress={(id: number) => {
-                setPreviousSearchQuery(null);
-                setSelectedProductId(id);
-              }} />
+              <HomeScreen
+                token={token}
+                user={user}
+                isDarkMode={isDarkMode}
+                onProductPress={(id: number) => {
+                  setPreviousSearchQuery(null);
+                  setSelectedProductId(id);
+                }}
+                categories={homeCategories}
+                setCategories={setHomeCategories}
+                brands={homeBrands}
+                setBrands={setHomeBrands}
+                featuredProducts={homeFeaturedProducts}
+                setFeaturedProducts={setHomeFeaturedProducts}
+                roomTypes={homeRoomTypes}
+                setRoomTypes={setHomeRoomTypes}
+                loadingFeatured={homeLoadingFeatured}
+                setLoadingFeatured={setHomeLoadingFeatured}
+                dataFetchedRef={homeInitialFetchRef}
+              />
             </>
           ) : (
             <>
