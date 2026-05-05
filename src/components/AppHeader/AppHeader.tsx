@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { productService } from '../../services/productService';
+import HeaderFilter from './HeaderFilter';
+import Toast from 'react-native-toast-message';
 
 interface AppHeaderProps {
   user?: {
@@ -148,6 +150,7 @@ export default function AppHeader({
 
   const [dynamicPlaceholder, setDynamicPlaceholder] = useState(searchPlaceholder);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showFilter, setShowFilter] = useState(false);
   const currentIndex = useRef(0);
 
   useEffect(() => {
@@ -184,6 +187,7 @@ export default function AppHeader({
   }, [suggestions]);
 
   return (
+    <>
     <LinearGradient
       colors={['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
       start={{ x: 0, y: 0 }}
@@ -255,12 +259,28 @@ export default function AppHeader({
             <Ionicons name="camera-outline" size={16} color={Colors.textSecondary} style={styles.cameraIconInside} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconBtn} onPress={onFilterPress} activeOpacity={0.7}>
-            <Ionicons name="options-outline" size={20} color={Colors.text} />
+          <TouchableOpacity
+            style={[styles.iconBtn, showFilter && styles.iconBtnActive]}
+            onPress={() => setShowFilter(!showFilter)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="options-outline" size={20} color={showFilter ? Colors.sky : Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
     </LinearGradient>
+    {showFilter && (
+      <HeaderFilter
+        onFilterChange={(filterType, value) => {
+          Toast.show({
+            type: 'success',
+            text1: `${filterType.charAt(0).toUpperCase() + filterType.slice(1)} Updated`,
+            text2: `Selected: ${value}`,
+          });
+        }}
+      />
+    )}
+    </>
   );
 }
 
@@ -438,6 +458,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  iconBtnActive: {
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    borderColor: Colors.sky,
   },
   searchRow: {
     flexDirection: 'row',
