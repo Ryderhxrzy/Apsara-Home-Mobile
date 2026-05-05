@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity, Pressable,
-  StyleSheet, Modal, PanResponder, Animated, BackHandler,
+  StyleSheet, Modal, PanResponder, Animated, BackHandler, Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Notifications from 'expo-notifications';
 import { Colors } from '../constants/colors';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
@@ -118,6 +119,8 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [previousSearchQuery, setPreviousSearchQuery] = useState<string | null>(null);
   const [searchSourceProductId, setSearchSourceProductId] = useState<number | null>(null);
+  const [deviceToken, setDeviceToken] = useState<string | null>(null);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -156,6 +159,38 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
       }
     };
     init();
+  }, []);
+
+  // Setup push notifications
+  useEffect(() => {
+    const setupNotifications = async () => {
+      // Request permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      console.log('Notification permission status:', status);
+
+      // Get device push token
+      const token = await Notifications.getExpoPushTokenAsync();
+      setDeviceToken(token.data);
+      console.log('📱 DEVICE TOKEN:', token.data);
+
+      // Set notification handler
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+
+      // Listen for notifications
+      const subscription = Notifications.addNotificationResponseListener(({ notification }) => {
+        console.log('Notification received:', notification);
+      });
+
+      return () => subscription.remove();
+    };
+
+    setupNotifications();
   }, []);
 
   useEffect(() => {
@@ -561,7 +596,12 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
 
             const count = badgeCount[key] ?? 0;
             return (
-              <Pressable key={key} style={styles.navItem} onPress={() => navigateTo(key)}>
+              <Pressable
+                key={key}
+                style={styles.navItem}
+                onPress={() => navigateTo(key)}
+                onLongPress={() => key === 'notification' && deviceToken && setShowTokenModal(true)}
+              >
                 <View style={styles.indicator}>
                   {active && <View style={styles.indicatorLine} />}
                 </View>
@@ -602,6 +642,33 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                   <Text style={styles.menuText}>{labelMap[item]}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <Modal visible={showTokenModal} transparent animationType="fade" onRequestClose={() => setShowTokenModal(false)}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowTokenModal(false)}>
+            <View style={styles.tokenModal}>
+              <Text style={styles.tokenTitle}>Push Notification Token</Text>
+              <Text style={styles.tokenSubtitle}>Long-press notification icon to copy</Text>
+              <View style={styles.tokenBox}>
+                <Text style={styles.tokenText} selectable>{deviceToken}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.tokenCopyBtn}
+                onPress={() => {
+                  if (deviceToken) {
+                    Clipboard.setString(deviceToken);
+                    setShowTokenModal(false);
+                  }
+                }}
+              >
+                <Ionicons name="copy" size={18} color={Colors.white} />
+                <Text style={styles.tokenCopyText}>Copy Token</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.tokenCloseBtn} onPress={() => setShowTokenModal(false)}>
+                <Text style={styles.tokenCloseText}>Close</Text>
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Modal>
@@ -805,5 +872,71 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  tokenModal: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+  },
+  tokenTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  tokenSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+  tokenBox: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  tokenText: {
+    fontSize: 11,
+    color: Colors.text,
+    fontFamily: 'monospace',
+    lineHeight: 16,
+  },
+  tokenCopyBtn: {
+    backgroundColor: Colors.sky,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 6,
+  },
+  tokenCopyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  tokenCloseBtn: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  tokenCloseText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
   },
 });
