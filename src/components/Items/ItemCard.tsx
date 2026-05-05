@@ -56,12 +56,10 @@ export default function ItemCard({
       setIsTogglingWishlist(true);
 
       if (wishlisted) {
-        // Remove from wishlist - DELETE request
-        if (wishlistId) {
-          await axios.delete(`${API_CONFIG.BASE_URL}/cart/${wishlistId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        }
+        // Remove from wishlist - DELETE request using product_id
+        await axios.delete(`${API_CONFIG.BASE_URL}/wishlist/${product.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } else {
         // Add to wishlist - POST request
         await axios.post(
