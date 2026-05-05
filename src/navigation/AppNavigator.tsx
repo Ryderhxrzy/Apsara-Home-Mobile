@@ -164,30 +164,34 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   // Setup push notifications
   useEffect(() => {
     const setupNotifications = async () => {
-      // Request permissions
-      const { status } = await Notifications.requestPermissionsAsync();
-      console.log('Notification permission status:', status);
+      try {
+        // Request permissions
+        const { status } = await Notifications.requestPermissionsAsync();
+        console.log('Notification permission status:', status);
 
-      // Get device push token
-      const token = await Notifications.getExpoPushTokenAsync();
-      setDeviceToken(token.data);
-      console.log('📱 DEVICE TOKEN:', token.data);
+        // Get device push token
+        const pushToken = await Notifications.getExpoPushTokenAsync();
+        setDeviceToken(pushToken.data);
+        console.log('📱 DEVICE TOKEN:', pushToken.data);
 
-      // Set notification handler
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: true,
-        }),
-      });
+        // Set notification handler
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
 
-      // Listen for notifications
-      const subscription = Notifications.addNotificationResponseListener(({ notification }) => {
-        console.log('Notification received:', notification);
-      });
+        // Listen for notifications
+        const subscription = Notifications.addNotificationResponseListener(({ notification }) => {
+          console.log('Notification received:', notification);
+        });
 
-      return () => subscription.remove();
+        return () => subscription.remove();
+      } catch (error) {
+        console.log('Notification setup error:', error);
+      }
     };
 
     setupNotifications();
