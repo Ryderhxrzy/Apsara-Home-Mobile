@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Dimensions,
-  ActivityIndicator, TextInput,
+  ActivityIndicator, TextInput, BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +66,17 @@ export default function AddToCartModal({
   const insets = useSafeAreaInsets();
   const scrollStartY = React.useRef(0);
   const hasScrolledDown = React.useRef(false);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   const handleScroll = (event: any) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
@@ -202,27 +213,34 @@ export default function AddToCartModal({
                 style={styles.shopeeVariantScroll}
               >
                 <View style={styles.shopeeVariantRow}>
-                  {product.variants.map((variant) => (
+                  {product.variants.map((variant, index) => (
                     <TouchableOpacity
                       key={variant.id}
                       style={[
                         styles.shopeeVariantOption,
-                        selectedVariant === variant.id && styles.shopeeVariantOptionSelected,
+                        selectedVariant === variant.id && styles.shopeeVariantOptionSelected
                       ]}
                       onPress={() => onSelectVariant(variant.id)}
+                      activeOpacity={0.6}
                     >
-                      {variant.images && variant.images[0] && (
+                      {variant.images && variant.images.length > 0 ? (
                         <Image
                           source={{ uri: variant.images[0] }}
-                          style={styles.shopeeVariantImage}
+                          style={styles.shopeeVariantOptionImage}
+                          resizeMode="cover"
                         />
-                      )}
-                      <Text style={styles.shopeeVariantText} numberOfLines={1}>
-                        {variant.name || variant.color || `Variant ${variant.id}`}
+                      ) : variant.colorHex ? (
+                        <View style={[
+                          styles.shopeeVariantOptionColor,
+                          { backgroundColor: variant.colorHex }
+                        ]} />
+                      ) : null}
+                      <Text
+                        style={styles.shopeeVariantOptionText}
+                        numberOfLines={2}
+                      >
+                        {variant.color || variant.name || `Var ${index + 1}`}
                       </Text>
-                      {selectedVariant === variant.id && (
-                        <Ionicons name="checkmark" size={16} color={Colors.sky} style={styles.shopeeVariantCheck} />
-                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -504,34 +522,38 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   shopeeVariantOption: {
-    width: 100,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 8,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
     backgroundColor: '#f9fafb',
+    minWidth: 75,
+  },
+  shopeeVariantOptionImage: {
+    width: 55,
+    height: 55,
+    borderRadius: 6,
+  },
+  shopeeVariantOptionColor: {
+    width: 55,
+    height: 55,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
   },
   shopeeVariantOptionSelected: {
     borderColor: Colors.sky,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 2,
   },
-  shopeeVariantImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 6,
-  },
-  shopeeVariantText: {
-    fontSize: 11,
-    fontWeight: '500',
+  shopeeVariantOptionText: {
+    fontSize: 10,
     color: Colors.text,
+    fontWeight: '500',
     textAlign: 'center',
-  },
-  shopeeVariantCheck: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
   },
   shopeeQuantityControl: {
     flexDirection: 'row',
