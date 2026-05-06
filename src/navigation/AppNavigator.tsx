@@ -22,6 +22,7 @@ import ProductDetailScreen from '../screen/ProductDetailScreen';
 import WishlistScreen from '../screen/WishlistScreen';
 import CartScreen from '../screen/CartScreen';
 import ProfileDetailsScreen from '../screen/ProfileDetailsScreen';
+import ShopByRoomScreen from '../screen/ShopByRoomScreen';
 
 type TabKey = 'home' | 'wishlist' | 'shop' | 'notification' | 'profile' | 'settings';
 
@@ -122,6 +123,8 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [previousSearchQuery, setPreviousSearchQuery] = useState<string | null>(null);
   const [searchSourceProductId, setSearchSourceProductId] = useState<number | null>(null);
+  const [showShopByRoom, setShowShopByRoom] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<number>(1);
   // const [deviceToken, setDeviceToken] = useState<string | null>(null);
   // const [showTokenModal, setShowTokenModal] = useState(false);
 
@@ -423,7 +426,26 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
         <View style={styles.body} {...panResponder.panHandlers}>
-          {selectedProductId !== null ? (
+          {showShopByRoom ? (
+            <ShopByRoomScreen
+              token={token}
+              roomId={selectedRoomId}
+              user={user}
+              cartCount={cartCount}
+              onBack={() => {
+                setShowShopByRoom(false);
+                navigateTo(previousTab);
+              }}
+              onProductPress={(id) => {
+                setShowShopByRoom(false);
+                setPreviousSearchQuery(null);
+                setSelectedProductId(id);
+              }}
+              onCartPress={() => setShowCart(true)}
+              wishlistItems={wishlistItems}
+              onWishlistChange={() => fetchWishlistData()}
+            />
+          ) : selectedProductId !== null ? (
             <ProductDetailScreen
               productId={selectedProductId}
               token={token}
@@ -573,6 +595,13 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 dataFetchedRef={homeInitialFetchRef}
                 wishlistItems={wishlistItems}
                 onWishlistChange={() => fetchWishlistData()}
+                onShopByRoomPress={(roomId: number) => {
+                  setPreviousTab(activeTabRef.current);
+                  setSelectedRoomId(roomId);
+                  setShowShopByRoom(true);
+                  activeTabRef.current = 'shop';
+                  setActiveTab('shop');
+                }}
               />
             </>
           ) : (
