@@ -160,7 +160,6 @@ export default function AppHeader({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const currentIndex = useRef(0);
 
   useEffect(() => {
@@ -208,11 +207,7 @@ export default function AppHeader({
 
       <View style={styles.innerContent}>
         <View style={styles.topRow}>
-          <TouchableOpacity
-            style={styles.profileSection}
-            onPress={() => setShowProfileMenu(!showProfileMenu)}
-            activeOpacity={0.7}
-          >
+          <View style={styles.profileSection} pointerEvents="none">
             <View style={styles.avatar}>
               {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
@@ -242,7 +237,7 @@ export default function AppHeader({
                 </View>
               )}
             </View>
-          </TouchableOpacity>
+          </View>
 
           <View style={styles.rightActions}>
             <TouchableOpacity
@@ -301,35 +296,6 @@ export default function AppHeader({
           });
         }}
       />
-    )}
-    {showProfileMenu && (
-      <View style={styles.profileMenuOverlay}>
-        <View style={styles.profileMenu}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              setShowProfileMenu(false);
-              onProfilePress?.();
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="person-outline" size={18} color={Colors.sky} />
-            <Text style={styles.menuLabel}>My Profile</Text>
-          </TouchableOpacity>
-          <View style={styles.menuDivider} />
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              setShowProfileMenu(false);
-              onLogout?.();
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-            <Text style={[styles.menuLabel, { color: '#ef4444' }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     )}
     </>
   );
