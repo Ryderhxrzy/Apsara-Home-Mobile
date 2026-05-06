@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,6 +42,15 @@ export default function ReferralNetworkScreen({ token, onBack, tree }: ReferralN
       setExpandedNodes(new Set([tree.root.id]));
     }
   }, [tree?.root?.id]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack?.();
+      return true;
+    });
+
+    return () => sub.remove();
+  }, [onBack]);
 
   const toggleNode = (userId: number) => {
     const newExpanded = new Set(expandedNodes);
@@ -254,9 +264,8 @@ const styles = StyleSheet.create({
 
   headerGradient: {
     paddingBottom: 12,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0f2fe',
   },
 
   header: {
