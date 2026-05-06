@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Dimensions,
-  ActivityIndicator, BackHandler, Animated, Modal,
+  ActivityIndicator, BackHandler, Animated, Modal, PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,11 +49,39 @@ export default function MultipleItemsCartModal({
   loading = false,
 }: MultipleItemsCartModalProps) {
   const insets = useSafeAreaInsets();
+  const scrollY = useRef(0);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
   const [selectedVariants, setSelectedVariants] = useState<{ [key: number]: number | null }>({});
   const [expandedVariants, setExpandedVariants] = useState<{ [key: number]: boolean }>({});
   const [displayedImages, setDisplayedImages] = useState<{ [key: number]: string }>({});
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => scrollY.current === 0,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (scrollY.current > 0) return false;
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 100) {
+          onClose();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            friction: 8,
+            tension: 60,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
@@ -131,12 +159,16 @@ export default function MultipleItemsCartModal({
           styles.shopeeModal,
           { transform: [{ translateY: slideAnim }] },
         ]}
+        {...panResponder.panHandlers}
       >
+        {/* Drag Handle */}
+        <View style={styles.dragHandleContainer}>
+          <View style={styles.dragHandle} />
+        </View>
+
         {/* Header */}
         <View style={styles.shopeeModalHeader}>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Ionicons name="chevron-down" size={28} color={Colors.text} />
-          </TouchableOpacity>
+          <View style={{ width: 28 }} />
           <Text style={styles.shopeeModalHeaderText}>
             {items.length} Items to Cart
           </Text>
@@ -170,6 +202,8 @@ export default function MultipleItemsCartModal({
           style={styles.itemsList}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.itemsContent}
+          onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
         >
           {items.map((item) => (
             <View key={item.product_id} style={styles.itemContainer}>
@@ -347,6 +381,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '85%',
     flexDirection: 'column',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#cbd5e1',
+    borderRadius: 2,
   },
   shopeeModalHeader: {
     flexDirection: 'row',

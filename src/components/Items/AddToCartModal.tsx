@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Dimensions,
-  ActivityIndicator, TextInput, BackHandler, Animated,
+  ActivityIndicator, TextInput, BackHandler, Animated, PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +73,34 @@ export default function AddToCartModal({
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [isClosing, setIsClosing] = useState(false);
+  const scrollY = useRef(0);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => scrollY.current === 0,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (scrollY.current > 0) return false;
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 100) {
+          handleClose();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            friction: 8,
+            tension: 60,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
@@ -158,15 +186,16 @@ export default function AddToCartModal({
           styles.shopeeModal,
           { paddingBottom: 0, transform: [{ translateY: slideAnim }] },
         ]}
+        {...panResponder.panHandlers}
       >
+        {/* Drag Handle */}
+        <View style={styles.dragHandleContainer}>
+          <View style={styles.dragHandle} />
+        </View>
+
         {/* Header */}
         <View style={styles.shopeeModalHeader}>
-          <TouchableOpacity
-            onPress={handleClose}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-down" size={28} color={Colors.text} />
-          </TouchableOpacity>
+          <View style={{ width: 28 }} />
           <Text style={styles.shopeeModalHeaderText}>Save to Cart</Text>
           <View style={{ width: 28 }} />
         </View>
@@ -174,6 +203,8 @@ export default function AddToCartModal({
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={styles.shopeeModalContent}
+          onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
         >
           {/* Full Section Gradient Background */}
           <LinearGradient
@@ -217,12 +248,10 @@ export default function AddToCartModal({
               <TouchableOpacity
                 onPress={() => product && onProductPress?.(product.id)}
                 activeOpacity={0.7}
-                style={styles.productNameRow}
               >
                 <Text style={styles.shopeeProductName} numberOfLines={2}>
                   {product.name}
                 </Text>
-                <Ionicons name="arrow-forward" size={16} color={Colors.sky} style={styles.arrowIcon} />
               </TouchableOpacity>
 
               {/* Rating and PV */}
@@ -463,6 +492,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '85%',
     overflow: 'hidden',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#cbd5e1',
+    borderRadius: 2,
   },
   shopeeModalHeader: {
     flexDirection: 'row',

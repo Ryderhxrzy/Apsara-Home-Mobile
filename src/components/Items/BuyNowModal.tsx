@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, Image, TextInput, StyleSheet, Dimensions, BackHandler, Animated, ActivityIndicator,
+  View, Text, TouchableOpacity, ScrollView, Image, TextInput, StyleSheet, Dimensions, BackHandler, Animated, ActivityIndicator, PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,10 +67,36 @@ export default function BuyNowModal({
   loading = false,
 }: BuyNowModalProps) {
   const insets = useSafeAreaInsets();
-  const scrollStartY = useRef(0);
-  const hasScrolledDown = useRef(false);
+  const scrollY = useRef(0);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [addingToCart, setAddingToCart] = React.useState(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => scrollY.current === 0,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (scrollY.current > 0) return false;
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (scrollY.current === 0 && gestureState.dy > 100) {
+          onClose();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            friction: 8,
+            tension: 60,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
@@ -100,15 +126,7 @@ export default function BuyNowModal({
   }, [visible, onClose]);
 
   const handleScroll = (event: any) => {
-    const currentScrollY = event.nativeEvent.contentOffset.y;
-
-    if (currentScrollY === 0) {
-      scrollStartY.current = 0;
-      hasScrolledDown.current = false;
-    } else if (currentScrollY > 50 && !hasScrolledDown.current) {
-      hasScrolledDown.current = true;
-      onClose();
-    }
+    scrollY.current = event.nativeEvent.contentOffset.y;
   };
 
   if (!visible || !product) return null;
@@ -125,15 +143,16 @@ export default function BuyNowModal({
           styles.shopeeModal,
           { paddingBottom: 0, transform: [{ translateY: slideAnim }] },
         ]}
+        {...panResponder.panHandlers}
       >
+        {/* Drag Handle */}
+        <View style={styles.dragHandleContainer}>
+          <View style={styles.dragHandle} />
+        </View>
+
         {/* Header */}
         <View style={styles.shopeeModalHeader}>
-          <TouchableOpacity
-            onPress={onClose}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-down" size={28} color={Colors.text} />
-          </TouchableOpacity>
+          <View style={{ width: 28 }} />
           <Text style={styles.shopeeModalHeaderText}>Purchase</Text>
           <View style={{ width: 28 }} />
         </View>
@@ -487,6 +506,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '85%',
     flexDirection: 'column',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#cbd5e1',
+    borderRadius: 2,
   },
   shopeeModalHeader: {
     flexDirection: 'row',
