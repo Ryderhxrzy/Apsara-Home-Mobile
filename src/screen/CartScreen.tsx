@@ -416,43 +416,30 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           style={[styles.headerGradient, { paddingTop: insets.top }]}
         >
           <View style={styles.header}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.headerIcon}
-              onPress={onBack} 
+              onPress={onBack}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back-outline" size={20} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Cart</Text>
-            
-            {/* User Profile and Heart Icon */}
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                style={styles.headerIcon}
-                activeOpacity={0.7}
-                onPress={() => {
-                  console.log('Navigate to wishlist');
-                }}
-              >
-                <Ionicons name="heart-outline" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.profileSection}
-                activeOpacity={0.7}
-                onPress={onProfilePress}
-              >
-                <View style={styles.avatar}>
-                  {user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
-                  ) : user?.name ? (
-                    <Text style={styles.avatarInitial}>{user.name.charAt(0).toUpperCase()}</Text>
-                  ) : (
-                    <Ionicons name="person" size={18} color={Colors.textSecondary} />
-                  )}
+
+            {/* Wishlist Icon */}
+            <TouchableOpacity
+              style={styles.headerIcon}
+              activeOpacity={0.7}
+              onPress={() => {
+                console.log('Navigate to wishlist');
+              }}
+            >
+              <Ionicons name="heart-outline" size={20} color={Colors.text} />
+              {wishlistCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{wishlistCount > 99 ? '99+' : wishlistCount}</Text>
                 </View>
-              </TouchableOpacity>
-            </View>
+              )}
+            </TouchableOpacity>
           </View>
         </LinearGradient>
         
@@ -475,43 +462,30 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           style={[styles.headerGradient, { paddingTop: insets.top }]}
         >
           <View style={styles.header}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.headerIcon}
-              onPress={onBack} 
+              onPress={onBack}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back-outline" size={20} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Cart</Text>
-            
-            {/* User Profile and Heart Icon */}
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                style={styles.headerIcon}
-                activeOpacity={0.7}
-                onPress={() => {
-                  console.log('Navigate to wishlist');
-                }}
-              >
-                <Ionicons name="heart-outline" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.profileSection}
-                activeOpacity={0.7}
-                onPress={onProfilePress}
-              >
-                <View style={styles.avatar}>
-                  {user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
-                  ) : user?.name ? (
-                    <Text style={styles.avatarInitial}>{user.name.charAt(0).toUpperCase()}</Text>
-                  ) : (
-                    <Ionicons name="person" size={18} color={Colors.textSecondary} />
-                  )}
+
+            {/* Wishlist Icon */}
+            <TouchableOpacity
+              style={styles.headerIcon}
+              activeOpacity={0.7}
+              onPress={() => {
+                console.log('Navigate to wishlist');
+              }}
+            >
+              <Ionicons name="heart-outline" size={20} color={Colors.text} />
+              {wishlistCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{wishlistCount > 99 ? '99+' : wishlistCount}</Text>
                 </View>
-              </TouchableOpacity>
-            </View>
+              )}
+            </TouchableOpacity>
           </View>
         </LinearGradient>
         
@@ -544,40 +518,22 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Cart</Text>
           
-          {/* User Profile and Heart Icon */}
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.headerIcon}
-              activeOpacity={0.7}
-              onPress={() => {
-                // Navigate to wishlist - you'll need to implement this navigation
-                console.log('Navigate to wishlist');
-              }}
-            >
-              <Ionicons name="heart-outline" size={20} color={Colors.text} />
-              {wishlistCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{wishlistCount > 99 ? '99+' : wishlistCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.profileSection}
-              activeOpacity={0.7}
-              onPress={onProfilePress}
-            >
-              <View style={styles.avatar}>
-                {user?.avatar_url ? (
-                  <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
-                ) : user?.name ? (
-                  <Text style={styles.avatarInitial}>{user.name.charAt(0).toUpperCase()}</Text>
-                ) : (
-                  <Ionicons name="person" size={18} color={Colors.textSecondary} />
-                )}
+          {/* Wishlist Icon */}
+          <TouchableOpacity
+            style={styles.headerIcon}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to wishlist - you'll need to implement this navigation
+              console.log('Navigate to wishlist');
+            }}
+          >
+            <Ionicons name="heart-outline" size={20} color={Colors.text} />
+            {wishlistCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{wishlistCount > 99 ? '99+' : wishlistCount}</Text>
               </View>
-            </TouchableOpacity>
-          </View>
+            )}
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -686,13 +642,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
+    position: 'relative',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
+    flex: 1,
+    textAlign: 'center',
   },
   selectAllContainer: {
     paddingHorizontal: 12,
@@ -972,49 +930,20 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: Colors.sky,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  avatarInitial: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.sky,
+    position: 'relative',
   },
   badge: {
     position: 'absolute',
-    top: -6,
+    top: 2,
     right: -8,
     minWidth: 18,
     height: 18,
