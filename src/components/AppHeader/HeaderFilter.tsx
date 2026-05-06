@@ -23,7 +23,7 @@ interface HeaderFilterProps {
 const SORT_OPTIONS = ['Relevant', 'A-Z', 'Z-A', 'Price: Low', 'Price: High', 'Newest'];
 const PRICE_OPTIONS = ['All', 'Under ₱5k', '₱5k-₱20k', '₱20k-₱50k', 'Over ₱50k'];
 const ROOM_OPTIONS = [
-  { id: 0, name: 'All Products' },
+  { id: 0, name: 'All Room Types' },
   { id: 1, name: 'Bedroom' },
   { id: 2, name: 'Kitchen' },
   { id: 3, name: 'Living Room' },
@@ -120,7 +120,7 @@ export default function HeaderFilter({ onFilterChange, showRoomFilter = false, s
               onPress={() => setExpandedFilter(expandedFilter === 'room' ? null : 'room')}
             >
               <Ionicons name="home-outline" size={14} color={Colors.text} />
-              <Text style={styles.filterText}>{activeRoom}</Text>
+              <Text style={styles.filterText} numberOfLines={1}>{activeRoom}</Text>
               <Ionicons
                 name={expandedFilter === 'room' ? 'chevron-up' : 'chevron-down'}
                 size={12}
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: Colors.text,
-    maxWidth: 80,
+    maxWidth: 120,
   },
   dropdown: {
     position: 'absolute',
