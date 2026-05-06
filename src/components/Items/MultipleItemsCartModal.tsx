@@ -24,6 +24,7 @@ interface CartItem {
       color?: string;
       colorHex?: string;
       size?: string;
+      images?: string[];
     }>;
   };
 }
@@ -52,6 +53,7 @@ export default function MultipleItemsCartModal({
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
   const [selectedVariants, setSelectedVariants] = useState<{ [key: number]: number | null }>({});
   const [expandedVariants, setExpandedVariants] = useState<{ [key: number]: boolean }>({});
+  const [displayedImages, setDisplayedImages] = useState<{ [key: number]: string }>({});
 
   useEffect(() => {
     if (visible) {
@@ -64,12 +66,15 @@ export default function MultipleItemsCartModal({
       // Initialize quantities and variants
       const initialQuantities: { [key: number]: number } = {};
       const initialVariants: { [key: number]: number | null } = {};
+      const initialImages: { [key: number]: string } = {};
       items.forEach(item => {
         initialQuantities[item.product_id] = 1;
         initialVariants[item.product_id] = item.product.variants?.length ? item.product.variants[0].id : null;
+        initialImages[item.product_id] = item.product.image;
       });
       setQuantities(initialQuantities);
       setSelectedVariants(initialVariants);
+      setDisplayedImages(initialImages);
     } else {
       Animated.timing(slideAnim, {
         toValue: 300,
@@ -171,7 +176,7 @@ export default function MultipleItemsCartModal({
               <View style={styles.itemCard}>
                 {/* Product Image */}
                 <Image
-                  source={{ uri: item.product.image }}
+                  source={{ uri: displayedImages[item.product_id] || item.product.image }}
                   style={styles.itemImage}
                   resizeMode="cover"
                 />
@@ -250,10 +255,19 @@ export default function MultipleItemsCartModal({
                             styles.variantOption,
                             selectedVariants[item.product_id] === variant.id && styles.variantOptionSelected,
                           ]}
-                          onPress={() => setSelectedVariants(prev => ({
-                            ...prev,
-                            [item.product_id]: variant.id
-                          }))}
+                          onPress={() => {
+                            setSelectedVariants(prev => ({
+                              ...prev,
+                              [item.product_id]: variant.id
+                            }));
+                            // Update displayed image if variant has images
+                            if (variant.images && variant.images.length > 0) {
+                              setDisplayedImages(prev => ({
+                                ...prev,
+                                [item.product_id]: variant.images![0]
+                              }));
+                            }
+                          }}
                           activeOpacity={0.7}
                         >
                           {variant.colorHex && (
@@ -401,12 +415,14 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     backgroundColor: '#f9fafb',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 10,
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   itemImage: {
     width: 70,
@@ -489,7 +505,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   variantsSection: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f9fafb',
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     overflow: 'hidden',
