@@ -565,6 +565,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 }}
                 onProductPress={(id) => {
                   setPreviousSearchQuery(null);
+                  setPreviousTab(activeTabRef.current);
                   setSelectedProductId(id);
                 }}
                 onCartPress={() => setShowCart(true)}
