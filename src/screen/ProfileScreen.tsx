@@ -36,6 +36,7 @@ interface ProfileScreenProps {
   cartCount?: number;
   token?: string | null;
   onShowProfileDetails?: (show: boolean) => void;
+  onShowReferralNetwork?: (show: boolean) => void;
 }
 
 const REFERRAL_STATS = [
@@ -63,7 +64,7 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [enlargedQR, setEnlargedQR] = useState<'signup' | 'shopping' | null>(null);
   const [referralTree, setReferralTree] = useState<ReferralTree | null>(null);
@@ -91,6 +92,10 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   useEffect(() => {
     onShowProfileDetails?.(showProfileDetails);
   }, [showProfileDetails, onShowProfileDetails]);
+
+  useEffect(() => {
+    onShowReferralNetwork?.(showReferralNetwork);
+  }, [showReferralNetwork, onShowReferralNetwork]);
 
   useEffect(() => {
     if (token) {
@@ -552,18 +557,16 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
         </View>
       </Modal>
 
-      {/* Referral Network Modal */}
-      <Modal
-        visible={showReferralNetwork}
-        animationType="slide"
-        onRequestClose={() => setShowReferralNetwork(false)}
-      >
-        <ReferralNetworkScreen
-          token={token}
-          tree={referralTree}
-          onBack={() => setShowReferralNetwork(false)}
-        />
-      </Modal>
+      {/* Referral Network Screen */}
+      {showReferralNetwork && (
+        <View style={styles.referralNetworkOverlay}>
+          <ReferralNetworkScreen
+            token={token}
+            tree={referralTree}
+            onBack={() => setShowReferralNetwork(false)}
+          />
+        </View>
+      )}
 
       {/* Profile Details Screen */}
       {showProfileDetails && (
@@ -1043,6 +1046,17 @@ const styles = StyleSheet.create({
 
   // ── Profile Details Overlay ──
   profileDetailsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: Colors.white,
+  },
+
+  // ── Referral Network Overlay ──
+  referralNetworkOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
