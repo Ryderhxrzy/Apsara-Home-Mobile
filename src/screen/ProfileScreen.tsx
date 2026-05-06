@@ -13,6 +13,7 @@ import { referralService, ReferralTree } from '../services/referralService';
 import { accountService } from '../services/accountService';
 import LevelProgress from '../components/LevelProgress/LevelProgress';
 import ReferralNetworkScreen from './ReferralNetworkScreen';
+import ProfileDetailsScreen from './ProfileDetailsScreen';
 
 interface User {
   id: string;
@@ -21,6 +22,7 @@ interface User {
   username?: string;
   avatar_url?: string;
   badge_name?: string;
+  badge_image?: string;
   monthly_activation?: {
     remaining_pv: number;
   };
@@ -33,6 +35,7 @@ interface ProfileScreenProps {
   onCartPress?: () => void;
   cartCount?: number;
   token?: string | null;
+  onShowProfileDetails?: (show: boolean) => void;
 }
 
 const REFERRAL_STATS = [
@@ -60,7 +63,7 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [enlargedQR, setEnlargedQR] = useState<'signup' | 'shopping' | null>(null);
   const [referralTree, setReferralTree] = useState<ReferralTree | null>(null);
@@ -68,6 +71,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [loadingReferral, setLoadingReferral] = useState(false);
   const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
+  const [showProfileDetails, setShowProfileDetails] = useState(false);
   const photoUrl = user?.avatar_url ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const firstName = user?.name?.split(' ')[0] ?? 'User';
@@ -83,6 +87,10 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       text2: 'Referral link copied to clipboard',
     });
   };
+
+  useEffect(() => {
+    onShowProfileDetails?.(showProfileDetails);
+  }, [showProfileDetails, onShowProfileDetails]);
 
   useEffect(() => {
     if (token) {
@@ -159,7 +167,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
         end={{ x: 0, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
-        <View style={styles.headerLeft}>
+        <TouchableOpacity style={styles.headerLeft} onPress={() => setShowProfileDetails(true)} activeOpacity={0.7}>
           <View style={styles.headerAvatar}>
             {photoUrl ? (
               <Image source={{ uri: photoUrl }} style={styles.headerAvatarImg} />
@@ -170,6 +178,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
           <View style={styles.headerNameContainer}>
             <View style={styles.headerNameRow}>
               <Text style={styles.headerName} numberOfLines={1}>{user?.name ?? 'Guest'}</Text>
+              <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} style={styles.profileIcon} />
             </View>
             {user?.username && (
               <View style={styles.usernameRow}>
@@ -178,8 +187,14 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                   <>
                     <View style={styles.usernameDot} />
                     <View style={styles.userBadge}>
-                      <Ionicons name="shield-checkmark" size={10} color={Colors.white} />
-                      <Text style={styles.userBadgeText}>{user.badge_name}</Text>
+                      {user.badge_image ? (
+                        <Image source={{ uri: user.badge_image }} style={styles.badgeImageSmall} />
+                      ) : (
+                        <>
+                          <Ionicons name="shield-checkmark" size={10} color={Colors.white} />
+                          <Text style={styles.userBadgeText}>{user.badge_name}</Text>
+                        </>
+                      )}
                     </View>
                   </>
                 )}
@@ -188,7 +203,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               </View>
             )}
           </View>
-        </View>
+        </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={onCartPress}>
             <Ionicons name="cart-outline" size={20} color={Colors.text} />
@@ -549,6 +564,18 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
           onBack={() => setShowReferralNetwork(false)}
         />
       </Modal>
+
+      {/* Profile Details Screen */}
+      {showProfileDetails && (
+        <View style={styles.profileDetailsOverlay}>
+          <ProfileDetailsScreen
+            token={token}
+            cartCount={cartCount}
+            onClose={() => setShowProfileDetails(false)}
+            onCartPress={onCartPress}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -609,14 +636,24 @@ const styles = StyleSheet.create({
     color: Colors.text,
     flexShrink: 1,
   },
+  profileIcon: {
+    marginLeft: 4,
+  },
   userBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: '#f59e0b',
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 8,
+    overflow: 'hidden',
+    height: 18,
+  },
+  badgeImageSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
   },
   userBadgeText: {
     fontSize: 9,
@@ -1002,5 +1039,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 4,
+  },
+
+  // ── Profile Details Overlay ──
+  profileDetailsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: Colors.white,
   },
 });
