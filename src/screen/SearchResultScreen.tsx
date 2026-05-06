@@ -55,7 +55,7 @@ export default function SearchResultScreen({
         const mapped: ProductCard[] = res.data.data.map((item: any) => ({
           id: item.id,
           name: item.name,
-          image: item.image,
+          image: item.image || '',
           soldCount: 0,
           originalPrice: item.original_price,
           memberPrice: item.discounted_price,
@@ -68,6 +68,10 @@ export default function SearchResultScreen({
             salespromo: item.has_discount ?? false,
           },
         }));
+        console.log('🔍 Search Results:', {
+          count: mapped.length,
+          firstItem: mapped[0] && { id: mapped[0].id, name: mapped[0].name, hasImage: !!mapped[0].image, imageLength: mapped[0].image?.length },
+        });
         setProducts(mapped);
       } else {
         setProducts([]);
@@ -162,14 +166,14 @@ export default function SearchResultScreen({
               <View style={styles.masonryColumn}>
                 {masonryColumns.leftColumn.map((product) => (
                   <View key={`search-${product.id}`} style={styles.productItem}>
-                    <ItemCard product={product} onPress={onProductPress} />
+                    <ItemCard product={product} onPress={onProductPress} token={token} />
                   </View>
                 ))}
               </View>
               <View style={styles.masonryColumn}>
                 {masonryColumns.rightColumn.map((product) => (
                   <View key={`search-${product.id}`} style={styles.productItem}>
-                    <ItemCard product={product} onPress={onProductPress} />
+                    <ItemCard product={product} onPress={onProductPress} token={token} />
                   </View>
                 ))}
               </View>
