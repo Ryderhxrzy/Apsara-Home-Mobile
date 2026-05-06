@@ -12,6 +12,7 @@ import {
   Animated,
   BackHandler,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -98,9 +99,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
       const response = await axios.get(`${API_CONFIG.BASE_URL}/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Cart API response:', response.data);
       const cartItems = response.data.cart_items || [];
-      console.log('Cart items:', cartItems);
       setCartItems(cartItems);
     } catch (error: any) {
       console.error('Error fetching cart:', error);
@@ -232,18 +231,6 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
       ((parseFloat(item.product_price_srp) - parseFloat(item.crt_unit_price)) / parseFloat(item.product_price_srp)) * 100
     );
     
-    // Debug logging for variant data
-    console.log('Cart item variant data:', {
-      crt_id: item.crt_id,
-      crt_selected_color: item.crt_selected_color,
-      crt_selected_size: item.crt_selected_size,
-      crt_selected_type: item.crt_selected_type,
-      crt_variant_id: item.crt_variant_id,
-      variant_color: item.variant_color,
-      variant_size: item.variant_size,
-      variant_name: item.variant_name,
-    });
-    
     // Check both old and new variant fields for compatibility
     const hasVariants = !!(
       item.crt_selected_color || 
@@ -255,7 +242,10 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
     );
 
     return (
-      <View style={[styles.cartItemContainer, selectedItems.has(item.crt_id) && styles.containerSelected]}>
+        <View style={[
+          styles.cartItemContainer,
+          selectedItems.has(item.crt_id) && styles.containerSelected,
+        ]}>
         {discount > 0 && (
           <LinearGradient
             colors={['transparent', Colors.sky + '15']}
@@ -401,6 +391,36 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
             </View>
           </View>
         </TouchableOpacity>
+        </View>
+    );
+  };
+
+  const renderHiddenItem = (data: { item: CartItem }) => {
+    const item = data.item;
+    return (
+      <View style={styles.rowBack}>
+        <TouchableOpacity
+          style={[styles.backLeftBtn, styles.backLeftBtnLeft]}
+          onPress={() => {
+            handleSelectItem(item.crt_id);
+            onCheckout?.();
+          }}
+        >
+          <View style={styles.cartActionInner}>
+            <Ionicons name="card-outline" size={20} color={Colors.white} />
+            <Text style={styles.backTextWhite}>Checkout</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.backRightBtn, styles.backRightBtnRight]}
+          onPress={() => handleRemoveItem(item.crt_id)}
+          disabled={removingItem === item.crt_id}
+        >
+          <View style={styles.deleteActionInner}>
+            <Ionicons name="trash-outline" size={20} color={Colors.white} />
+            <Text style={styles.backTextWhite}>Delete</Text>
+          </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -430,7 +450,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
               style={styles.headerIcon}
               activeOpacity={0.7}
               onPress={() => {
-                console.log('Navigate to wishlist');
+                
               }}
             >
               <Ionicons name="heart-outline" size={20} color={Colors.text} />
@@ -476,7 +496,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
               style={styles.headerIcon}
               activeOpacity={0.7}
               onPress={() => {
-                console.log('Navigate to wishlist');
+                
               }}
             >
               <Ionicons name="heart-outline" size={20} color={Colors.text} />
@@ -524,7 +544,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
             activeOpacity={0.7}
             onPress={() => {
               // Navigate to wishlist - you'll need to implement this navigation
-              console.log('Navigate to wishlist');
+              
             }}
           >
             <Ionicons name="heart-outline" size={20} color={Colors.text} />
@@ -571,9 +591,15 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
       </View>
 
       {/* Cart Items */}
-      <FlatList
+      <SwipeListView
         data={getSortedCartItems()}
         renderItem={renderCartItem}
+        renderHiddenItem={renderHiddenItem}
+        leftOpenValue={90}
+        rightOpenValue={-90}
+        swipeToOpenPercent={30}
+        swipeToClosePercent={30}
+        useNativeDriver={false}
         keyExtractor={(item) => item.crt_id.toString()}
         contentContainerStyle={styles.listContent}
         scrollEnabled={true}
@@ -715,6 +741,52 @@ const styles = StyleSheet.create({
   listContent: {
     backgroundColor: Colors.white,
   },
+  rowBack: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  backLeftBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 90,
+  },
+  backLeftBtnLeft: {
+    backgroundColor: Colors.sky,
+    left: 0,
+  },
+  backRightBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 90,
+  },
+  backRightBtnRight: {
+    backgroundColor: '#ef4444',
+    right: 0,
+  },
+  cartActionInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  deleteActionInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  backTextWhite: {
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   cartItemContainer: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
@@ -725,6 +797,36 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
     position: 'relative',
+  },
+  swipeRowContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: Colors.white,
+  },
+  swipeAction: {
+    position: 'absolute',
+    top: 0,
+    bottom: 1,
+    width: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    zIndex: 0,
+  },
+  checkoutSwipeAction: {
+    left: 0,
+    backgroundColor: '#0ea5e9',
+  },
+  deleteSwipeAction: {
+    right: 0,
+    backgroundColor: Colors.error,
+  },
+  swipeActionText: {
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   containerGradient: {
     position: 'absolute',
