@@ -18,6 +18,7 @@ import AppHeader from '../components/AppHeader/AppHeader';
 import Toast from 'react-native-toast-message';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import { Skeleton } from '../components/SkeletonLoader/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -285,9 +286,17 @@ export default function ShopScreen({
 
         {/* Products Grid */}
         {loading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <Ionicons name="cube-outline" size={48} color={Colors.textSecondary} />
-            <Text style={styles.loadingText}>Loading products...</Text>
+          <View style={styles.masonryGrid}>
+            <View style={styles.masonryColumn}>
+              <Skeleton width="100%" height={220} borderRadius={8} />
+              <Skeleton width="100%" height={260} borderRadius={8} style={{ marginTop: 8 }} />
+              <Skeleton width="100%" height={240} borderRadius={8} style={{ marginTop: 8 }} />
+            </View>
+            <View style={styles.masonryColumn}>
+              <Skeleton width="100%" height={260} borderRadius={8} />
+              <Skeleton width="100%" height={220} borderRadius={8} style={{ marginTop: 8 }} />
+              <Skeleton width="100%" height={250} borderRadius={8} style={{ marginTop: 8 }} />
+            </View>
           </View>
         ) : products.length > 0 ? (
           <View style={styles.masonryGrid}>
@@ -425,16 +434,6 @@ const styles = StyleSheet.create({
   },
   masonryItem: {
     width: '100%',
-  },
-  loadingContainer: {
-    minHeight: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
   emptyContainer: {
     minHeight: 300,
