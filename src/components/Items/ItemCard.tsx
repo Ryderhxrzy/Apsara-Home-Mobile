@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
@@ -23,6 +23,24 @@ const BADGE_CONFIG = [
   { key: 'salespromo', label: 'On Sale',    bg: [Colors.forest, '#1e4236'] as const, icon: 'flash' as const },
 ] as const;
 
+const getValidImageUrl = (imageUrl: string | undefined): ImageSourcePropType | null => {
+  if (!imageUrl || imageUrl.trim() === '') {
+    return null;
+  }
+
+  // Ensure the URL is absolute
+  let url = imageUrl.trim();
+  if (!url.startsWith('http') && !url.startsWith('file://')) {
+    // Try to make it absolute if it's relative
+    if (!url.startsWith('/')) {
+      url = '/' + url;
+    }
+    url = 'https://backend.afhome.ph/api' + url;
+  }
+
+  return { uri: url };
+};
+
 export default function ItemCard({
   product,
   onPress,
@@ -33,6 +51,7 @@ export default function ItemCard({
 }: ItemCardProps) {
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const displayPrice = product.memberPrice || product.originalPrice;
   const hasDiscount = displayPrice < product.originalPrice;
@@ -94,7 +113,21 @@ export default function ItemCard({
 
       {/* Image */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+        {imageError || !product.image ? (
+          <View style={[styles.productImage, styles.imagePlaceholder]}>
+            <Ionicons name="image-outline" size={48} color={Colors.textSecondary} />
+          </View>
+        ) : (
+          <Image
+            source={getValidImageUrl(product.image) || require('../../../assets/af_home_logo.png')}
+            style={styles.productImage}
+            resizeMode="cover"
+            onError={() => {
+              setImageError(true);
+              console.warn(`Failed to load image for product ${product.id}: ${product.image}`);
+            }}
+          />
+        )}
 
         {/* Top-left: Enjoy X% ribbon */}
         {hasDiscount && (
@@ -240,6 +273,11 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: '100%',
+  },
+  imagePlaceholder: {
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   enjoyBadge: {
     position: 'absolute',
