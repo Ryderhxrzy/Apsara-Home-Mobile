@@ -276,22 +276,39 @@ export default function ShopByBrandScreen({
     return () => sub.remove();
   }, [onBack]);
 
+  const themeColors = {
+    containerBg: isDarkMode ? '#0f172a' : '#f8fbff',
+    headerBg: isDarkMode ? '#1e293b' : Colors.white,
+    headerBorder: isDarkMode ? '#334155' : '#e0f2fe',
+    text: isDarkMode ? '#f1f5f9' : Colors.text,
+    textSecondary: isDarkMode ? '#94a3b8' : Colors.textSecondary,
+    cardBg: isDarkMode ? '#1e293b' : Colors.white,
+    cardBorder: isDarkMode ? '#334155' : '#e2e8f0',
+    buttonBg: isDarkMode ? '#334155' : '#f1f5f9',
+    buttonBorder: isDarkMode ? '#475569' : '#e5e7eb',
+    searchBg: isDarkMode ? '#1e293b' : Colors.white,
+    searchBorder: isDarkMode ? '#334155' : '#e5e7eb',
+    paginationBg: isDarkMode ? '#0f172a' : '#f8fbff',
+    paginationBorder: isDarkMode ? '#334155' : '#e5e7eb',
+    divider: isDarkMode ? '#334155' : '#eef2f7',
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.containerBg }]}>
       {/* Custom Header with Brand Info */}
       <LinearGradient
-        colors={['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
+        colors={isDarkMode ? ['rgba(30,41,59,0.5)', 'rgba(15,23,42,0)'] : ['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[styles.customHeader, { paddingTop: insets.top }]}
+        style={[styles.customHeader, { paddingTop: insets.top, backgroundColor: themeColors.headerBg, borderBottomColor: themeColors.headerBorder }]}
       >
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={onBack} style={styles.backIconButton}>
-            <Ionicons name="chevron-back" size={24} color={Colors.text} />
+          <TouchableOpacity onPress={onBack} style={[styles.backIconButton, { backgroundColor: themeColors.buttonBg, borderColor: themeColors.buttonBorder }]}>
+            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
 
           <View style={styles.brandHeaderContent}>
-            <View style={styles.brandLogoHeader}>
+            <View style={[styles.brandLogoHeader, { borderColor: Colors.sky }]}>
               {getBrandLogo() ? (
                 <Image source={{ uri: getBrandLogo() }} style={styles.brandLogoImageHeader} />
               ) : (
@@ -302,31 +319,31 @@ export default function ShopByBrandScreen({
             </View>
             <View style={styles.brandHeaderText}>
               <Text style={styles.brandHeaderLabel} numberOfLines={1}>Official Brand Store</Text>
-              <Text style={styles.brandHeaderName} numberOfLines={1}>{brand?.name || 'Brand'}</Text>
+              <Text style={[styles.brandHeaderName, { color: themeColors.text }]} numberOfLines={1}>{brand?.name || 'Brand'}</Text>
               {brand?.supplier_name ? (
-                <Text style={styles.brandHeaderSupplier} numberOfLines={1}>{brand.supplier_name}</Text>
+                <Text style={[styles.brandHeaderSupplier, { color: themeColors.textSecondary }]} numberOfLines={1}>{brand.supplier_name}</Text>
               ) : null}
               {brand?.tagline ? (
-                <Text style={styles.brandHeaderTagline} numberOfLines={1}>{brand.tagline}</Text>
+                <Text style={[styles.brandHeaderTagline, { color: themeColors.textSecondary }]} numberOfLines={1}>{brand.tagline}</Text>
               ) : null}
               <View style={styles.brandMetaRow}>
                 {brand?.total_products !== undefined ? (
-                  <Text style={styles.brandHeaderProducts} numberOfLines={1}>{brand.total_products} listed</Text>
+                  <Text style={[styles.brandHeaderProducts, { color: themeColors.textSecondary }]} numberOfLines={1}>{brand.total_products} listed</Text>
                 ) : null}
-                <Text style={styles.brandMetaDot}>•</Text>
-                <Text style={styles.brandHeaderProducts} numberOfLines={1}>{totalProducts} matched</Text>
+                <Text style={[styles.brandMetaDot, { color: themeColors.textSecondary }]}>•</Text>
+                <Text style={[styles.brandHeaderProducts, { color: themeColors.textSecondary }]} numberOfLines={1}>{totalProducts} matched</Text>
                 {brandId ? (
                   <>
-                    <Text style={styles.brandMetaDot}>•</Text>
-                    <Text style={styles.brandHeaderProducts} numberOfLines={1}>ID #{brandId}</Text>
+                    <Text style={[styles.brandMetaDot, { color: themeColors.textSecondary }]}>•</Text>
+                    <Text style={[styles.brandHeaderProducts, { color: themeColors.textSecondary }]} numberOfLines={1}>ID #{brandId}</Text>
                   </>
                 ) : null}
               </View>
             </View>
           </View>
 
-          <TouchableOpacity onPress={onCartPress} style={styles.cartIconButton}>
-            <Ionicons name="cart-outline" size={22} color={Colors.text} />
+          <TouchableOpacity onPress={onCartPress} style={[styles.cartIconButton, { backgroundColor: themeColors.buttonBg, borderColor: themeColors.buttonBorder }]}>
+            <Ionicons name="cart-outline" size={22} color={themeColors.text} />
             {cartCount > 0 && (
               <View style={styles.cartBadgeHeader}>
                 <Text style={styles.cartBadgeTextHeader}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -336,25 +353,25 @@ export default function ShopByBrandScreen({
         </View>
 
         <View style={styles.searchRow}>
-          <View style={styles.searchWrapper}>
-            <Ionicons name="search-outline" size={16} color={Colors.textSecondary} style={styles.searchIconLeft} />
+          <View style={[styles.searchWrapper, { backgroundColor: themeColors.searchBg, borderColor: themeColors.searchBorder }]}>
+            <Ionicons name="search-outline" size={16} color={themeColors.textSecondary} style={styles.searchIconLeft} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: themeColors.text }]}
               placeholder="Search products in this brand"
-              placeholderTextColor={Colors.textSecondary}
+              placeholderTextColor={themeColors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
             {!!searchQuery && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
-                <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                <Ionicons name="close-circle" size={16} color={themeColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
 
-          <TouchableOpacity style={styles.filterIconButton} activeOpacity={0.7}>
-            <Ionicons name="options-outline" size={20} color={Colors.text} />
+          <TouchableOpacity style={[styles.filterIconButton, { backgroundColor: themeColors.buttonBg, borderColor: themeColors.buttonBorder }]} activeOpacity={0.7}>
+            <Ionicons name="options-outline" size={20} color={themeColors.text} />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -369,10 +386,10 @@ export default function ShopByBrandScreen({
         showsVerticalScrollIndicator={false}
       >
         {featuredProducts.length > 0 && (
-          <View style={styles.featuredSection}>
-            <View style={styles.featuredHeaderRow}>
-              <Text style={styles.featuredTitle}>Featured Products</Text>
-              <Text style={styles.featuredSubtitle}>Top picks from this brand</Text>
+          <View style={[styles.featuredSection, { backgroundColor: themeColors.cardBg, borderColor: themeColors.cardBorder }]}>
+            <View style={[styles.featuredHeaderRow, { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.featuredTitle, { color: themeColors.text }]}>Featured Products</Text>
+              <Text style={[styles.featuredSubtitle, { color: themeColors.textSecondary }]}>Top picks from this brand</Text>
             </View>
             <ScrollView
               horizontal
@@ -409,23 +426,23 @@ export default function ShopByBrandScreen({
           </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={48} color={Colors.textSecondary} />
-            <Text style={styles.emptyText}>No products found</Text>
+            <Ionicons name="cube-outline" size={48} color={themeColors.textSecondary} />
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No products found</Text>
           </View>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <View style={styles.paginationContainer}>
+          <View style={[styles.paginationContainer, { backgroundColor: themeColors.paginationBg, borderTopColor: themeColors.paginationBorder }]}>
             <Pressable
               onPress={handlePreviousPage}
               disabled={currentPage === 1}
-              style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+              style={[styles.paginationButton, { backgroundColor: currentPage === 1 ? themeColors.buttonBg : isDarkMode ? '#0e4a6b' : '#f0f9ff', borderColor: currentPage === 1 ? themeColors.buttonBorder : Colors.sky }, currentPage === 1 && styles.paginationButtonDisabled]}
             >
               <Ionicons
                 name="chevron-back"
                 size={20}
-                color={currentPage === 1 ? Colors.textSecondary : Colors.sky}
+                color={currentPage === 1 ? themeColors.textSecondary : Colors.sky}
               />
               <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
                 Previous
@@ -433,7 +450,7 @@ export default function ShopByBrandScreen({
             </Pressable>
 
             <View style={styles.pageInfo}>
-              <Text style={styles.pageNumber}>
+              <Text style={[styles.pageNumber, { color: themeColors.text }]}>
                 Page {currentPage} of {totalPages}
               </Text>
             </View>
@@ -441,7 +458,7 @@ export default function ShopByBrandScreen({
             <Pressable
               onPress={handleNextPage}
               disabled={currentPage >= totalPages}
-              style={[styles.paginationButton, currentPage >= totalPages && styles.paginationButtonDisabled]}
+              style={[styles.paginationButton, { backgroundColor: currentPage >= totalPages ? themeColors.buttonBg : isDarkMode ? '#0e4a6b' : '#f0f9ff', borderColor: currentPage >= totalPages ? themeColors.buttonBorder : Colors.sky }, currentPage >= totalPages && styles.paginationButtonDisabled]}
             >
               <Text style={[styles.paginationButtonText, currentPage >= totalPages && styles.paginationButtonTextDisabled]}>
                 Next
@@ -449,7 +466,7 @@ export default function ShopByBrandScreen({
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={currentPage >= totalPages ? Colors.textSecondary : Colors.sky}
+                color={currentPage >= totalPages ? themeColors.textSecondary : Colors.sky}
               />
             </Pressable>
           </View>
@@ -462,14 +479,11 @@ export default function ShopByBrandScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fbff',
   },
   customHeader: {
     paddingTop: 18,
     paddingBottom: 16,
-    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0f2fe',
   },
   headerContent: {
     flexDirection: 'row',
@@ -488,9 +502,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 20,
     paddingHorizontal: 12,
     height: 40,
@@ -501,7 +513,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: Colors.text,
     paddingVertical: 0,
   },
   clearSearchButton: {
@@ -513,9 +524,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   backIconButton: {
     width: 38,
@@ -523,9 +532,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   brandHeaderContent: {
     flex: 1,
@@ -612,9 +619,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     position: 'relative',
   },
   cartBadgeHeader: {
@@ -655,16 +660,13 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
     paddingHorizontal: 8,
-    backgroundColor: Colors.white,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   featuredHeaderRow: {
     paddingHorizontal: 4,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
     paddingBottom: 8,
   },
   featuredTitle: {
@@ -703,15 +705,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: Colors.textSecondary,
   },
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fbff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 12,
@@ -724,13 +723,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#f0f9ff',
     borderWidth: 1,
-    borderColor: Colors.sky,
   },
   paginationButtonDisabled: {
-    backgroundColor: '#f3f4f6',
-    borderColor: '#e5e7eb',
   },
   paginationButtonText: {
     fontSize: 13,
@@ -748,6 +743,5 @@ const styles = StyleSheet.create({
   pageNumber: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.text,
   },
 });
