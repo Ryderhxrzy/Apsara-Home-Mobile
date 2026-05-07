@@ -48,6 +48,7 @@ const REFERRAL_STATS = [
 
 const PURCHASE_ITEMS = [
   { icon: 'wallet-outline' as const, label: 'Paid' },
+  { icon: 'hourglass-outline' as const, label: 'Processing' },
   { icon: 'cube-outline' as const, label: 'To Ship' },
   { icon: 'car-outline' as const, label: 'To Receive' },
   { icon: 'star-outline' as const, label: 'To Rate' },
@@ -87,6 +88,14 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       type: 'success',
       text1: 'Link Copied',
       text2: 'Referral link copied to clipboard',
+    });
+  };
+
+  const handlePurchaseItemClick = (label: string) => {
+    Toast.show({
+      type: 'info',
+      text1: label,
+      text2: 'Purchase history for ' + label,
     });
   };
 
@@ -263,16 +272,26 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <View style={styles.purchasesGrid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={true}
+            contentContainerStyle={styles.purchasesGrid}
+            scrollEnabled={true}
+          >
             {PURCHASE_ITEMS.map((item) => (
-              <TouchableOpacity key={item.label} style={styles.purchaseItem} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={item.label}
+                style={styles.purchaseItem}
+                activeOpacity={0.7}
+                onPress={() => handlePurchaseItemClick(item.label)}
+              >
                 <View style={styles.purchaseIconContainer}>
                   <Ionicons name={item.icon} size={24} color={Colors.sky} />
                 </View>
                 <Text style={styles.purchaseLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* My Referrals */}
@@ -294,41 +313,41 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               )}
             </TouchableOpacity>
           </View>
-          <View style={styles.purchasesGrid}>
+          <View style={styles.referralsGrid}>
             {referralTree ? (
               <>
                 <TouchableOpacity
-                  style={styles.purchaseItem}
+                  style={styles.referralItem}
                   activeOpacity={0.7}
                   onPress={handleViewNetwork}
                 >
-                  <View style={styles.purchaseIconContainer}>
-                    <Ionicons name="people-outline" size={22} color={Colors.sky} />
+                  <View style={[styles.referralIconContainer, { backgroundColor: '#e0f2fe' }]}>
+                    <Ionicons name="people-outline" size={28} color={Colors.sky} />
                   </View>
-                  <Text style={styles.referralValue}>{referralTree.summary.total_network}</Text>
-                  <Text style={styles.purchaseLabel}>Total</Text>
+                  <Text style={styles.referralItemValue}>{referralTree.summary.total_network}</Text>
+                  <Text style={styles.referralItemLabel}>Total</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.purchaseItem}
+                  style={styles.referralItem}
                   activeOpacity={0.7}
                   onPress={handleViewNetwork}
                 >
-                  <View style={styles.purchaseIconContainer}>
-                    <Ionicons name="time-outline" size={22} color={Colors.sky} />
+                  <View style={[styles.referralIconContainer, { backgroundColor: '#fef3c7' }]}>
+                    <Ionicons name="person-outline" size={28} color="#f59e0b" />
                   </View>
-                  <Text style={styles.referralValue}>{referralTree.summary.direct_count}</Text>
-                  <Text style={styles.purchaseLabel}>Direct</Text>
+                  <Text style={styles.referralItemValue}>{referralTree.summary.direct_count}</Text>
+                  <Text style={styles.referralItemLabel}>Direct</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.purchaseItem}
+                  style={styles.referralItem}
                   activeOpacity={0.7}
                   onPress={handleViewNetwork}
                 >
-                  <View style={styles.purchaseIconContainer}>
-                    <Ionicons name="cash-outline" size={22} color={Colors.sky} />
+                  <View style={[styles.referralIconContainer, { backgroundColor: '#dcfce7' }]}>
+                    <Ionicons name="cash-outline" size={28} color="#16a34a" />
                   </View>
-                  <Text style={styles.referralValue}>₱{referralTree.root.total_earnings}</Text>
-                  <Text style={styles.purchaseLabel}>Earned</Text>
+                  <Text style={styles.referralItemValue}>₱{referralTree.root.total_earnings}</Text>
+                  <Text style={styles.referralItemLabel}>Earned</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -818,11 +837,14 @@ const styles = StyleSheet.create({
   purchasesGrid: {
     flexDirection: 'row',
     paddingVertical: 16,
+    paddingHorizontal: 8,
+    gap: 8,
+    justifyContent: 'flex-start',
   },
   purchaseItem: {
-    flex: 1,
     alignItems: 'center',
     gap: 8,
+    width: 80,
   },
   purchaseIconContainer: {
     width: 40,
@@ -842,6 +864,38 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.text,
     marginTop: -2,
+  },
+
+  // ── My Referrals ──
+  referralsGrid: {
+    flexDirection: 'row',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    gap: 0,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  referralItem: {
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  referralIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referralItemValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  referralItemLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
   },
 
   // ── QR Section ──
