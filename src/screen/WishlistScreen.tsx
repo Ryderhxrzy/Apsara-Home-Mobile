@@ -18,6 +18,7 @@ import { API_CONFIG } from '../config/api';
 import ItemList from '../components/Items/ItemList';
 import AddToCartModal from '../components/Items/AddToCartModal';
 import MultipleItemsCartModal from '../components/Items/MultipleItemsCartModal';
+import ConfirmationModal from '../components/ConfirmationModal/ConfirmationModal';
 import { ChatBotIcon } from '../components/ChatBot';
 
 interface WishlistItem {
@@ -60,6 +61,8 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
   const [selectedVariant, setSelectedVariant] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+  const [confirmDeleteModal, setConfirmDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : Colors.white,
@@ -277,15 +280,27 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
     }
   };
 
-  const removeFromWishlist = async (wishlistId: number) => {
+  const removeFromWishlist = (wishlistId: number) => {
     if (deletingIds.has(wishlistId)) return;
-    
+
+    const wishlistItem = wishlist.find(item => item.wishlist_id === wishlistId);
+    const productName = wishlistItem?.product.name || 'Item';
+
+    setItemToDelete({ id: wishlistId, name: productName });
+    setConfirmDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    const { id: wishlistId, name: productName } = itemToDelete;
+
     try {
       setDeletingIds(prev => new Set(prev).add(wishlistId));
-      
+      setConfirmDeleteModal(false);
+
       const wishlistItem = wishlist.find(item => item.wishlist_id === wishlistId);
       const productId = wishlistItem?.product.id;
-      const productName = wishlistItem?.product.name || 'Item';
 
       // Call DELETE API to remove from wishlist
       if (token && productId) {
@@ -315,6 +330,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
         next.delete(wishlistId);
         return next;
       });
+      setItemToDelete(null);
     }
   };
 
@@ -530,6 +546,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
             images={[selectedProduct.product.image || '']}
             selectedVariant={selectedVariant}
             quantity={quantity}
+            isDarkMode={isDarkMode}
             onClose={() => {
               setShowAddToCartModal(false);
               setSelectedProduct(null);
@@ -549,6 +566,22 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
           />
         )}
       </Modal>
+
+      {/* Confirmation Delete Modal */}
+      <ConfirmationModal
+        visible={confirmDeleteModal}
+        title="Remove from Wishlist"
+        message={`Are you sure you want to remove "${itemToDelete?.name}" from your wishlist?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        isDestructive={true}
+        isDarkMode={isDarkMode}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setConfirmDeleteModal(false);
+          setItemToDelete(null);
+        }}
+      />
     </View>
 
     {/* Chat Bot Icon */}
