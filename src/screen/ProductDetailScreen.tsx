@@ -1697,6 +1697,7 @@ export default function ProductDetailScreen({
         }}
         onAddToCart={addToCart}
         loading={addingToCart}
+        isDarkMode={isDarkMode}
       />
 
       <AddToCartModal
