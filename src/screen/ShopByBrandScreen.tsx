@@ -60,6 +60,7 @@ interface ShopByBrandScreenProps {
   onCartPress?: () => void;
   wishlistItems?: any[];
   onWishlistChange?: () => void;
+  isDarkMode?: boolean;
 }
 
 export default function ShopByBrandScreen({
@@ -74,6 +75,7 @@ export default function ShopByBrandScreen({
   onCartPress = () => {},
   wishlistItems = [],
   onWishlistChange = () => {},
+  isDarkMode = false,
 }: ShopByBrandScreenProps) {
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -210,6 +212,7 @@ export default function ShopByBrandScreen({
         <ItemCard
           product={productCard}
           token={token}
+          isDarkMode={isDarkMode}
           onPress={(product) => onProductPress(product.id)}
           isWishlisted={!!wishlistItem}
           wishlistId={wishlistItem?.wishlist_id}
@@ -243,6 +246,7 @@ export default function ShopByBrandScreen({
         <ItemCard
           product={productCard}
           token={token}
+          isDarkMode={isDarkMode}
           onPress={(product) => onProductPress(product.id)}
           isWishlisted={!!wishlistItem}
           wishlistId={wishlistItem?.wishlist_id}
