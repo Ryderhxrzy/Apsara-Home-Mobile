@@ -37,6 +37,7 @@ interface ProductDetailScreenProps {
   onSearch?: () => void;
   onCartUpdate?: () => void;
   onWishlistToggle?: (productId: number, isWishlisted: boolean) => void;
+  onShopNavigate?: (brandType: number, shopName: string) => void;
   user?: {
     name?: string;
     avatar_url?: string;
@@ -100,6 +101,7 @@ export default function ProductDetailScreen({
   onSearch,
   onCartUpdate,
   onWishlistToggle,
+  onShopNavigate,
   user,
   cartCount = 0,
   wishlistItems = [],
@@ -132,6 +134,8 @@ export default function ProductDetailScreen({
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [showAddToCartModal, setShowAddToCartModal] = useState(false);
+  const [youMayAlsoLike, setYouMayAlsoLike] = useState<ProductCard[]>([]);
+  const [visibleYouMayAlsoLikeCount, setVisibleYouMayAlsoLikeCount] = useState(8);
 
   useEffect(() => {
     console.log(`🎯 ProductDetailScreen mounted for product ID: ${productId}`);
@@ -166,6 +170,8 @@ export default function ProductDetailScreen({
     setLoading(true);
     setProduct(null);
     setRelatedProducts([]);
+    setYouMayAlsoLike([]);
+    setVisibleYouMayAlsoLikeCount(8);
     setBrandProfile(null);
     setActiveImage(0);
     setDescriptionExpanded(false);
@@ -189,7 +195,7 @@ export default function ProductDetailScreen({
         if (data.variants && data.variants.length > 0) {
           setSelectedVariant(data.variants[0].id);
         }
-        
+
         // Fetch brand profile if brandType is available
         if (data.brandType && token) {
           try {
@@ -226,6 +232,23 @@ export default function ProductDetailScreen({
                 .slice(0, 8)
                 .map(toProductCard);
               setRelatedProducts(cards);
+            })
+            .catch(() => {});
+        }
+
+        // Fetch "You May Also Like" products
+        if (token) {
+          productService.getProducts(token)
+            .then(items => {
+              if (!active) return;
+              // Filter out current product and shuffle
+              const filteredItems = items.filter(p => p.id !== productId);
+              const shuffled = filteredItems.sort(() => Math.random() - 0.5);
+              // Take at least 20 items for lazy loading
+              const cards = shuffled
+                .slice(0, Math.max(20, shuffled.length))
+                .map(toProductCard);
+              setYouMayAlsoLike(cards);
             })
             .catch(() => {});
         }
@@ -292,7 +315,17 @@ export default function ProductDetailScreen({
 
   const handleScrollEvent = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollY = event.nativeEvent.contentOffset.y;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    const scrollViewHeight = event.nativeEvent.layoutMeasurement.height;
+
     setShowHeaderOnScroll(scrollY > 100);
+
+    // Auto-load more items when user scrolls near bottom
+    if (contentHeight - scrollY - scrollViewHeight < 500) {
+      if (visibleYouMayAlsoLikeCount < youMayAlsoLike.length) {
+        setVisibleYouMayAlsoLikeCount(prev => Math.min(prev + 8, youMayAlsoLike.length));
+      }
+    }
   };
 
   useEffect(() => {
@@ -1300,7 +1333,15 @@ export default function ProductDetailScreen({
                     </View>
                   </View>
                 </View>
-                <TouchableOpacity style={[styles.chatButton, { backgroundColor: isDarkMode ? '#111827' : '#f0f9ff' }]} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[styles.chatButton, { backgroundColor: isDarkMode ? '#111827' : '#f0f9ff' }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (product && onShopNavigate) {
+                      onShopNavigate(product.brandType, brandProfile?.name || '');
+                    }
+                  }}
+                >
                   <Ionicons name="chevron-forward" size={20} color={Colors.sky} />
                 </TouchableOpacity>
               </View>
@@ -1323,6 +1364,39 @@ export default function ProductDetailScreen({
                   ))}
                 </View>
               </ScrollView>
+            </View>
+          )}
+
+          {/* You May Also Like Section - With Lazy Loading */}
+          {youMayAlsoLike.length > 0 && (
+            <View style={[styles.youMayAlsoLikeSection, { backgroundColor: colors.card }]}>
+              <View style={[styles.youMayAlsoLikeHeader, { borderTopColor: colors.divider, borderBottomColor: colors.divider }]}>
+                <View style={[styles.youMayAlsoLikeBorder, { backgroundColor: colors.divider }]} />
+                <Text style={[styles.youMayAlsoLikeTitle, { color: colors.text }]}>You May Also Like</Text>
+                <View style={[styles.youMayAlsoLikeBorder, { backgroundColor: colors.divider }]} />
+              </View>
+              <View style={styles.youMayAlsoLikeMasonryGrid}>
+                <View style={styles.youMayAlsoLikeMasonryColumn}>
+                  {youMayAlsoLike
+                    .slice(0, visibleYouMayAlsoLikeCount)
+                    .filter((_, i) => i % 2 === 0)
+                    .map(p => (
+                      <View key={p.id} style={styles.youMayAlsoLikeItem}>
+                        <ItemCard product={p} onPress={item => onProductPress?.(item.id)} isDarkMode={isDarkMode} />
+                      </View>
+                    ))}
+                </View>
+                <View style={styles.youMayAlsoLikeMasonryColumn}>
+                  {youMayAlsoLike
+                    .slice(0, visibleYouMayAlsoLikeCount)
+                    .filter((_, i) => i % 2 === 1)
+                    .map(p => (
+                      <View key={p.id} style={styles.youMayAlsoLikeItem}>
+                        <ItemCard product={p} onPress={item => onProductPress?.(item.id)} isDarkMode={isDarkMode} />
+                      </View>
+                    ))}
+                </View>
+              </View>
             </View>
           )}
         </ScrollView>
@@ -3263,5 +3337,44 @@ const styles = StyleSheet.create({
   stockOutOfStock: {
     color: '#ef4444',
     fontWeight: '600',
+  },
+  youMayAlsoLikeSection: {
+    paddingHorizontal: 0,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 0,
+  },
+  youMayAlsoLikeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  youMayAlsoLikeBorder: {
+    flex: 1,
+    height: 1,
+  },
+  youMayAlsoLikeTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  youMayAlsoLikeMasonryGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 0,
+  },
+  youMayAlsoLikeMasonryColumn: {
+    flex: 1,
+    gap: 8,
+  },
+  youMayAlsoLikeItem: {
+    width: '100%',
   },
 });
