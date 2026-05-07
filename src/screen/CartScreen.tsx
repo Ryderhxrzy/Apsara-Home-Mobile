@@ -68,9 +68,10 @@ interface CartScreenProps {
   onProductPress?: (productId: number) => void;
   onProfilePress?: () => void;
   wishlistCount?: number;
+  isDarkMode?: boolean;
 }
 
-export default function CartScreen({ token, user, onCheckout, onBack, onProductPress, onProfilePress, wishlistCount = 0 }: CartScreenProps) {
+export default function CartScreen({ token, user, onCheckout, onBack, onProductPress, onProfilePress, wishlistCount = 0, isDarkMode = false }: CartScreenProps) {
   const insets = useSafeAreaInsets();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,16 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
   const [updatingQuantity, setUpdatingQuantity] = useState<number | null>(null);
   const [removingItem, setRemovingItem] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<'new' | 'old'>('new');
+
+  const colors = {
+    bg: isDarkMode ? '#0f172a' : '#f8fbff',
+    containerBg: isDarkMode ? '#1f2937' : Colors.white,
+    text: isDarkMode ? '#f8fafc' : Colors.text,
+    textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
+    border: isDarkMode ? '#374151' : '#e5e7eb',
+    borderLight: isDarkMode ? '#475569' : '#f1f5f9',
+    cardBg: isDarkMode ? '#1e293b' : '#f8fafc',
+  };
 
   useEffect(() => {
     fetchCart();
