@@ -653,24 +653,41 @@ export default function ProductDetailScreen({
             </View>
                       </View>
 
-          {/* Price and Sold */}
-          <View style={styles.priceSoldContainer}>
-            <View style={styles.priceRow}>
-              <Text style={styles.currentPrice}>₱{(product.priceMember ?? 0).toLocaleString()}</Text>
-              {hasDiscount && (
-                <Text style={styles.originalPrice}>₱{(product.priceSrp ?? 0).toLocaleString()}</Text>
-              )}
-            </View>
-            {product.soldCount > 0 && (
-              <View style={styles.soldRow}>
-                <Ionicons name="bag-check-outline" size={12} color={Colors.textSecondary} />
-                <Text style={styles.soldText}>{product.soldCount} sold</Text>
+          {/* Price and Badges Section */}
+          <View style={styles.priceAndBadgesSection}>
+            {/* Price Card */}
+            <View style={styles.priceCard}>
+              <View style={styles.priceRow}>
+                <View style={styles.priceContent}>
+                  <Text style={styles.priceLabel}>Price</Text>
+                  <View style={styles.priceDisplayRow}>
+                    <Text style={styles.currentPrice}>₱{(product.priceMember ?? 0).toLocaleString()}</Text>
+                    {hasDiscount && (
+                      <>
+                        <Text style={styles.originalPrice}>₱{(product.priceSrp ?? 0).toLocaleString()}</Text>
+                        <View style={styles.discountBadgeSmall}>
+                          <Text style={styles.discountBadgeText}>{discountPct}% OFF</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                </View>
+                {product.soldCount > 0 && (
+                  <View style={styles.soldInfoCard}>
+                    <Ionicons name="bag-check-outline" size={16} color={Colors.sky} />
+                    <View>
+                      <Text style={styles.soldLabelSmall}>Sold</Text>
+                      <Text style={styles.soldCountSmall}>{product.soldCount}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
+            </View>
 
-          {/* Badges */}
-          <View style={styles.badgesRow}>
+            {/* Badges Section */}
+            <View style={styles.badgesCard}>
+              <Text style={styles.badgesLabel}>Benefits & Info</Text>
+              <View style={styles.badgesRow}>
             <LinearGradient
               colors={[Colors.sky, Colors.skyDark]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -702,6 +719,8 @@ export default function ProductDetailScreen({
                 <Text style={styles.badgeLabel}>{b.label}</Text>
               </LinearGradient>
             ))}
+              </View>
+            </View>
           </View>
 
           {/* Product Name and Details */}
@@ -1812,11 +1831,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   badgesRow: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   badge: {
     flexDirection: 'row',
@@ -1874,6 +1891,90 @@ const styles = StyleSheet.create({
   relatedCard: {
     width: 220,
     height: 380, // Increased height to accommodate tallest item
+  },
+  priceAndBadgesSection: {
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  priceCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  priceContent: {
+    flex: 1,
+    gap: 8,
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  priceDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  discountBadgeSmall: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  discountBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ef4444',
+  },
+  soldInfoCard: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.sky,
+    minWidth: 80,
+  },
+  soldLabelSmall: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  soldCountSmall: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.sky,
+  },
+  badgesCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    gap: 12,
+  },
+  badgesLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   priceSoldContainer: {
     paddingHorizontal: 8,
