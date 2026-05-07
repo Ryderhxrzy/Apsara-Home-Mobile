@@ -832,6 +832,36 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               {TABS.map(key => {
               const active = activeTab === key;
 
+            if (key === 'home') {
+              return (
+                <Pressable key={key} style={styles.navItem} onPress={() => navigateTo(key)}>
+                  <View style={styles.indicator}>
+                    {active && <View style={styles.indicatorLine} />}
+                  </View>
+                  <View style={[styles.iconWrap, { alignItems: 'center', justifyContent: 'center' }]}>
+                    <Image
+                      source={require('../../assets/home_logo.png')}
+                      style={[
+                        styles.homeLogoImage,
+                        {
+                          opacity: active ? 1 : 0.6,
+                          tintColor: active ? (isDarkMode ? '#38bdf8' : Colors.sky) : (isDarkMode ? '#d1d5db' : Colors.textSecondary),
+                        }
+                      ]}
+                    />
+                  </View>
+                  <Text style={[
+                    styles.navLabel,
+                    active && styles.navLabelActive,
+                    isDarkMode && styles.navLabelDark,
+                    isDarkMode && active && styles.navLabelActiveDark,
+                  ]}>
+                    {labelMap[key]}
+                  </Text>
+                </Pressable>
+              );
+            }
+
             if (key === 'shop') {
               return (
                 <Pressable key={key} style={styles.shopItem} onPress={() => {
@@ -1129,6 +1159,11 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     position: 'relative',
+  },
+  homeLogoImage: {
+    width: 26,
+    height: 26,
+    resizeMode: 'contain',
   },
   badge: {
     position: 'absolute',

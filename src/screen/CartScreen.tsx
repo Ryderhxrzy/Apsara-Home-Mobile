@@ -424,16 +424,6 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
       <View style={styles.rowBack}>
         <TouchableOpacity
           style={[styles.backLeftBtn, styles.backLeftBtnLeft]}
-          onPress={() => handleRemoveItem(item.crt_id)}
-          disabled={removingItem === item.crt_id}
-        >
-          <View style={styles.deleteActionInner}>
-            <Ionicons name="trash-outline" size={20} color={Colors.white} />
-            <Text style={styles.backTextWhite}>Delete</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.backRightBtn, styles.backRightBtnRight]}
           onPress={() => {
             handleSelectItem(item.crt_id);
             onCheckout?.();
@@ -442,6 +432,16 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           <View style={styles.cartActionInner}>
             <Ionicons name="card-outline" size={20} color={Colors.white} />
             <Text style={styles.backTextWhite}>Checkout</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.backRightBtn, styles.backRightBtnRight]}
+          onPress={() => handleRemoveItem(item.crt_id)}
+          disabled={removingItem === item.crt_id}
+        >
+          <View style={styles.deleteActionInner}>
+            <Ionicons name="trash-outline" size={20} color={Colors.white} />
+            <Text style={styles.backTextWhite}>Delete</Text>
           </View>
         </TouchableOpacity>
       </View>
