@@ -11,6 +11,7 @@ import PrimaryButton from '../components/Button/PrimaryButton';
 import OutlineButton from '../components/Button/OutlineButton';
 import { referralService, ReferralTree } from '../services/referralService';
 import { accountService } from '../services/accountService';
+import { orderService } from '../services/orderService';
 import LevelProgress from '../components/LevelProgress/LevelProgress';
 import ReferralNetworkScreen from './ReferralNetworkScreen';
 import ProfileDetailsScreen from './ProfileDetailsScreen';
@@ -47,11 +48,11 @@ const REFERRAL_STATS = [
 ];
 
 const PURCHASE_ITEMS = [
-  { icon: 'wallet-outline' as const, label: 'Paid' },
-  { icon: 'hourglass-outline' as const, label: 'Processing' },
-  { icon: 'cube-outline' as const, label: 'To Ship' },
-  { icon: 'car-outline' as const, label: 'To Receive' },
-  { icon: 'star-outline' as const, label: 'To Rate' },
+  { icon: 'time-outline' as const, label: 'Pending', key: 'pending' },
+  { icon: 'hourglass-outline' as const, label: 'Processing', key: 'processing' },
+  { icon: 'cube-outline' as const, label: 'To Ship', key: 'shipped' },
+  { icon: 'car-outline' as const, label: 'To Receive', key: 'shipped' },
+  { icon: 'checkmark-circle-outline' as const, label: 'Delivered', key: 'delivered' },
 ];
 
 const SOCIAL_ITEMS = [
@@ -75,6 +76,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
+  const [orderCounts, setOrderCounts] = useState<any>(null);
   const photoUrl = user?.avatar_url ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const firstName = user?.name?.split(' ')[0] ?? 'User';
@@ -99,6 +101,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     });
   };
 
+
   useEffect(() => {
     onShowProfileDetails?.(showProfileDetails);
   }, [showProfileDetails, onShowProfileDetails]);
@@ -111,6 +114,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     if (token) {
       fetchReferralTree();
       fetchLoyaltyData();
+      fetchOrderCounts();
     }
   }, [token]);
 
@@ -136,6 +140,17 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       setLoadingLoyalty(false);
     }
   };
+
+  const fetchOrderCounts = async () => {
+    if (!token) return;
+    try {
+      const data = await orderService.getOrderCounts(token);
+      setOrderCounts(data);
+    } catch (error: any) {
+      console.error('Error fetching order counts:', error);
+    }
+  };
+
 
   const handleViewNetwork = async () => {
     if (!referralTree) {
@@ -268,7 +283,14 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
           <View style={styles.purchasesHeader}>
             <Text style={styles.purchasesTitle}>My Purchases</Text>
             <TouchableOpacity style={styles.purchasesViewAll}>
-              <Text style={styles.purchasesViewAllText}>View Purchase History</Text>
+              <View style={styles.purchasesViewAllContainer}>
+                <Text style={styles.purchasesViewAllText}>View Purchase History</Text>
+                {orderCounts?.all !== undefined && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{orderCounts.all}</Text>
+                  </View>
+                )}
+              </View>
               <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -287,6 +309,13 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               >
                 <View style={styles.purchaseIconContainer}>
                   <Ionicons name={item.icon} size={24} color={Colors.sky} />
+                  {item.key && orderCounts?.[item.key] !== undefined && orderCounts[item.key] > 0 && (
+                    <View style={styles.itemCountBadge}>
+                      <Text style={styles.itemCountBadgeText}>
+                        {orderCounts[item.key] > 99 ? '99+' : orderCounts[item.key]}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.purchaseLabel}>{item.label}</Text>
               </TouchableOpacity>
@@ -600,6 +629,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
           />
         </View>
       )}
+
     </View>
 
     {/* Chat Bot Icon */}
@@ -827,19 +857,38 @@ const styles = StyleSheet.create({
   purchasesViewAll: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 6,
+  },
+  purchasesViewAllContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   purchasesViewAllText: {
     fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
+  countBadge: {
+    backgroundColor: Colors.error,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeText: {
+    fontSize: 10,
+    color: Colors.white,
+    fontWeight: '700',
+  },
   purchasesGrid: {
     flexDirection: 'row',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    gap: 8,
-    justifyContent: 'flex-start',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    gap: 10,
+    justifyContent: 'center',
   },
   purchaseItem: {
     alignItems: 'center',
@@ -853,6 +902,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  itemCountBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: Colors.error,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.white,
+  },
+  itemCountBadgeText: {
+    fontSize: 9,
+    color: Colors.white,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   purchaseLabel: {
     fontSize: 11,
@@ -1120,4 +1188,5 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     backgroundColor: Colors.white,
   },
+
 });
