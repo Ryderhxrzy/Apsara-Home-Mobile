@@ -45,9 +45,10 @@ interface WishlistScreenProps {
   onRefresh: () => void;
   onProductPress?: (id: number) => void;
   onCartUpdate?: () => void;
+  isDarkMode?: boolean;
 }
 
-export default function WishlistScreen({ token, wishlistItems, loading, refreshing, onRefresh, onProductPress, onCartUpdate }: WishlistScreenProps) {
+export default function WishlistScreen({ token, wishlistItems, loading, refreshing, onRefresh, onProductPress, onCartUpdate, isDarkMode = false }: WishlistScreenProps) {
   const [wishlist, setWishlist] = useState<WishlistItem[]>(wishlistItems);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [sortOrder, setSortOrder] = useState<'new' | 'old'>('new');
@@ -59,6 +60,15 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
   const [selectedVariant, setSelectedVariant] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+
+  const colors = {
+    bg: isDarkMode ? '#0f172a' : Colors.white,
+    text: isDarkMode ? '#f8fafc' : Colors.text,
+    textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
+    border: isDarkMode ? '#334155' : '#e5e7eb',
+    card: isDarkMode ? '#1e293b' : Colors.white,
+    hint: isDarkMode ? '#1e293b' : '#f9fafb',
+  };
 
   useEffect(() => {
     setWishlist(wishlistItems);
@@ -317,6 +327,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
       onProductPress={onProductPress}
       onRemove={removeFromWishlist}
       onSelect={handleSelectItem}
+      isDarkMode={isDarkMode}
       onAddToCart={(wishlistId) => {
         const product = wishlist.find(w => w.wishlist_id === wishlistId);
         if (product) {
@@ -365,7 +376,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.bg }]}>
         <ActivityIndicator size="large" color={Colors.sky} />
       </View>
     );
@@ -373,10 +384,10 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
 
   if (wishlist.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="heart-outline" size={64} color={Colors.textSecondary} />
-        <Text style={styles.emptyTitle}>No items in your wishlist</Text>
-        <Text style={styles.emptySubtitle}>Add items to your wishlist to save them for later</Text>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
+        <Ionicons name="heart-outline" size={64} color={colors.textSec} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>No items in your wishlist</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>Add items to your wishlist to save them for later</Text>
       </View>
     );
   }
@@ -385,50 +396,54 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <View style={styles.wrapper}>
-      <View style={styles.header}>
+    <View style={[styles.wrapper, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.selectAllBtn}
             onPress={handleSelectAll}
             activeOpacity={0.7}
           >
-            <View style={[styles.selectAllCheckbox, selectedItems.size > 0 && styles.selectAllCheckboxChecked]}>
+            <View style={[
+              styles.selectAllCheckbox,
+              selectedItems.size > 0 && styles.selectAllCheckboxChecked,
+              selectedItems.size === 0 && { borderColor: colors.border }
+            ]}>
               {selectedItems.size > 0 && (
                 <Ionicons name="checkmark" size={14} color={Colors.white} />
               )}
             </View>
-            <Text style={[styles.selectAllText, selectedItems.size > 0 && styles.selectAllTextActive]}>
+            <Text style={[styles.selectAllText, selectedItems.size > 0 && styles.selectAllTextActive, { color: selectedItems.size === 0 ? colors.textSec : Colors.sky }]}>
               {selectedItems.size > 0 ? `${selectedItems.size} selected` : 'Select All'}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.filterSection}>
             <TouchableOpacity
-              style={[styles.filterBtn, sortOrder === 'new' && styles.filterBtnActive]}
+              style={[styles.filterBtn, sortOrder === 'new' && styles.filterBtnActive, sortOrder !== 'new' && { backgroundColor: isDarkMode ? '#1e293b' : '#f3f4f6' }]}
               onPress={() => setSortOrder('new')}
             >
-              <Text style={[styles.filterText, sortOrder === 'new' && styles.filterTextActive]}>New</Text>
+              <Text style={[styles.filterText, sortOrder === 'new' && styles.filterTextActive, sortOrder !== 'new' && { color: colors.text }]}>New</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterBtn, sortOrder === 'old' && styles.filterBtnActive]}
+              style={[styles.filterBtn, sortOrder === 'old' && styles.filterBtnActive, sortOrder !== 'old' && { backgroundColor: isDarkMode ? '#1e293b' : '#f3f4f6' }]}
               onPress={() => setSortOrder('old')}
             >
-              <Text style={[styles.filterText, sortOrder === 'old' && styles.filterTextActive]}>Old</Text>
+              <Text style={[styles.filterText, sortOrder === 'old' && styles.filterTextActive, sortOrder !== 'old' && { color: colors.text }]}>Old</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterBtn, discountFilter === 'discount' && styles.filterBtnActive]}
+              style={[styles.filterBtn, discountFilter === 'discount' && styles.filterBtnActive, discountFilter !== 'discount' && { backgroundColor: isDarkMode ? '#1e293b' : '#f3f4f6' }]}
               onPress={() => setDiscountFilter(discountFilter === 'discount' ? 'all' : 'discount')}
             >
-              <Text style={[styles.filterText, discountFilter === 'discount' && styles.filterTextActive]}>On Sale</Text>
+              <Text style={[styles.filterText, discountFilter === 'discount' && styles.filterTextActive, discountFilter !== 'discount' && { color: colors.text }]}>On Sale</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      <View style={styles.swipeHint}>
-        <Ionicons name="information-circle-outline" size={14} color={Colors.textSecondary} />
-        <Text style={styles.swipeHintText}>
+      <View style={[styles.swipeHint, { backgroundColor: colors.hint, borderBottomColor: colors.border }]}>
+        <Ionicons name="information-circle-outline" size={14} color={colors.textSec} />
+        <Text style={[styles.swipeHintText, { color: colors.textSec }]}>
           Swipe <Text style={{ color: Colors.sky, fontWeight: '800' }}>right</Text> to add to cart, <Text style={{ color: '#ef4444', fontWeight: '800' }}>left</Text> to delete
         </Text>
       </View>
@@ -443,23 +458,23 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
         swipeToClosePercent={30}
         useNativeDriver={false}
         keyExtractor={(item) => item.wishlist_id.toString()}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { backgroundColor: colors.bg }]}
         scrollEnabled={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={[Colors.sky]}
-            tintColor={Colors.sky}
+            tintColor={isDarkMode ? '#fff' : Colors.sky}
           />
         }
       />
 
       {selectedItems.size > 0 && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           <View style={styles.totalSection}>
-            <Text style={styles.totalLabel}>Total ({selectedItems.size}):</Text>
-            <Text style={styles.totalPrice}>₱{getSelectedTotal().toLocaleString()}</Text>
+            <Text style={[styles.totalLabel, { color: colors.textSec }]}>Total ({selectedItems.size}):</Text>
+            <Text style={[styles.totalPrice, { color: colors.text }]}>₱{getSelectedTotal().toLocaleString()}</Text>
           </View>
           <TouchableOpacity
             style={[styles.checkoutBtn, loadingMultiple && { opacity: 0.6 }]}
@@ -537,7 +552,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
     </View>
 
     {/* Chat Bot Icon */}
-    <ChatBotIcon position="bottom-right" visible={true} />
+    <ChatBotIcon position="bottom-right" visible={true} isDarkMode={isDarkMode} />
     </View>
   );
 }
