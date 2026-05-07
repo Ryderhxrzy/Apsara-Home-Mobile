@@ -30,8 +30,17 @@ interface ChatMessage {
 
 const SHEET_OFFSET = 300;
 
+const BUBBLE_MESSAGES = [
+  "Hi, I'm your AI Assistant",
+  "Need help? Chat with us!",
+  "Ask me anything",
+  "How can I assist you?",
+  "Let's chat!",
+];
+
 export default function ChatBotIcon({ onPress, position = 'bottom-right', visible = true }: ChatBotIconProps) {
   const [chatVisible, setChatVisible] = useState(false);
+  const [bubbleMessageIndex, setBubbleMessageIndex] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -123,6 +132,14 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
       glowAnimation.stop();
     };
   }, [glowAnim]);
+
+  // Rotate bubble message every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBubbleMessageIndex(prev => (prev + 1) % BUBBLE_MESSAGES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const bounceAnimation = () => {
     Animated.sequence([
@@ -271,7 +288,31 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
   if (!visible) return null;
 
   return (
-    <>
+    <View style={styles.chatBotContainer}>
+      {/* Floating Message Bubble */}
+      {!chatVisible && (
+        <View
+          style={[
+            styles.messageBubbleContainer,
+            {
+              [position === 'bottom-right' ? 'right' : 'left']: 16,
+            },
+          ]}
+        >
+          <View style={styles.floatingMessageBubble}>
+            <Text style={styles.messageBubbleText}>
+              {BUBBLE_MESSAGES[bubbleMessageIndex]}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.bubblePointer,
+              position === 'bottom-right' ? styles.bubblePointerRight : styles.bubblePointerLeft,
+            ]}
+          />
+        </View>
+      )}
+
       {/* Floating Chat Button with Animations */}
       <Animated.View
         style={[
@@ -297,18 +338,6 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
             source={require('../../../assets/sir.png')}
             style={styles.chatButtonImage}
             resizeMode="contain"
-          />
-          {/* AI Thinking Glow */}
-          <Animated.View
-            style={[
-              styles.aiGlow,
-              {
-                opacity: glowAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 0.8],
-                }),
-              },
-            ]}
           />
           {messages.length > 1 && (
             <View style={styles.notificationBadge}>
@@ -399,11 +428,19 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
           </Animated.View>
         </Pressable>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  chatBotContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    left: 0,
+    top: 0,
+    pointerEvents: 'box-none',
+  },
   floatingButton: {
     position: 'absolute',
     bottom: 24,
@@ -419,7 +456,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: Colors.white,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.sky,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -427,31 +464,41 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
   },
+  aiGlow: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.sky,
+    zIndex: -1,
+  },
   messageBubbleContainer: {
     position: 'absolute',
-    bottom: 88,
-    alignItems: 'center',
-    marginBottom: 0,
+    bottom: 90,
     zIndex: 998,
+    flexDirection: 'column',
+    paddingHorizontal: 16,
   },
   floatingMessageBubble: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: Colors.white,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    maxWidth: 180,
+    maxWidth: 200,
+    borderWidth: 2,
+    borderColor: Colors.sky,
     elevation: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    overflow: 'hidden',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    overflow: 'visible',
   },
   messageBubbleText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.white,
-    lineHeight: 20,
+    color: Colors.text,
+    lineHeight: 18,
   },
   messageBubbleContent: {
     flexDirection: 'row',
@@ -462,25 +509,23 @@ const styles = StyleSheet.create({
     width: 0,
     height: 0,
     backgroundColor: 'transparent',
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 10,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 12,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#0ea5e9',
-    marginTop: -1,
+    borderTopColor: Colors.sky,
+    marginTop: -2,
   },
   bubblePointerLeft: {
-    alignSelf: 'flex-end',
-    marginRight: -3,
-    marginTop: -24,
-    transform: [{ rotate: '-90deg' }],
+    alignSelf: 'flex-start',
+    marginLeft: 24,
+    marginTop: -1,
   },
   bubblePointerRight: {
-    alignSelf: 'flex-start',
-    marginLeft: -3,
-    marginTop: -24,
-    transform: [{ rotate: '90deg' }],
+    alignSelf: 'flex-end',
+    marginRight: 24,
+    marginTop: -1,
   },
   notificationBadge: {
     position: 'absolute',
