@@ -7,7 +7,7 @@ export default function LoadingScreen() {
     <View style={styles.root}>
       <View style={styles.content}>
         <Image
-          source={require('../../assets/af_home_logo.png')}
+          source={require('../../assets/home_logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -30,9 +30,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 220,
-    height: 66,
-    marginBottom: 12,
+    width: 200,
+    height: 200,
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
