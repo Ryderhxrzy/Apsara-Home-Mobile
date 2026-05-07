@@ -55,6 +55,9 @@ function ItemCard({
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  // Debug logging
+  console.log(`🎨 ItemCard rendering: ${product.name} (ID: ${product.id})`);
+
   const colors = {
     bg: isDarkMode ? '#1e293b' : '#f8f9fa',
     border: isDarkMode ? '#334155' : '#e5e7eb',
@@ -125,8 +128,13 @@ function ItemCard({
     }
   }, [token, product.id, wishlisted, onWishlistToggle]);
 
+  const handlePress = () => {
+    console.log(`👆 ItemCard pressed: ${product.name} (ID: ${product.id})`);
+    onPress?.(product);
+  };
+
   return (
-    <TouchableOpacity style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }]} onPress={() => onPress?.(product)} activeOpacity={0.8}>
+    <TouchableOpacity style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }]} onPress={handlePress} activeOpacity={0.8}>
 
       {/* Image */}
       <View style={styles.imageContainer}>
@@ -261,7 +269,7 @@ function ItemCard({
 
         {/* Price */}
         <View style={styles.priceRow}>
-          <Text style={[styles.currentPrice]}>₱{displayPrice.toLocaleString()}</Text>
+          <Text style={[styles.currentPrice, { color: Colors.sky }]}>₱{displayPrice.toLocaleString()}</Text>
           {hasDiscount && (
             <Text style={[styles.originalPrice, { color: colors.textSec }]}>₱{(product.originalPrice || 0).toLocaleString()}</Text>
           )}
