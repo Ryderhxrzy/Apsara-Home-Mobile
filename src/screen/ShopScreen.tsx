@@ -49,6 +49,7 @@ interface ShopScreenProps {
   onOpenSearch?: () => void;
   wishlistItems?: any[];
   onWishlistChange?: () => void;
+  isDarkMode?: boolean;
 }
 
 function ShopScreen({
@@ -66,9 +67,22 @@ function ShopScreen({
   onOpenSearch = () => {},
   wishlistItems = [],
   onWishlistChange = () => {},
+  isDarkMode = false,
 }: ShopScreenProps) {
   const shopScreenLoadStartRef = useRef(Date.now());
   const flatListRef = useRef<FlatList>(null);
+
+  const colors = {
+    bg: isDarkMode ? '#0f172a' : Colors.white,
+    text: isDarkMode ? '#f8fafc' : Colors.text,
+    textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
+    border: isDarkMode ? '#334155' : '#e5e7eb',
+    card: isDarkMode ? '#1e293b' : Colors.white,
+    buttonBg: isDarkMode ? '#1e293b' : 'transparent',
+    paginationBg: isDarkMode ? '#1e293b' : '#f0f9ff',
+    paginationBgDisabled: isDarkMode ? '#0f172a' : '#f3f4f6',
+    paginationBorder: isDarkMode ? '#334155' : Colors.sky,
+  };
 
   useEffect(() => {
     console.log('🛍️ ShopScreen MOUNTED');
@@ -234,6 +248,7 @@ function ShopScreen({
         <ItemCard
           product={productCard}
           token={token}
+          isDarkMode={isDarkMode}
           onPress={(product) => onProductPress(product.id)}
           isWishlisted={!!wishlistItem}
           wishlistId={wishlistItem?.wishlist_id}
@@ -259,11 +274,12 @@ function ShopScreen({
   );
 
   const renderHeader = () => (
-    <View style={styles.filterInfoContainer}>
+    <View style={[styles.filterInfoContainer, { backgroundColor: isDarkMode ? '#1e293b' : 'transparent' }]}>
       <View style={styles.viewToggleWrapper}>
         <TouchableOpacity
           style={[
             styles.viewToggleButton,
+            { backgroundColor: isDarkMode && viewType !== 'grid' ? colors.buttonBg : 'transparent' },
             viewType === 'grid' && styles.viewToggleButtonActive,
           ]}
           onPress={() => setViewType('grid')}
@@ -271,11 +287,12 @@ function ShopScreen({
           <Ionicons
             name="apps-outline"
             size={14}
-            color={viewType === 'grid' ? Colors.white : Colors.text}
+            color={viewType === 'grid' ? Colors.white : colors.text}
           />
           <Text
             style={[
               styles.viewToggleText,
+              { color: viewType === 'grid' ? Colors.white : colors.text },
               viewType === 'grid' && styles.viewToggleTextActive,
             ]}
           >
@@ -286,6 +303,7 @@ function ShopScreen({
           style={[
             styles.viewToggleButton,
             styles.viewToggleButtonLast,
+            { backgroundColor: isDarkMode && viewType !== 'list' ? colors.buttonBg : 'transparent' },
             viewType === 'list' && styles.viewToggleButtonActive,
           ]}
           onPress={() => setViewType('list')}
@@ -293,11 +311,12 @@ function ShopScreen({
           <Ionicons
             name="reader-outline"
             size={14}
-            color={viewType === 'list' ? Colors.white : Colors.text}
+            color={viewType === 'list' ? Colors.white : colors.text}
           />
           <Text
             style={[
               styles.viewToggleText,
+              { color: viewType === 'list' ? Colors.white : colors.text },
               viewType === 'list' && styles.viewToggleTextActive,
             ]}
           >
@@ -307,7 +326,7 @@ function ShopScreen({
       </View>
 
       <View style={styles.productCountContainer}>
-        <Text style={styles.productCountInfo}>
+        <Text style={[styles.productCountInfo, { color: colors.textSec }]}>
           {paginationInfo.startProduct} to {paginationInfo.endProduct} of {paginationInfo.total} products
         </Text>
         {isTransitioning && (
@@ -324,9 +343,9 @@ function ShopScreen({
 
     if (currentPageProducts.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="cube-outline" size={48} color={Colors.textSecondary} />
-          <Text style={styles.emptyText}>No products found</Text>
+        <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
+          <Ionicons name="cube-outline" size={48} color={colors.textSec} />
+          <Text style={[styles.emptyText, { color: colors.textSec }]}>No products found</Text>
         </View>
       );
     }
@@ -355,29 +374,43 @@ function ShopScreen({
     if (currentPageProducts.length === 0) return null;
 
     return (
-      <View style={styles.paginationContainer}>
+      <View style={[styles.paginationContainer, { backgroundColor: colors.bg }]}>
         <Pressable
           onPress={handlePreviousPage}
           disabled={currentPage === 1}
-          style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+          style={[
+            styles.paginationButton,
+            {
+              backgroundColor: currentPage === 1 ? colors.paginationBgDisabled : colors.paginationBg,
+              borderColor: currentPage === 1 ? colors.border : colors.paginationBorder,
+            },
+            currentPage === 1 && styles.paginationButtonDisabled
+          ]}
         >
-          <Ionicons name="chevron-back" size={18} color={currentPage === 1 ? Colors.textSecondary : Colors.sky} />
-          <Text style={[styles.paginationText, currentPage === 1 && styles.paginationTextDisabled]}>Prev</Text>
+          <Ionicons name="chevron-back" size={18} color={currentPage === 1 ? colors.textSec : Colors.sky} />
+          <Text style={[styles.paginationText, { color: currentPage === 1 ? colors.textSec : Colors.sky }, currentPage === 1 && styles.paginationTextDisabled]}>Prev</Text>
         </Pressable>
 
-        <Text style={styles.paginationInfo}>
+        <Text style={[styles.paginationInfo, { color: colors.text }]}>
           {paginationInfo.currentPage} / {paginationInfo.totalPages}
         </Text>
 
         <Pressable
           onPress={handleNextPage}
           disabled={currentPage >= paginationInfo.totalPages}
-          style={[styles.paginationButton, currentPage >= paginationInfo.totalPages && styles.paginationButtonDisabled]}
+          style={[
+            styles.paginationButton,
+            {
+              backgroundColor: currentPage >= paginationInfo.totalPages ? colors.paginationBgDisabled : colors.paginationBg,
+              borderColor: currentPage >= paginationInfo.totalPages ? colors.border : colors.paginationBorder,
+            },
+            currentPage >= paginationInfo.totalPages && styles.paginationButtonDisabled
+          ]}
         >
-          <Text style={[styles.paginationText, currentPage >= paginationInfo.totalPages && styles.paginationTextDisabled]}>
+          <Text style={[styles.paginationText, { color: currentPage >= paginationInfo.totalPages ? colors.textSec : Colors.sky }, currentPage >= paginationInfo.totalPages && styles.paginationTextDisabled]}>
             Next
           </Text>
-          <Ionicons name="chevron-forward" size={18} color={currentPage >= paginationInfo.totalPages ? Colors.textSecondary : Colors.sky} />
+          <Ionicons name="chevron-forward" size={18} color={currentPage >= paginationInfo.totalPages ? colors.textSec : Colors.sky} />
         </Pressable>
       </View>
     );
@@ -385,10 +418,11 @@ function ShopScreen({
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={[]}>
       <AppHeader
         user={user}
         cartCount={cartCount}
+        isDarkMode={isDarkMode}
         onCartPress={onCartPress}
         onCameraPress={() => console.log('Camera pressed')}
         onSearchPress={onOpenSearch}
@@ -416,8 +450,8 @@ function ShopScreen({
 
       <FlatList
         ref={flatListRef}
-        style={styles.flatList}
-        contentContainerStyle={styles.flatListContent}
+        style={[styles.flatList, { backgroundColor: colors.bg }]}
+        contentContainerStyle={[styles.flatListContent, { backgroundColor: colors.bg }]}
         data={[{ type: 'header' }, { type: 'content' }, { type: 'footer' }]}
         renderItem={({ item }) => {
           if (item.type === 'header') return renderHeader();
@@ -428,14 +462,14 @@ function ShopScreen({
         keyExtractor={(item, index) => `${item.type}-${index}`}
         scrollEnabled={true}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={isDarkMode ? '#fff' : Colors.sky} />
         }
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
 
     {/* Chat Bot Icon */}
-    <ChatBotIcon position="bottom-right" visible={true} />
+    <ChatBotIcon position="bottom-right" visible={true} isDarkMode={isDarkMode} />
     </View>
   );
 }
