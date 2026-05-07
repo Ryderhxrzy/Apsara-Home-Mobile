@@ -54,6 +54,7 @@ interface AddToCartModalProps {
   onCheckout?: () => void;
   onProductPress?: (productId: number) => void;
   loading?: boolean;
+  isDarkMode?: boolean;
 }
 
 export default function AddToCartModal({
@@ -69,11 +70,23 @@ export default function AddToCartModal({
   onCheckout,
   onProductPress,
   loading = false,
+  isDarkMode = false,
 }: AddToCartModalProps) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [isClosing, setIsClosing] = useState(false);
   const scrollY = useRef(0);
+
+  const colors = {
+    bg: isDarkMode ? '#111827' : Colors.white,
+    containerBg: isDarkMode ? '#1f2937' : '#f9fafb',
+    text: isDarkMode ? '#f8fafc' : Colors.text,
+    textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
+    border: isDarkMode ? '#374151' : '#e5e7eb',
+    borderLight: isDarkMode ? '#1f2937' : '#f1f5f9',
+    dragHandle: isDarkMode ? '#4b5563' : '#cbd5e1',
+    imageBg: isDarkMode ? '#1f2937' : '#f1f5f9',
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -184,19 +197,19 @@ export default function AddToCartModal({
       <Animated.View
         style={[
           styles.shopeeModal,
-          { paddingBottom: 0, transform: [{ translateY: slideAnim }] },
+          { paddingBottom: 0, backgroundColor: colors.bg, transform: [{ translateY: slideAnim }] },
         ]}
         {...panResponder.panHandlers}
       >
         {/* Drag Handle */}
         <View style={styles.dragHandleContainer}>
-          <View style={styles.dragHandle} />
+          <View style={[styles.dragHandle, { backgroundColor: colors.dragHandle }]} />
         </View>
 
         {/* Header */}
-        <View style={styles.shopeeModalHeader}>
+        <View style={[styles.shopeeModalHeader, { backgroundColor: colors.bg, borderBottomColor: colors.borderLight }]}>
           <View style={{ width: 28 }} />
-          <Text style={styles.shopeeModalHeaderText}>Save to Cart</Text>
+          <Text style={[styles.shopeeModalHeaderText, { color: colors.text }]}>Save to Cart</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -217,7 +230,7 @@ export default function AddToCartModal({
             <View style={styles.shopeeProductCard}>
 
             {/* Image */}
-            <View style={styles.shopeeProductImage}>
+            <View style={[styles.shopeeProductImage, { backgroundColor: colors.imageBg }]}>
               <Image
                 source={{
                   uri: selectedVariant
@@ -241,7 +254,7 @@ export default function AddToCartModal({
             <View style={styles.shopeeProductInfo}>
               {/* Brand Name */}
               {product.brand && (
-                <Text style={styles.shopeeBrandName} numberOfLines={1}>
+                <Text style={[styles.shopeeBrandName, { color: colors.textSec }]} numberOfLines={1}>
                   {product.brand}
                 </Text>
               )}
@@ -249,7 +262,7 @@ export default function AddToCartModal({
                 onPress={() => product && onProductPress?.(product.id)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.shopeeProductName} numberOfLines={2}>
+                <Text style={[styles.shopeeProductName, { color: colors.text }]} numberOfLines={2}>
                   {product.name}
                 </Text>
               </TouchableOpacity>
@@ -266,7 +279,7 @@ export default function AddToCartModal({
                     />
                   ))}
                 </View>
-                <Text style={styles.shopeeRatingText}>({product.soldCount} sold)</Text>
+                <Text style={[styles.shopeeRatingText, { color: colors.textSec }]}>({product.soldCount} sold)</Text>
               </View>
 
               {/* PV Badge */}
@@ -278,9 +291,9 @@ export default function AddToCartModal({
               {/* Price Section */}
               <View style={styles.shopeePriceSection}>
                 <View>
-                  <Text style={styles.shopeePriceLabel}>Price</Text>
+                  <Text style={[styles.shopeePriceLabel, { color: colors.textSec }]}>Price</Text>
                   <View style={styles.shopeePriceRow}>
-                    <Text style={styles.shopeePrice}>
+                    <Text style={[styles.shopeePrice, { color: Colors.sky }]}>
                       ₱{(selectedVariant
                         ? (product.variants?.find(v => v.id === selectedVariant)?.priceMember ?? product.priceMember ?? 0)
                         : (product.priceMember ?? 0)).toLocaleString()}
@@ -290,7 +303,7 @@ export default function AddToCartModal({
                       : (product.priceSrp ?? 0)) > (selectedVariant
                         ? (product.variants?.find(v => v.id === selectedVariant)?.priceMember ?? 0)
                         : (product.priceMember ?? 0)) && (
-                      <Text style={styles.shopeeOriginalPrice}>
+                      <Text style={[styles.shopeeOriginalPrice, { color: colors.textSec }]}>
                         ₱{(selectedVariant
                           ? (product.variants?.find(v => v.id === selectedVariant)?.priceSrp ?? 0)
                           : (product.priceSrp ?? 0)).toLocaleString()}
@@ -304,13 +317,13 @@ export default function AddToCartModal({
             </LinearGradient>
 
           {/* Divider */}
-          <View style={styles.shopeeDivider} />
+          <View style={[styles.shopeeDivider, { backgroundColor: colors.borderLight }]} />
 
           {/* Variant Selection */}
           {(product.variants?.length ?? 0) > 0 && (
-            <View style={[styles.shopeeSection, { paddingHorizontal: 16 }]}>
+            <View style={[styles.shopeeSection, { paddingHorizontal: 16, backgroundColor: colors.bg, borderBottomColor: colors.borderLight }]}>
               <View style={styles.shopeeSectionHeader}>
-                <Text style={styles.shopeeSectionTitle}>Variant</Text>
+                <Text style={[styles.shopeeSectionTitle, { color: colors.text }]}>Variant</Text>
                 <Text style={styles.shopeeSectionRequired}>Required</Text>
               </View>
               <ScrollView
@@ -324,7 +337,8 @@ export default function AddToCartModal({
                       key={variant.id}
                       style={[
                         styles.shopeeVariantOption,
-                        selectedVariant === variant.id && styles.shopeeVariantOptionSelected
+                        { backgroundColor: colors.containerBg, borderColor: colors.border },
+                        selectedVariant === variant.id && { borderColor: Colors.sky, backgroundColor: isDarkMode ? '#1e293b' : '#f0f9ff' }
                       ]}
                       onPress={() => onSelectVariant(variant.id)}
                       activeOpacity={0.6}
@@ -342,7 +356,7 @@ export default function AddToCartModal({
                         ]} />
                       ) : null}
                       <Text
-                        style={styles.shopeeVariantOptionText}
+                        style={[styles.shopeeVariantOptionText, { color: colors.text }]}
                         numberOfLines={2}
                       >
                         {variant.color || variant.name || `Var ${index + 1}`}
@@ -355,20 +369,20 @@ export default function AddToCartModal({
           )}
 
           {/* Quantity Selection */}
-          <View style={[styles.shopeeSection, { paddingHorizontal: 16 }]}>
+          <View style={[styles.shopeeSection, { paddingHorizontal: 16, backgroundColor: colors.bg, borderBottomColor: colors.borderLight }]}>
             <View style={styles.shopeeSectionHeader}>
-              <Text style={styles.shopeeSectionTitle}>Quantity</Text>
+              <Text style={[styles.shopeeSectionTitle, { color: colors.text }]}>Quantity</Text>
             </View>
             <View style={styles.shopeeQuantityControl}>
               <TouchableOpacity
-                style={styles.shopeeQuantityBtn}
+                style={[styles.shopeeQuantityBtn, { backgroundColor: colors.containerBg, borderColor: colors.border }]}
                 onPress={() => quantity > 1 && onQuantityChange(quantity - 1)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="remove" size={18} color={Colors.text} />
+                <Ionicons name="remove" size={18} color={colors.text} />
               </TouchableOpacity>
               <TextInput
-                style={styles.shopeeQuantityInput}
+                style={[styles.shopeeQuantityInput, { backgroundColor: colors.containerBg, borderColor: colors.border, color: colors.text }]}
                 value={quantity.toString()}
                 onChangeText={(text) => {
                   const num = parseInt(text) || 1;
@@ -383,7 +397,7 @@ export default function AddToCartModal({
                 editable={false}
               />
               <TouchableOpacity
-                style={styles.shopeeQuantityBtn}
+                style={[styles.shopeeQuantityBtn, { backgroundColor: colors.containerBg, borderColor: colors.border }]}
                 onPress={() => {
                   const maxQty = selectedVariant
                     ? (product.variants?.find(v => v.id === selectedVariant)?.qty ?? product.qty)
@@ -394,17 +408,17 @@ export default function AddToCartModal({
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add" size={18} color={Colors.text} />
+                <Ionicons name="add" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Price Summary */}
-          <View style={[styles.shopeePriceSummary, { paddingHorizontal: 16 }]}>
+          <View style={[styles.shopeePriceSummary, { paddingHorizontal: 16, backgroundColor: colors.bg }]}>
             {/* Subtotal */}
-            <View style={[styles.shopeePriceSummaryRow, { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 8, marginTop: 8 }]}>
-              <Text style={styles.shopeePriceSummaryLabel}>Subtotal</Text>
-              <Text style={styles.shopeePriceSummaryValue}>
+            <View style={[styles.shopeePriceSummaryRow, { borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: 8, marginTop: 8 }]}>
+              <Text style={[styles.shopeePriceSummaryLabel, { color: colors.textSec }]}>Subtotal</Text>
+              <Text style={[styles.shopeePriceSummaryValue, { color: colors.text }]}>
                 ₱{(
                   quantity * (selectedVariant
                     ? (product.variants?.find(v => v.id === selectedVariant)?.priceMember ?? product.priceMember ?? 0)
@@ -414,14 +428,14 @@ export default function AddToCartModal({
             </View>
 
             <View style={styles.shopeePriceSummaryRow}>
-              <Text style={styles.shopeePriceSummaryLabel}>Shipping</Text>
-              <Text style={styles.shopeeShippingText}>See at checkout</Text>
+              <Text style={[styles.shopeePriceSummaryLabel, { color: colors.textSec }]}>Shipping</Text>
+              <Text style={[styles.shopeeShippingText, { color: colors.textSec }]}>See at checkout</Text>
             </View>
           </View>
         </ScrollView>
 
         {/* Bottom Buttons */}
-        <View style={[styles.shopeeCheckoutFooterGradient, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }]}>
+        <View style={[styles.shopeeCheckoutFooterGradient, { backgroundColor: colors.bg, borderTopColor: colors.borderLight, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }]}>
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.checkoutBtn, loading && { opacity: 0.6 }]}
@@ -487,7 +501,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '85%',
@@ -511,7 +524,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   shopeeModalHeaderText: {
     fontSize: 16,
@@ -538,7 +550,6 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
     overflow: 'hidden',
   },
   discountBadge: {
@@ -635,14 +646,12 @@ const styles = StyleSheet.create({
   },
   shopeeDivider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
     marginVertical: 12,
   },
   shopeeSection: {
     paddingHorizontal: 0,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   shopeeSectionHeader: {
     flexDirection: 'row',
@@ -675,8 +684,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
     minWidth: 75,
   },
   shopeeVariantOptionImage: {
@@ -692,8 +699,6 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   shopeeVariantOptionSelected: {
-    borderColor: Colors.sky,
-    backgroundColor: '#f0f9ff',
     borderWidth: 2,
   },
   shopeeVariantOptionText: {
@@ -712,23 +717,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f9fafb',
   },
   shopeeQuantityInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 6,
     paddingHorizontal: 12,
     height: 36,
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.text,
   },
   shopeePriceSummary: {
     paddingVertical: 12,
@@ -755,8 +756,6 @@ const styles = StyleSheet.create({
   },
   shopeeCheckoutFooterGradient: {
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    backgroundColor: Colors.white,
   },
   buttonRow: {
     flexDirection: 'row',
