@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,7 +41,7 @@ const getValidImageUrl = (imageUrl: string | undefined): ImageSourcePropType | n
   return { uri: url };
 };
 
-export default function ItemCard({
+function ItemCard({
   product,
   onPress,
   token,
@@ -53,15 +53,22 @@ export default function ItemCard({
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const displayPrice = product.memberPrice || product.originalPrice;
-  const hasDiscount = displayPrice < product.originalPrice;
-  const discountPct = hasDiscount
-    ? Math.round(((product.originalPrice || 0) - displayPrice) / (product.originalPrice || 0) * 100)
-    : 0;
+  // Memoize price calculations
+  const priceData = useMemo(() => {
+    const displayPrice = product.memberPrice || product.originalPrice;
+    const hasDiscount = displayPrice < product.originalPrice;
+    const discountPct = hasDiscount
+      ? Math.round(((product.originalPrice || 0) - displayPrice) / (product.originalPrice || 0) * 100)
+      : 0;
+    return { displayPrice, hasDiscount, discountPct };
+  }, [product.memberPrice, product.originalPrice]);
 
-  const activeBadges = BADGE_CONFIG.filter(b => product.badges[b.key]);
+  const { displayPrice, hasDiscount, discountPct } = priceData;
 
-  const handleWishlistToggle = async () => {
+  // Memoize badge filtering
+  const activeBadges = useMemo(() => BADGE_CONFIG.filter(b => product.badges[b.key]), [product.badges]);
+
+  const handleWishlistToggle = useCallback(async () => {
     if (!token) {
       Toast.show({
         type: 'error',
@@ -106,7 +113,7 @@ export default function ItemCard({
     } finally {
       setIsTogglingWishlist(false);
     }
-  };
+  }, [token, product.id, wishlisted, onWishlistToggle]);
 
   return (
     <TouchableOpacity style={styles.container} onPress={() => onPress?.(product)} activeOpacity={0.8}>
@@ -254,6 +261,8 @@ export default function ItemCard({
     </TouchableOpacity>
   );
 }
+
+export default React.memo(ItemCard);
 
 const styles = StyleSheet.create({
   container: {
