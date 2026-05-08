@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 import { Colors } from '../constants/colors';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
