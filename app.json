@@ -57,12 +57,12 @@
     "build":  {
                   "development":  {
                                       "android":  {
-                                                      "googleServicesFile":  "$GOOGLE_SERVICES_JSON"
+                                                      "googleServicesFile":  "./android/app/google-services.json"
                                                   }
                                   },
                   "preview":  {
                                   "android":  {
-                                                  "googleServicesFile":  "$GOOGLE_SERVICES_JSON"
+                                                  "googleServicesFile":  "./android/app/google-services.json"
                                               }
                               }
               }
