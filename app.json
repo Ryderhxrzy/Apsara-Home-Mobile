@@ -26,8 +26,7 @@
         "color": "#0ea5e9"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.afhome.mobile",
-      "googleServicesFile": "android/google-services.json"
+      "package": "com.afhome.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -52,5 +51,17 @@
       }
     },
     "owner": "ryderharzys-organization"
+  },
+  "build": {
+    "development": {
+      "android": {
+        "googleServicesFile": "$GOOGLE_SERVICES_JSON"
+      }
+    },
+    "preview": {
+      "android": {
+        "googleServicesFile": "$GOOGLE_SERVICES_JSON"
+      }
+    }
   }
 }
