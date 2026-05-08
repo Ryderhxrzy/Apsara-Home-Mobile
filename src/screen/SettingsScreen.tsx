@@ -14,23 +14,103 @@ interface SettingsScreenProps {
   setIsDarkMode: (value: boolean) => void;
 }
 
+interface ErrorDetails {
+  message: string;
+  code?: string;
+  details?: string;
+}
+
 export default function SettingsScreen({ onBack, isDarkMode, setIsDarkMode }: SettingsScreenProps) {
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [error, setError] = useState<ErrorDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notificationStatus, setNotificationStatus] = useState<'enabled' | 'disabled' | 'error'>('disabled');
 
   useEffect(() => {
-    const getToken = async () => {
-      try {
-        const pushToken = await Notifications.getExpoPushTokenAsync();
-        setDeviceToken(pushToken.data);
-        console.log('✅ Push Token:', pushToken.data);
-      } catch (error: any) {
-        console.log('⚠️ Firebase not available - using development mode');
-        setDeviceToken('DEV_MODE_NO_FIREBASE');
-      }
-    };
-    getToken();
+    initializePushNotifications();
   }, []);
+
+  const initializePushNotifications = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Check permissions
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      console.log('📱 Current notification permission status:', existingStatus);
+
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        console.log('📱 Requesting notification permissions...');
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+        console.log('📱 Permission request result:', status);
+      }
+
+      if (finalStatus !== 'granted') {
+        throw {
+          code: 'PERMISSION_DENIED',
+          message: 'Notification permission not granted',
+          details: 'User denied or has not granted permission to receive push notifications. Please enable notifications in device settings.'
+        };
+      }
+
+      // Get push token
+      const pushToken = await Notifications.getExpoPushTokenAsync();
+      if (!pushToken.data) {
+        throw {
+          code: 'NO_TOKEN',
+          message: 'Failed to retrieve push token',
+          details: 'The Expo service did not return a valid token. Check your Expo credentials and internet connection.'
+        };
+      }
+
+      setDeviceToken(pushToken.data);
+      setNotificationStatus('enabled');
+      console.log('✅ Push Token successfully retrieved:', pushToken.data);
+      console.log('✅ Notification status: ENABLED');
+    } catch (err: any) {
+      let errorDetails: ErrorDetails;
+
+      if (err.code) {
+        // Custom error with code
+        errorDetails = {
+          message: err.message,
+          code: err.code,
+          details: err.details
+        };
+      } else if (err.name === 'ExpoAPIError') {
+        errorDetails = {
+          message: 'Expo API Error',
+          code: err.code || 'EXPO_API_ERROR',
+          details: `${err.message}\n\nThis usually means there's an issue with your Expo project configuration or credentials. Check your EAS credentials and ensure your app is properly configured in Expo.`
+        };
+      } else if (err.message?.includes('Network')) {
+        errorDetails = {
+          message: 'Network Error',
+          code: 'NETWORK_ERROR',
+          details: 'Unable to connect to Expo servers. Check your internet connection and try again.'
+        };
+      } else {
+        errorDetails = {
+          message: err.message || 'Unknown error occurred',
+          code: 'UNKNOWN_ERROR',
+          details: `Error Details: ${JSON.stringify(err)}\n\nTry restarting the app or checking your internet connection.`
+        };
+      }
+
+      setError(errorDetails);
+      setNotificationStatus('error');
+      setDeviceToken('ERROR');
+      console.error('❌ Push Notification Error:', errorDetails);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    initializePushNotifications();
+  };
 
   const handleCopyToken = () => {
     if (deviceToken) {
@@ -76,24 +156,84 @@ export default function SettingsScreen({ onBack, isDarkMode, setIsDarkMode }: Se
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Push Notifications</Text>
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => setShowTokenModal(true)}
-          >
-            <View style={styles.settingLabelContainer}>
-              <View style={[styles.iconContainer, { backgroundColor: '#dbeafe' }]}>
-                <Ionicons name="notifications-outline" size={20} color={Colors.sky} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.settingLabel}>Push Token</Text>
-                <Text style={styles.tokenPreview} numberOfLines={1}>
-                  {deviceToken ? `${deviceToken.substring(0, 30)}...` : 'Loading...'}
-                </Text>
-              </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Push Notifications</Text>
+            <View style={[
+              styles.statusBadge,
+              {
+                backgroundColor: notificationStatus === 'enabled' ? '#d1fae5'
+                  : notificationStatus === 'error' ? '#fee2e2'
+                    : '#f3f4f6'
+              }
+            ]}>
+              <Ionicons
+                name={notificationStatus === 'enabled' ? 'checkmark-circle' : notificationStatus === 'error' ? 'alert-circle' : 'help-circle'}
+                size={14}
+                color={notificationStatus === 'enabled' ? '#059669'
+                  : notificationStatus === 'error' ? '#dc2626'
+                    : '#6b7280'}
+              />
+              <Text style={[
+                styles.statusText,
+                {
+                  color: notificationStatus === 'enabled' ? '#059669'
+                    : notificationStatus === 'error' ? '#dc2626'
+                      : '#6b7280'
+                }
+              ]}>
+                {notificationStatus === 'enabled' ? 'Enabled' : notificationStatus === 'error' ? 'Error' : 'Disabled'}
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={Colors.textSecondary} />
-          </TouchableOpacity>
+          </View>
+
+          {isLoading && (
+            <View style={styles.loadingBox}>
+              <Ionicons name="hourglass-outline" size={20} color={Colors.sky} />
+              <Text style={styles.loadingText}>Initializing push notifications...</Text>
+            </View>
+          )}
+
+          {error && (
+            <View style={styles.errorBox}>
+              <View style={styles.errorHeader}>
+                <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                <Text style={styles.errorTitle}>{error.message}</Text>
+              </View>
+              {error.code && (
+                <Text style={styles.errorCode}>Error Code: {error.code}</Text>
+              )}
+              {error.details && (
+                <Text style={styles.errorDetails}>{error.details}</Text>
+              )}
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={handleRetry}
+              >
+                <Ionicons name="refresh" size={16} color={Colors.sky} />
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!isLoading && deviceToken && deviceToken !== 'ERROR' && (
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowTokenModal(true)}
+            >
+              <View style={styles.settingLabelContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: '#dbeafe' }]}>
+                  <Ionicons name="notifications-outline" size={20} color={Colors.sky} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>Push Token</Text>
+                  <Text style={styles.tokenPreview} numberOfLines={1}>
+                    {`${deviceToken.substring(0, 30)}...`}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -173,13 +313,30 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 16,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   settingItem: {
     flexDirection: 'row',
@@ -287,5 +444,72 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     textAlign: 'center',
+  },
+  loadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  loadingText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.sky,
+    fontWeight: '500',
+  },
+  errorBox: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  errorTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  errorCode: {
+    fontSize: 11,
+    color: '#991b1b',
+    fontFamily: 'monospace',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: '#7f1d1d',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.sky,
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.sky,
   },
 });
