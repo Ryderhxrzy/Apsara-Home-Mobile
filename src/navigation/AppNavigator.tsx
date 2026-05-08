@@ -27,6 +27,7 @@ import ShopByBrandScreen from '../screen/ShopByBrandScreen';
 import NotificationsScreen from '../screen/NotificationsScreen';
 import LoadingScreen from '../screen/LoadingScreen';
 import ReferralNetworkScreen from '../screen/ReferralNetworkScreen';
+import CheckoutScreen from '../screen/CheckoutScreen';
 import { orderService } from '../services/orderService';
 
 type TabKey = 'home' | 'wishlist' | 'shop' | 'notification' | 'profile' | 'settings';
@@ -131,6 +132,8 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [menuVisible, setMenuVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutItem, setCheckoutItem] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [profileDetailsFromTab, setProfileDetailsFromTab] = useState(false);
   const [referralNetworkFromTab, setReferralNetworkFromTab] = useState(false);
@@ -593,6 +596,26 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 // Switch to shop tab to show ShopByBrandScreen
                 setActiveTab('shop');
                 activeTabRef.current = 'shop';
+              }}
+              onCheckout={(product, quantity, variant) => {
+                // Create item object from product details
+                const item = {
+                  product_id: product.id,
+                  product_name: product.name,
+                  product_image: product.image || (product.images?.[0]),
+                  product_price_member: variant?.priceMember || product.priceMember || 0,
+                  product_price_srp: variant?.priceSrp || product.priceSrp || 0,
+                  brand_name: product.brand,
+                  brand_id: product.supplier_id || 0,
+                  quantity: quantity,
+                  variant_color: variant?.color,
+                  variant_size: variant?.name,
+                  variant_image: variant?.images?.[0],
+                };
+                setCheckoutItem(item);
+                setPreviousTab(activeTabRef.current);
+                setSelectedProductId(null);
+                setShowCheckout(true);
               }}
               isDarkMode={isDarkMode}
             />
@@ -1086,9 +1109,59 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               setPreviousTab(activeTabRef.current);
               setSelectedProductId(productId);
             }}
-            onCheckout={() => {
+            onCheckout={async () => {
+              try {
+                const headers = { Authorization: `Bearer ${token}` };
+                const cartRes = await axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers });
+                if (cartRes.data && cartRes.data.cart_items) {
+                  setCheckoutCartItems(cartRes.data.cart_items);
+                }
+              } catch (error) {
+                console.error('Failed to fetch cart items:', error);
+              }
               setShowCart(false);
-              // Navigate to checkout
+              setShowCheckout(true);
+            }}
+          />
+        </View>
+      )}
+
+      {showCheckout && (
+        <View style={styles.cartScreenOverlay}>
+          <CheckoutScreen
+            item={checkoutItem}
+            token={token}
+            user={user}
+            isDarkMode={isDarkMode}
+            onBack={() => {
+              setShowCheckout(false);
+              setActiveTab(previousTab);
+              activeTabRef.current = previousTab;
+            }}
+            onShopNavigate={(brandId, shopName) => {
+              setShowCheckout(false);
+              setPreviousTab(activeTabRef.current);
+              setSelectedBrandId(brandId);
+              setSelectedBrand({
+                id: brandId,
+                name: shopName,
+              });
+              setActiveTab('shop');
+              activeTabRef.current = 'shop';
+            }}
+            onPlaceOrder={async (orderData) => {
+              try {
+                // Call order service to place the order
+                const headers = { Authorization: `Bearer ${token}` };
+                await axios.post(`${API_CONFIG.BASE_URL}/orders`, orderData, { headers });
+                setShowCheckout(false);
+                // Refresh cart
+                const cartRes = await axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers });
+                setCartCount(extractCount(cartRes.data));
+              } catch (error) {
+                console.error('Failed to place order:', error);
+                throw error;
+              }
             }}
           />
         </View>

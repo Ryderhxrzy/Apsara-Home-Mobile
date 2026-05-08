@@ -38,6 +38,7 @@ interface ProductDetailScreenProps {
   onCartUpdate?: () => void;
   onWishlistToggle?: (productId: number, isWishlisted: boolean) => void;
   onShopNavigate?: (brandType: number, shopName: string) => void;
+  onCheckout?: (product: any, quantity: number, variant?: any) => void;
   user?: {
     name?: string;
     avatar_url?: string;
@@ -102,6 +103,7 @@ export default function ProductDetailScreen({
   onCartUpdate,
   onWishlistToggle,
   onShopNavigate,
+  onCheckout,
   user,
   cartCount = 0,
   wishlistItems = [],
@@ -1762,12 +1764,9 @@ export default function ProductDetailScreen({
         onSelectVariant={setSelectedVariant}
         onQuantityChange={setQuantity}
         onCheckout={() => {
-          console.log('Checkout:', {
-            variantId: selectedVariant,
-            quantity,
-            product: product?.id
-          });
           setShowBuyModal(false);
+          const variant = product?.variants?.find(v => v.id === selectedVariant);
+          onCheckout?.(product, quantity, variant);
         }}
         onAddToCart={addToCart}
         loading={addingToCart}
@@ -1786,8 +1785,9 @@ export default function ProductDetailScreen({
         onQuantityChange={setQuantity}
         onAddToCart={addToCart}
         onCheckout={() => {
-          console.log('Proceeding to checkout');
           setShowAddToCartModal(false);
+          const variant = product?.variants?.find(v => v.id === selectedVariant);
+          onCheckout?.(product, quantity, variant);
         }}
         loading={addingToCart}
       />
