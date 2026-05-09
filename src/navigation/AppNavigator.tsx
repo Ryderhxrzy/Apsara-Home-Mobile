@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View, Text, Image, TouchableOpacity, Pressable,
   StyleSheet, Modal, PanResponder, Animated, BackHandler, Clipboard, Linking,
@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Colors } from '../constants/colors';
+import { getBadgeImage, getBadgeImageSource } from '../constants/tierConfig';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 import type { ProductCard } from '../services/productService';
@@ -94,6 +95,9 @@ interface User {
   email: string;
   name: string;
   avatar_url?: string;
+  badge_name?: string;
+  badge_image?: string | any;
+  rank?: number;
   monthly_activation?: {
     current_month_pv: number;
     threshold_pv: number;
@@ -136,6 +140,28 @@ interface RoomType {
 }
 
 export default function AppNavigator({ user, token, onLogout }: { user?: User | null; token?: string | null; onLogout?: () => void }) {
+  console.log('[AppNavigator] User object received:', {
+    name: user?.name,
+    badge_name: user?.badge_name,
+    badge_image: user?.badge_image,
+    avatar_url: user?.avatar_url,
+    fullUser: user,
+  });
+
+  // Enrich user object with badge_image if missing
+  const enrichedUser = useMemo(() => {
+    if (!user) return null;
+    if (user.badge_image) return user; // Already has badge_image
+
+    const badgeImageSource = getBadgeImage(user.rank || (user as any).badge);
+    if (!badgeImageSource) return user; // No badge image available
+
+    return {
+      ...user,
+      badge_image: badgeImageSource,
+    };
+  }, [user]);
+
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -679,7 +705,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             <ProductDetailScreen
               productId={selectedProductId}
               token={token}
-              user={user}
+              user={enrichedUser}
               cartCount={cartCount}
               wishlistItems={wishlistItems}
               onBack={() => setSelectedProductId(null)}
@@ -772,7 +798,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           ) : activeTab === 'notification' ? (
             <>
               <AppHeader
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 isDarkMode={isDarkMode}
                 onCartPress={() => setShowCart(true)}
@@ -803,7 +829,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           ) : activeTab === 'wishlist' ? (
             <>
               <AppHeader
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 isDarkMode={isDarkMode}
                 onCartPress={() => setShowCart(true)}
@@ -843,7 +869,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             </>
           ) : activeTab === 'profile' ? (
             <ProfileScreen
-              user={user}
+              user={enrichedUser}
               token={token}
               onLogout={onLogout}
               onNavigateSettings={() => navigateTo('settings')}
@@ -866,7 +892,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             selectedBrandId && selectedBrand ? (
               <ShopByBrandScreen
                 token={token}
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 brandId={selectedBrandId}
                 brand={selectedBrand}
@@ -897,7 +923,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             ) : (
               <ShopScreen
                 token={token}
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 roomId={selectedRoomId}
                 categoryId={selectedCategoryId}
@@ -931,7 +957,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             ) : (
             <>
               <AppHeader
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 isDarkMode={isDarkMode}
                 onCartPress={() => setShowCart(true)}
@@ -949,7 +975,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               />
               <HomeScreen
                 token={token}
-                user={user}
+                user={enrichedUser}
                 isDarkMode={isDarkMode}
                 onProductPress={(id: number) => {
                   setPreviousSearchQuery(null);
@@ -1010,7 +1036,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           ) : (
             <>
               <AppHeader
-                user={user}
+                user={enrichedUser}
                 cartCount={cartCount}
                 isDarkMode={isDarkMode}
                 onCartPress={() => setShowCart(true)}
@@ -1241,7 +1267,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
         <View style={styles.cartScreenOverlay}>
           <CartScreen
             token={token}
-            user={user}
+            user={enrichedUser}
             wishlistCount={wishlistCount}
             isDarkMode={isDarkMode}
             onBack={() => setShowCart(false)}
@@ -1277,7 +1303,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           <CheckoutScreen
             item={checkoutItem}
             token={token}
-            user={user}
+            user={enrichedUser}
             isDarkMode={isDarkMode}
             onBack={() => {
               setShowCheckout(false);
