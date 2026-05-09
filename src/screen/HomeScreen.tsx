@@ -536,6 +536,14 @@ function HomeScreen({
               <Text style={[styles.rankingBadgeName, { color: colors.text }]}>{user.badge_name}</Text>
               <Text style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}>Grow your team and earn more per order.</Text>
             </View>
+
+            <View style={styles.badgeLogoContainer}>
+              <Image
+                source={require('../../assets/af_home_logo.png')}
+                style={styles.badgeLogo}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           <View style={[styles.quickActionRow, { width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
@@ -960,6 +968,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+  badgeLogoContainer: {
+    position: 'absolute',
+    right: -20,
+    top: '50%',
+    marginTop: -45,
+    opacity: 0.15,
+  },
+  badgeLogo: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
   },
   quickActionRow: {
     width: '100%',
