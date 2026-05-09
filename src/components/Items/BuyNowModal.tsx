@@ -72,6 +72,7 @@ export default function BuyNowModal({
   const scrollY = useRef(0);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [addingToCart, setAddingToCart] = React.useState(false);
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -463,12 +464,19 @@ export default function BuyNowModal({
 
             {/* Proceed to Checkout Button */}
             <TouchableOpacity
-              style={[styles.checkoutButtonStyle, loading && { opacity: 0.6 }]}
-              onPress={onCheckout}
-              disabled={loading}
+              style={[styles.checkoutButtonStyle, (loading || checkoutLoading) && { opacity: 0.6 }]}
+              onPress={async () => {
+                setCheckoutLoading(true);
+                try {
+                  await Promise.resolve(onCheckout());
+                } finally {
+                  setCheckoutLoading(false);
+                }
+              }}
+              disabled={loading || checkoutLoading}
               activeOpacity={0.7}
             >
-              {loading ? (
+              {checkoutLoading ? (
                 <ActivityIndicator size="small" color={Colors.white} />
               ) : (
                 <>
