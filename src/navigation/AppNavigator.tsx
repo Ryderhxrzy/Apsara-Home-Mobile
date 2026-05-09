@@ -176,6 +176,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [paymentConfirmationData, setPaymentConfirmationData] = useState<any>(null);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [paymentSourceScreen, setPaymentSourceScreen] = useState<'checkout' | 'purchases'>('checkout');
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -1318,6 +1319,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               console.log('[AppNavigator] onNavigateToPayment called with URL:', checkoutUrl);
               setPaymentCheckoutUrl(checkoutUrl);
               setShowOrderSuccess(false);
+              setPaymentSourceScreen('checkout');
               setShowPaymentWebView(true);
             }}
             onPayLater={() => {
@@ -1339,7 +1341,11 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             isDarkMode={isDarkMode}
             onBack={() => {
               setShowPaymentWebView(false);
-              setShowOrderSuccess(true);
+              if (paymentSourceScreen === 'purchases') {
+                setShowPurchases(true);
+              } else {
+                setShowOrderSuccess(true);
+              }
               setPaymentCheckoutUrl('');
             }}
             onPaymentSuccess={() => {
@@ -1504,6 +1510,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             onProceedToPayment={(checkoutUrl) => {
               setPaymentCheckoutUrl(checkoutUrl);
               setShowPurchases(false);
+              setPaymentSourceScreen('purchases');
               setShowPaymentWebView(true);
             }}
           />

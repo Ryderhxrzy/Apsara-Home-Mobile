@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Linking,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,11 +31,15 @@ export default function PaymentWebViewScreen({
 }: PaymentWebViewScreenProps) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
-  const webViewRef = React.useRef<WebView>(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const webViewRef = useRef<WebView>(null);
 
   const handleNavigationStateChange = async (navState: any) => {
     const url = navState.url;
     console.log('[PaymentWebViewScreen] Navigation state changed:', url);
+
+    // Track if we can go back in webview history
+    setCanGoBack(navState.canGoBack);
 
     // Check if user has returned to success page
     if (url.includes('success') || url.includes('payment_success')) {
@@ -44,6 +49,21 @@ export default function PaymentWebViewScreen({
       return;
     }
   };
+
+  const handleBackPress = () => {
+    if (canGoBack && webViewRef.current) {
+      webViewRef.current.goBack();
+      return true;
+    }
+    // If can't go back in webview, call the navigation back
+    onBack?.();
+    return true;
+  };
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => backHandler.remove();
+  }, [canGoBack]);
 
   const handleShouldStartLoadWithRequest = (event: any) => {
     const { url } = event;
