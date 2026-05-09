@@ -30,6 +30,9 @@ import NotificationsScreen from '../screen/NotificationsScreen';
 import LoadingScreen from '../screen/LoadingScreen';
 import ReferralNetworkScreen from '../screen/ReferralNetworkScreen';
 import CheckoutScreen from '../screen/CheckoutScreen';
+import OrderSuccessScreen from '../screen/OrderSuccessScreen';
+import PaymentWebViewScreen from '../screen/PaymentWebViewScreen';
+import PurchasesScreen from '../screen/PurchasesScreen';
 import { orderService } from '../services/orderService';
 
 type TabKey = 'home' | 'wishlist' | 'shop' | 'notification' | 'profile' | 'settings';
@@ -135,6 +138,10 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [searchVisible, setSearchVisible] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [showPaymentWebView, setShowPaymentWebView] = useState(false);
+  const [checkoutOrderData, setCheckoutOrderData] = useState(null);
+  const [paymentCheckoutUrl, setPaymentCheckoutUrl] = useState('');
   const [checkoutItem, setCheckoutItem] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [profileDetailsFromTab, setProfileDetailsFromTab] = useState(false);
@@ -157,6 +164,8 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [notificationTotalCount, setNotificationTotalCount] = useState(0);
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [showPurchases, setShowPurchases] = useState(false);
+  const [purchasesStatus, setPurchasesStatus] = useState<'pending' | 'processing' | 'shipped' | 'delivered'>('pending');
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -744,6 +753,10 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               isDarkMode={isDarkMode}
               onShowProfileDetails={(show) => setProfileDetailsFromTab(show)}
               onShowReferralNetwork={(show) => setReferralNetworkFromTab(show)}
+              onPurchaseItemClick={(status) => {
+                setPurchasesStatus(status);
+                setShowPurchases(true);
+              }}
             />
           ) : activeTab === 'shop' ? (
             selectedBrandId && selectedBrand ? (
@@ -1178,18 +1191,59 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               setActiveTab('shop');
               activeTabRef.current = 'shop';
             }}
-            onPlaceOrder={async (orderData) => {
-              try {
-                // Call order service to place the order
+            onNavigateToOrderSuccess={(orderData) => {
+              console.log('[AppNavigator] onNavigateToOrderSuccess called');
+              setCheckoutOrderData(orderData);
+              setShowCheckout(false);
+              setShowOrderSuccess(true);
+            }}
+          />
+        </View>
+      )}
+
+      {showOrderSuccess && checkoutOrderData && (
+        <View style={styles.cartScreenOverlay}>
+          <OrderSuccessScreen
+            orderData={checkoutOrderData}
+            isDarkMode={isDarkMode}
+            onBack={() => {
+              setShowOrderSuccess(false);
+              setShowCheckout(true);
+              setCheckoutOrderData(null);
+            }}
+            onNavigateToPayment={(checkoutUrl) => {
+              console.log('[AppNavigator] onNavigateToPayment called with URL:', checkoutUrl);
+              setPaymentCheckoutUrl(checkoutUrl);
+              setShowOrderSuccess(false);
+              setShowPaymentWebView(true);
+            }}
+          />
+        </View>
+      )}
+
+      {showPaymentWebView && paymentCheckoutUrl && (
+        <View style={styles.cartScreenOverlay}>
+          <PaymentWebViewScreen
+            checkoutUrl={paymentCheckoutUrl}
+            isDarkMode={isDarkMode}
+            onBack={() => {
+              setShowPaymentWebView(false);
+              setShowOrderSuccess(true);
+              setPaymentCheckoutUrl('');
+            }}
+            onPaymentSuccess={() => {
+              console.log('[AppNavigator] Payment successful');
+              setShowPaymentWebView(false);
+              setShowCheckout(false);
+              setShowOrderSuccess(false);
+              setCheckoutOrderData(null);
+              setPaymentCheckoutUrl('');
+              // Refresh cart
+              if (token) {
                 const headers = { Authorization: `Bearer ${token}` };
-                await axios.post(`${API_CONFIG.BASE_URL}/orders`, orderData, { headers });
-                setShowCheckout(false);
-                // Refresh cart
-                const cartRes = await axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers });
-                setCartCount(extractCount(cartRes.data));
-              } catch (error) {
-                console.error('Failed to place order:', error);
-                throw error;
+                axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers }).then(res => {
+                  setCartCount(extractCount(res.data));
+                }).catch(err => console.error('Failed to refresh cart:', err));
               }
             }}
           />
@@ -1218,6 +1272,22 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             onBack={() => {
               setReferralNetworkFromTab(false);
               setReferralTree(null);
+            }}
+          />
+        </View>
+      )}
+
+      {showPurchases && (
+        <View style={styles.cartScreenOverlay}>
+          <PurchasesScreen
+            token={token}
+            status={purchasesStatus}
+            isDarkMode={isDarkMode}
+            onBack={() => setShowPurchases(false)}
+            onProductPress={(productId) => {
+              setShowPurchases(false);
+              setPreviousTab(activeTabRef.current);
+              setSelectedProductId(productId);
             }}
           />
         </View>
