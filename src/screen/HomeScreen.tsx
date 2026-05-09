@@ -513,18 +513,8 @@ function HomeScreen({
     >
       {/* Ranking Badge */}
       {user?.badge_name && (
-        <View style={[styles.rankingBadgeSection, { borderBottomColor: colors.border }]}>
-          {(() => {
-            console.log('[HomeScreen] Badge Debug:', {
-              badge_name: user?.badge_name,
-              badge_image: user?.badge_image,
-              hasImage: !!user?.badge_image,
-              imageType: typeof user?.badge_image,
-              user: user,
-            });
-            return null;
-          })()}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
+        <View style={[styles.rankingBadgeSection, { borderBottomColor: colors.border, width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
+          <View style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.rankingBadgeWrapper}>
               {user.badge_image ? (() => {
                 const badgeSource = getBadgeImageSource(user.badge_image);
@@ -532,40 +522,45 @@ function HomeScreen({
                   <Image
                     source={badgeSource}
                     style={styles.rankingBadgeImage}
-                    onLoad={() => console.log('[HomeScreen] Badge image loaded:', user.badge_image)}
-                    onError={(e) => console.log('[HomeScreen] Badge image error:', e, user.badge_image)}
                   />
                 ) : (
-                  <>
-                    {console.log('[HomeScreen] No badge source found, showing icon instead')}
-                    <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
-                  </>
+                  <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
                 );
               })() : (
-                <>
-                  {console.log('[HomeScreen] No badge_image, showing icon instead')}
-                  <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
-                </>
+                <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
               )}
             </View>
 
-            <View style={{ flex: 1 }}>
-              <View style={styles.rankingTextContainer}>
-                <Text style={[styles.rankingBadgeName, { color: colors.text }]}>{user.badge_name}</Text>
-                <Text style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}>You are already {user.badge_name.toLowerCase()}</Text>
-              </View>
+            <View style={styles.memberInfo}>
+              <Text style={[styles.memberLabel, { color: colors.textSec }]}>Your Badge Level</Text>
+              <Text style={[styles.rankingBadgeName, { color: colors.text }]}>{user.badge_name}</Text>
+              <Text style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}>Grow your team and earn more per order.</Text>
             </View>
+          </View>
 
-            <LinearGradient
-              colors={isDarkMode ? ['rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.1)'] : ['rgba(14, 165, 233, 0.15)', 'rgba(14, 165, 233, 0.05)']}
-              style={[styles.marketingCard, { borderColor: colors.border }]}
+          <View style={[styles.quickActionRow, { width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
+            <TouchableOpacity
+              style={[styles.quickActionCard, { borderColor: colors.border }]}
+              activeOpacity={0.85}
+              onPress={onReferralPress}
             >
-              <Ionicons name="arrow-up" size={14} color={Colors.sky} />
-              <View style={styles.marketingContent}>
-                <Text style={[styles.marketingTitle, { color: colors.text }]}>Keep going</Text>
-                <Text style={[styles.marketingSubtitle, { color: colors.textSec }]}>Refer = Earn more</Text>
-              </View>
-            </LinearGradient>
+              <LinearGradient colors={['#f97316', '#fb923c']} style={styles.quickActionGradient}>
+                <Ionicons name="people" size={16} color={Colors.white} />
+                <Text style={styles.quickActionTitle}>Invite Friends</Text>
+                <Text style={styles.quickActionSubtitle}>Turn Invites and Orders into Earnings</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickActionCard, { borderColor: colors.border }]}
+              activeOpacity={0.85}
+              onPress={onCartPress}
+            >
+              <LinearGradient colors={['#0284c7', '#0ea5e9']} style={styles.quickActionGradient}>
+                <Ionicons name="bag-check" size={16} color={Colors.white} />
+                <Text style={styles.quickActionTitle}>Order Now</Text>
+                <Text style={styles.quickActionSubtitle}>Earn Performance Value (PV) Faster</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -817,7 +812,7 @@ export default React.memo(HomeScreen);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fbff' },
-  content: { paddingHorizontal: 8, paddingTop: 16, paddingBottom: 28, gap: 16 },
+  content: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 28, gap: 16 },
   loadingWrap: { paddingVertical: 42, alignItems: 'center', gap: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
   bannerShell: {
@@ -915,14 +910,21 @@ const styles = StyleSheet.create({
   },
   section: { gap: 0, paddingHorizontal: 4 },
   rankingBadgeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    marginHorizontal: -8,
+    flexDirection: 'column',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
     marginBottom: 0,
     borderBottomWidth: 0.5,
+    gap: 12,
+  },
+  memberCard: {
+    width: '100%',
+    maxWidth: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   rankingBadgeWrapper: {
@@ -939,19 +941,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     resizeMode: 'contain' as any,
   },
-  rankingTextContainer: {
+  memberInfo: {
     flex: 1,
     gap: 2,
   },
+  memberLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   rankingBadgeName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
   },
   rankingBadgeSubtext: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+  quickActionRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 0,
+  },
+  quickActionCard: {
+    flex: 1,
+    maxWidth: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  quickActionGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  quickActionTitle: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  quickActionSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+    fontWeight: '600',
   },
   statsBar: {
     flexDirection: 'row',
