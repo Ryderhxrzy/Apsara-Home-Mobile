@@ -6,7 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/icon1.png",
     "userInterfaceStyle": "light",
-    "scheme": "afhome",
+    "scheme": "apsarahome",
+
+    "deeplinks": {
+        "urls": [
+            "apsarahome://payment/success",
+            "apsarahome://payment/cancel"
+        ]
+    },
 
     "splash": {
     "image": "./assets/splash-icon1.png",
