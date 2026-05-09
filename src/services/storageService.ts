@@ -4,6 +4,7 @@ const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 const TOKEN_TIMESTAMP_KEY = 'token_timestamp';
 const ONBOARDED_KEY = 'has_onboarded';
+const CHATBOT_HIDDEN_KEY = 'chatbot_icon_hidden';
 
 // Helper function to check if SecureStore is available
 const isSecureStoreAvailable = () => {
@@ -194,6 +195,34 @@ export const storageService = {
       }
     } catch (error) {
       console.error('Error refreshing token timestamp:', error);
+    }
+  },
+
+  // Save chatbot hidden state
+  async setChatbotHidden(isHidden: boolean): Promise<void> {
+    try {
+      if (!isSecureStoreAvailable()) {
+        console.warn('SecureStore not available, skipping chatbot state save');
+        return;
+      }
+      await SecureStore.setItemAsync(CHATBOT_HIDDEN_KEY, JSON.stringify(isHidden));
+    } catch (error) {
+      console.error('Error saving chatbot state:', error);
+    }
+  },
+
+  // Get chatbot hidden state
+  async getChatbotHidden(): Promise<boolean> {
+    try {
+      if (!isSecureStoreAvailable()) {
+        console.warn('SecureStore not available, returning false');
+        return false;
+      }
+      const val = await SecureStore.getItemAsync(CHATBOT_HIDDEN_KEY);
+      return val === 'true' ? true : false;
+    } catch (error) {
+      console.error('Error getting chatbot state:', error);
+      return false;
     }
   },
 };
