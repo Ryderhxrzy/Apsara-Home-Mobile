@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { productService } from '../../services/productService';
+import { getBadgeImageSource } from '../../constants/tierConfig';
 import HeaderFilter from './HeaderFilter';
 import Toast from 'react-native-toast-message';
 
@@ -14,7 +15,7 @@ interface AppHeaderProps {
     username?: string;
     avatar_url?: string;
     badge_name?: string;
-    badge_image?: string;
+    badge_image?: string | any;
     money_balance?: number;
     wallet_balance?: number;
     monthly_activation?: {
@@ -255,15 +256,9 @@ export default function AppHeader({
                   {badgeName && (
                     <>
                       <View style={styles.usernameDot} />
-                      <View style={[styles.userBadge, { borderColor: isDarkMode ? '#1f2937' : Colors.white }]}>
-                        {user.badge_image ? (
-                          <Image source={{ uri: user.badge_image }} style={styles.badgeImageSmall} />
-                        ) : (
-                          <>
-                            <Ionicons name="shield-checkmark-outline" size={10} color={Colors.white} />
-                            <Text style={styles.userBadgeText}>{badgeName}</Text>
-                          </>
-                        )}
+                      <View style={styles.userBadge}>
+                        <Ionicons name="shield-checkmark" size={10} color={Colors.white} />
+                        <Text style={styles.userBadgeText}>{badgeName}</Text>
                       </View>
                     </>
                   )}
@@ -510,8 +505,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     height: 18,
-    borderWidth: 1.5,
-    borderColor: Colors.white,
   },
   badgeImageSmall: {
     width: 18,
@@ -520,9 +513,8 @@ const styles = StyleSheet.create({
   },
   userBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Colors.white,
-    lineHeight: 11,
   },
   iconBtn: {
     width: 38,
