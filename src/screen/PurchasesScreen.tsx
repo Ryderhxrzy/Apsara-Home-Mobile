@@ -34,7 +34,7 @@ interface OrderItem {
 interface Order {
   id: number;
   order_number: string;
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered';
+  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered';
   created_at: string;
   total_amount: number;
   shipping_fee: number;
@@ -75,8 +75,14 @@ const STATUS_CONFIG = {
   shipped: {
     icon: 'car-outline',
     color: '#3b82f6',
-    label: 'Shipped',
-    description: 'On the way to you',
+    label: 'To Ship',
+    description: 'Ready to be shipped',
+  },
+  to_receive: {
+    icon: 'bag-outline',
+    color: '#8b5cf6',
+    label: 'To Receive',
+    description: 'Package arrived, waiting for you',
   },
   delivered: {
     icon: 'checkmark-circle-outline',
@@ -86,9 +92,11 @@ const STATUS_CONFIG = {
   },
 };
 
+const ALL_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'to_receive', 'delivered'] as const;
+
 export default function PurchasesScreen({
   token,
-  status = 'pending',
+  status: initialStatus = 'pending',
   isDarkMode = false,
   onBack,
   onProceedToPayment,
@@ -100,6 +108,7 @@ export default function PurchasesScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<Record<number, string>>({});
   const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<any>(initialStatus);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -122,7 +131,7 @@ export default function PurchasesScreen({
 
     if (showLoading) setLoading(true);
     try {
-      console.log('[PurchasesScreen] Fetching orders with status:', status);
+      console.log('[PurchasesScreen] Fetching orders with status:', selectedStatus);
       const response = await axios.get(
         `${API_CONFIG.BASE_URL}/orders/history`,
         {
@@ -134,12 +143,12 @@ export default function PurchasesScreen({
 
       // Filter orders by selected status
       const allOrders = response.data?.orders || [];
-      const filteredOrders = allOrders.filter((order: Order) => order.status === status);
+      const filteredOrders = allOrders.filter((order: Order) => order.status === selectedStatus);
 
-      console.log('[PurchasesScreen] Filtered orders for status', status, ':', {
+      console.log('[PurchasesScreen] Filtered orders for status', selectedStatus, ':', {
         totalOrders: allOrders.length,
         filteredCount: filteredOrders.length,
-        requestedStatus: status,
+        requestedStatus: selectedStatus,
         statuses: allOrders.map((o: Order) => o.status),
       });
       setOrders(filteredOrders);
@@ -158,7 +167,7 @@ export default function PurchasesScreen({
 
   useEffect(() => {
     fetchOrders();
-  }, [token, status]);
+  }, [token, selectedStatus]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -296,7 +305,7 @@ export default function PurchasesScreen({
     }
   };
 
-  const statusConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+  const statusConfig = STATUS_CONFIG[selectedStatus as keyof typeof STATUS_CONFIG];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -313,188 +322,222 @@ export default function PurchasesScreen({
           </TouchableOpacity>
           <View style={styles.headerInfo}>
             <Text style={[styles.headerGreeting, { color: isDarkMode ? '#f8fafc' : Colors.text }]}>
-              {statusConfig.label}
+              My Purchases
             </Text>
             <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#9ca3af' : Colors.textSecondary }]}>
-              {statusConfig.description}
+              Track your orders
             </Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
       </LinearGradient>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.sky} />
-          <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading orders...</Text>
-        </View>
-      ) : orders.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="inbox-outline" size={64} color={colors.textSec} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>No Orders</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>
-            You don't have any {statusConfig.label.toLowerCase()} orders yet
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item: order }) => (
-            <View style={[styles.orderCard, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-              {/* Order Header */}
-              <View style={[styles.orderHeader, { borderBottomColor: colors.border }]}>
-                <View>
-                  <Text style={[styles.orderNumber, { color: colors.text }]}>
-                    Order #{order.order_number}
-                  </Text>
-                  <Text style={[styles.orderDate, { color: colors.textSec }]}>
-                    {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </View>
-                <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}20` }]}>
-                  <Ionicons name={statusConfig.icon as any} size={16} color={statusConfig.color} />
-                  <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                    {statusConfig.label}
-                  </Text>
-                </View>
-              </View>
+      {/* Filter Bar at Top */}
+      <View style={[styles.filterBar, { backgroundColor: colors.containerBg, borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContent}
+          scrollEventThrottle={16}
+        >
+          {ALL_STATUSES.map((filterStatus) => {
+            const config = STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG];
+            const isSelected = selectedStatus === filterStatus;
+            return (
+              <TouchableOpacity
+                key={filterStatus}
+                style={[
+                  styles.filterButton,
+                  isSelected && [styles.filterButtonActive, { backgroundColor: Colors.sky }]
+                ]}
+                onPress={() => setSelectedStatus(filterStatus)}
+              >
+                <Text style={[
+                  styles.filterButtonText,
+                  isSelected && { color: Colors.white, fontWeight: '700' }
+                ]}>
+                  {config.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-              {/* Order Items */}
-              <View style={[styles.itemsContainer, { borderBottomColor: colors.border }]}>
-                {(() => {
-                  // Consolidate items by product_id
-                  const consolidatedItems = order.items.reduce((acc: any[], item) => {
-                    const existing = acc.find(i => i.product_id === item.product_id);
-                    if (existing) {
-                      existing.quantity += item.quantity;
-                      existing.totalPrice += item.price * item.quantity;
-                    } else {
-                      acc.push({
-                        ...item,
-                        totalPrice: item.price * item.quantity,
-                      });
-                    }
-                    return acc;
-                  }, []);
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.sky} />
+            <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading orders...</Text>
+          </View>
+        ) : orders.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="inbox-outline" size={64} color={colors.textSec} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Orders</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>
+              You don't have any {statusConfig.label.toLowerCase()} orders yet
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={orders}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item: order }) => (
+              <View style={[styles.orderCard, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
+                {/* Order Header */}
+                <View style={[styles.orderHeader, { borderBottomColor: colors.border }]}>
+                  <View>
+                    <Text style={[styles.orderNumber, { color: colors.text }]}>
+                      Order #{order.order_number}
+                    </Text>
+                    <Text style={[styles.orderDate, { color: colors.textSec }]}>
+                      {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}20` }]}>
+                    <Ionicons name={statusConfig.icon as any} size={16} color={statusConfig.color} />
+                    <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                      {statusConfig.label}
+                    </Text>
+                  </View>
+                </View>
 
-                  return consolidatedItems.map((item, index) => (
-                    <TouchableOpacity
-                      key={`${item.product_id}-${index}`}
-                      style={[
-                        styles.itemRow,
-                        index !== consolidatedItems.length - 1 && { borderBottomColor: colors.border },
-                      ]}
-                      onPress={() => onProductPress?.(item.product_id)}
-                      activeOpacity={0.7}
-                    >
-                      {item.image && (
-                        <Image
-                          source={{ uri: item.image }}
-                          style={styles.itemImage}
-                          resizeMode="contain"
-                        />
-                      )}
-                      <View style={styles.itemInfo}>
-                        <View style={styles.itemNameRow}>
-                          <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={2}>
-                            {item.name}
-                          </Text>
-                          <Ionicons name="chevron-forward" size={14} color={colors.textSec} />
-                        </View>
-                        <View>
-                          <Text style={[styles.itemQty, { color: colors.textSec }]}>
-                            Qty: {item.quantity}
-                          </Text>
-                          {(item.selected_color || item.selected_size || item.selected_type) && (
-                            <Text style={[styles.itemVariant, { color: colors.textSec }]}>
-                              {[item.selected_color, item.selected_size, item.selected_type].filter(Boolean).join(', ')}
+                {/* Order Items */}
+                <View style={[styles.itemsContainer, { borderBottomColor: colors.border }]}>
+                  {(() => {
+                    // Consolidate items by product_id
+                    const consolidatedItems = order.items.reduce((acc: any[], item) => {
+                      const existing = acc.find(i => i.product_id === item.product_id);
+                      if (existing) {
+                        existing.quantity += item.quantity;
+                        existing.totalPrice += item.price * item.quantity;
+                      } else {
+                        acc.push({
+                          ...item,
+                          totalPrice: item.price * item.quantity,
+                        });
+                      }
+                      return acc;
+                    }, []);
+
+                    return consolidatedItems.map((item, index) => (
+                      <TouchableOpacity
+                        key={`${item.product_id}-${index}`}
+                        style={[
+                          styles.itemRow,
+                          index !== consolidatedItems.length - 1 && { borderBottomColor: colors.border },
+                        ]}
+                        onPress={() => onProductPress?.(item.product_id)}
+                        activeOpacity={0.7}
+                      >
+                        {item.image && (
+                          <Image
+                            source={{ uri: item.image }}
+                            style={styles.itemImage}
+                            resizeMode="contain"
+                          />
+                        )}
+                        <View style={styles.itemInfo}>
+                          <View style={styles.itemNameRow}>
+                            <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={2}>
+                              {item.name}
                             </Text>
-                          )}
+                            <Ionicons name="chevron-forward" size={14} color={colors.textSec} />
+                          </View>
+                          <View>
+                            <Text style={[styles.itemQty, { color: colors.textSec }]}>
+                              Qty: {item.quantity}
+                            </Text>
+                            {(item.selected_color || item.selected_size || item.selected_type) && (
+                              <Text style={[styles.itemVariant, { color: colors.textSec }]}>
+                                {[item.selected_color, item.selected_size, item.selected_type].filter(Boolean).join(', ')}
+                              </Text>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                      <Text style={[styles.itemPrice, { color: Colors.sky }]}>
-                        ₱{item.totalPrice.toLocaleString()}
-                      </Text>
-                    </TouchableOpacity>
-                  ));
-                })()}
-              </View>
-
-              {/* Shipping Fee */}
-              {order.shipping_fee > 0 && (
-                <View style={[styles.shippingFeeRow, { borderBottomColor: colors.border }]}>
-                  <Text style={[styles.shippingLabel, { color: colors.textSec }]}>Shipping Fee</Text>
-                  <Text style={[styles.shippingPrice, { color: colors.text }]}>
-                    ₱{order.shipping_fee.toLocaleString()}
-                  </Text>
-                </View>
-              )}
-
-              {/* Order Total */}
-              <View style={styles.orderFooter}>
-                <View style={styles.totalRow}>
-                  <Text style={[styles.totalLabel, { color: colors.textSec }]}>Total Amount</Text>
-                  <Text style={[styles.totalPrice, { color: Colors.sky }]}>
-                    ₱{order.total_amount.toLocaleString()}
-                  </Text>
-                </View>
-
-                {/* Payment Method */}
-                <View style={styles.paymentMethodRow}>
-                  <Text style={[styles.paymentMethodLabel, { color: colors.textSec }]}>
-                    Payment: {order.payment_method}
-                  </Text>
-                </View>
-
-                {/* Proceed to Payment Section */}
-                {status === 'pending' && (
-                  <View style={styles.paymentSection}>
-                    {/* Payment Countdown */}
-                    <View style={styles.paymentTimerRow}>
-                      <Ionicons name={timeLeft[order.id] === 'Expired' ? 'alert-circle' : 'time'} size={14} color={timeLeft[order.id] === 'Expired' ? Colors.error : Colors.sky} />
-                      <View style={styles.paymentTimerText}>
-                        <Text style={[styles.paymentTimerLabel, { color: colors.textSec }]}>
-                          Pay Until
+                        <Text style={[styles.itemPrice, { color: Colors.sky }]}>
+                          ₱{item.totalPrice.toLocaleString()}
                         </Text>
-                        <Text style={[styles.paymentTimerValue, { color: timeLeft[order.id] === 'Expired' ? Colors.error : Colors.sky }]}>
-                          {timeLeft[order.id] || 'Loading...'}
-                        </Text>
-                      </View>
-                    </View>
+                      </TouchableOpacity>
+                    ));
+                  })()}
+                </View>
 
-                    {/* Proceed to Payment Button */}
-                    <TouchableOpacity
-                      style={[styles.paymentBtn, paymentLoading === order.id && { opacity: 0.6 }]}
-                      onPress={() => handleProceedToPayment(order)}
-                      disabled={paymentLoading === order.id}
-                    >
-                      {paymentLoading === order.id ? (
-                        <ActivityIndicator size="small" color={Colors.white} />
-                      ) : (
-                        <>
-                          <Ionicons name="card" size={16} color={Colors.white} />
-                          <Text style={styles.paymentBtnText}>Proceed to Payment</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                {/* Shipping Fee */}
+                {order.shipping_fee > 0 && (
+                  <View style={[styles.shippingFeeRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.shippingLabel, { color: colors.textSec }]}>Shipping Fee</Text>
+                    <Text style={[styles.shippingPrice, { color: colors.text }]}>
+                      ₱{order.shipping_fee.toLocaleString()}
+                    </Text>
                   </View>
                 )}
+
+                {/* Order Total */}
+                <View style={styles.orderFooter}>
+                  <View style={styles.totalRow}>
+                    <Text style={[styles.totalLabel, { color: colors.textSec }]}>Total Amount</Text>
+                    <Text style={[styles.totalPrice, { color: Colors.sky }]}>
+                      ₱{order.total_amount.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  {/* Payment Method */}
+                  <View style={styles.paymentMethodRow}>
+                    <Text style={[styles.paymentMethodLabel, { color: colors.textSec }]}>
+                      Payment: {order.payment_method}
+                    </Text>
+                  </View>
+
+                  {/* Proceed to Payment Section */}
+                  {selectedStatus === 'pending' && (
+                    <View style={styles.paymentSection}>
+                      {/* Payment Countdown */}
+                      <View style={styles.paymentTimerRow}>
+                        <Ionicons name={timeLeft[order.id] === 'Expired' ? 'alert-circle' : 'time'} size={14} color={timeLeft[order.id] === 'Expired' ? Colors.error : Colors.sky} />
+                        <View style={styles.paymentTimerText}>
+                          <Text style={[styles.paymentTimerLabel, { color: colors.textSec }]}>
+                            Pay Until
+                          </Text>
+                          <Text style={[styles.paymentTimerValue, { color: timeLeft[order.id] === 'Expired' ? Colors.error : Colors.sky }]}>
+                            {timeLeft[order.id] || 'Loading...'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Proceed to Payment Button */}
+                      <TouchableOpacity
+                        style={[styles.paymentBtn, paymentLoading === order.id && { opacity: 0.6 }]}
+                        onPress={() => handleProceedToPayment(order)}
+                        disabled={paymentLoading === order.id}
+                      >
+                        {paymentLoading === order.id ? (
+                          <ActivityIndicator size="small" color={Colors.white} />
+                        ) : (
+                          <>
+                            <Ionicons name="card" size={16} color={Colors.white} />
+                            <Text style={styles.paymentBtnText}>Proceed to Payment</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-          scrollEnabled={true}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 12, paddingBottom: 80 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={Colors.sky}
-            />
-          }
-        />
-      )}
+            )}
+            scrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 12, paddingBottom: 20 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={Colors.sky}
+              />
+            }
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -711,5 +754,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 2,
+  },
+  filterBar: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  filterContent: {
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  filterButtonActive: {
+    borderColor: Colors.sky,
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
   },
 });
