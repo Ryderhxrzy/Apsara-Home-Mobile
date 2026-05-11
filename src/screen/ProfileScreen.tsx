@@ -1002,12 +1002,13 @@ const styles = StyleSheet.create({
   purchaseItemBottom: {
     alignItems: 'center',
     gap: 8,
-    width: 96,
+    width: 80,
   },
   bottomPurchaseRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 12,
     paddingBottom: 8,
   },
