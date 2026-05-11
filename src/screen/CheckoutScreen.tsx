@@ -81,6 +81,7 @@ interface CheckoutScreenProps {
   onPlaceOrder?: (orderData: any) => Promise<void>;
   onNavigateToOrderSuccess?: (orderData: any) => void;
   onShopNavigate?: (brandId: number, shopName: string) => void;
+  onNavigateToShippingAddress?: (addresses: UserAddress[], selectedAddress: UserAddress | null, onSelect: (address: UserAddress) => void) => void;
   isDarkMode?: boolean;
 }
 
@@ -92,6 +93,7 @@ export default function CheckoutScreen({
   onPlaceOrder,
   onNavigateToOrderSuccess,
   onShopNavigate,
+  onNavigateToShippingAddress,
   isDarkMode = false,
 }: CheckoutScreenProps) {
   const insets = useSafeAreaInsets();
@@ -103,7 +105,6 @@ export default function CheckoutScreen({
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
-  const [showAddressModal, setShowAddressModal] = useState(false);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -404,7 +405,7 @@ export default function CheckoutScreen({
           colors={[Colors.forest, Colors.forestDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.header, { paddingTop: insets.top }]}
+          style={[styles.header, { paddingTop: insets.top, borderBottomColor: '#e5e7eb' }]}
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onBack} style={styles.backBtn}>
@@ -430,7 +431,7 @@ export default function CheckoutScreen({
         colors={isDarkMode ? ['rgba(59,130,246,0.15)', 'rgba(31,41,55,0)'] : ['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top, backgroundColor: isDarkMode ? '#1f2937' : Colors.white }]}
+        style={[styles.header, { paddingTop: insets.top, backgroundColor: isDarkMode ? '#1f2937' : Colors.white, borderBottomColor: isDarkMode ? '#374151' : '#e5e7eb' }]}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
@@ -525,7 +526,7 @@ export default function CheckoutScreen({
             </View>
             {addresses.length > 1 && (
               <TouchableOpacity
-                onPress={() => setShowAddressModal(true)}
+                onPress={() => onNavigateToShippingAddress?.(addresses, selectedAddress, setSelectedAddress)}
                 activeOpacity={0.7}
               >
                 <View style={styles.viewShippingContainer}>
@@ -768,58 +769,6 @@ export default function CheckoutScreen({
         </View>
       </ScrollView>
 
-      {/* Address Selection Modal */}
-      {showAddressModal && (
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-          onPress={() => setShowAddressModal(false)}
-        >
-          <Pressable style={[styles.addressModal, { backgroundColor: colors.containerBg, borderColor: colors.border }]} onPress={(e) => e.stopPropagation?.()} >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Address</Text>
-              <TouchableOpacity onPress={() => setShowAddressModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.addressList} showsVerticalScrollIndicator={false}>
-              {addresses.map((addr) => (
-                <TouchableOpacity
-                  key={addr.id}
-                  style={[
-                    styles.addressListItem,
-                    {
-                      backgroundColor: selectedAddress?.id === addr.id ? `${Colors.sky}15` : colors.borderLight,
-                      borderColor: selectedAddress?.id === addr.id ? Colors.sky : colors.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedAddress(addr);
-                    setShowAddressModal(false);
-                  }}
-                >
-                  <View style={styles.addressListContent}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.addressListType, { color: Colors.forest }]}>
-                        {addr.address_type}
-                      </Text>
-                      <Text style={[styles.addressListName, { color: colors.text }]} numberOfLines={1}>
-                        {addr.full_name} <Text style={[styles.addressListPhone, { color: colors.textSec }]}>({addr.phone})</Text>
-                      </Text>
-                      <Text style={[styles.addressListAddress, { color: colors.textSec }]} numberOfLines={2}>
-                        {addr.full_address}
-                      </Text>
-                    </View>
-                    {selectedAddress?.id === addr.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.sky} style={{ marginLeft: 8 }} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      )}
 
       {/* Footer */}
       <View
@@ -884,6 +833,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 8,
     paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   headerContent: {
     flexDirection: 'row',
