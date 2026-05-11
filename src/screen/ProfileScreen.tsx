@@ -16,6 +16,7 @@ import { orderService } from '../services/orderService';
 import LevelProgress from '../components/LevelProgress/LevelProgress';
 import ReferralNetworkScreen from './ReferralNetworkScreen';
 import ProfileDetailsScreen from './ProfileDetailsScreen';
+import LevelProgressDetailsScreen from './LevelProgressDetailsScreen';
 import { ChatBotIcon } from '../components/ChatBot';
 
 interface User {
@@ -95,6 +96,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
+  const [showLevelProgressDetails, setShowLevelProgressDetails] = useState(false);
   const [orderCounts, setOrderCounts] = useState<any>(null);
   const photoUrl = user?.avatar_url ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
@@ -292,11 +294,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             loading={loadingLoyalty}
             isDarkMode={isDarkMode}
             onViewDetails={() => {
-              Toast.show({
-                type: 'info',
-                text1: 'Coming Soon',
-                text2: 'Level details screen will be available soon',
-              });
+              setShowLevelProgressDetails(true);
             }}
           />
         )}
@@ -656,6 +654,20 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             cartCount={cartCount}
             onClose={() => setShowProfileDetails(false)}
             onCartPress={onCartPress}
+          />
+        </View>
+      )}
+      {showLevelProgressDetails && loyaltyData && (
+        <View style={styles.profileDetailsOverlay}>
+          <LevelProgressDetailsScreen
+            currentRank={loyaltyData.rank}
+            personalPv={loyaltyData.personal_pv}
+            referralCount={loyaltyData.referral_count}
+            activeMembers={loyaltyData.active_members_count}
+            activeBuilders={loyaltyData.active_builders_count}
+            activeLeaders={loyaltyData.active_leaders_count}
+            isDarkMode={isDarkMode}
+            onBack={() => setShowLevelProgressDetails(false)}
           />
         </View>
       )}
