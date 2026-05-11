@@ -72,4 +72,19 @@ export const orderService = {
       };
     }
   },
+
+  async readNotification(token: string, notificationId: string | number): Promise<any> {
+    try {
+      const response = await api.patch(`/mobile/notifications/${notificationId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw {
+        message: error.response?.data?.message || 'Failed to mark notification as read',
+        details: error.response?.data,
+        status: error.response?.status,
+      };
+    }
+  },
 };
