@@ -40,7 +40,7 @@ interface Order {
   id: number;
   order_number: string;
   mobile_order_id: string;
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered';
+  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return';
   created_at: string;
   total_amount: number;
   shipping_fee: number;
@@ -52,7 +52,7 @@ interface Order {
 
 interface PurchasesScreenProps {
   token?: string | null;
-  status?: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered';
+  status?: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return';
   isDarkMode?: boolean;
   initialOrderId?: string;
   onBack?: () => void;
@@ -97,9 +97,32 @@ const STATUS_CONFIG = {
     label: 'Delivered',
     description: 'Order completed',
   },
+  cancelled: {
+    icon: 'close-circle-outline',
+    color: '#ef4444',
+    label: 'Cancelled',
+    description: 'Order was cancelled',
+  },
+  return: {
+    icon: 'return-down-back-outline',
+    color: '#f97316',
+    label: 'Return',
+    description: 'Returned order',
+  },
 };
 
-const ALL_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'to_receive', 'delivered'] as const;
+const ALL_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'to_receive', 'delivered', 'cancelled', 'return'] as const;
+
+const normalizeStatusKey = (status?: string) => {
+  const s = String(status || '').trim().toLowerCase().replace(/-/g, '_').replace(/\s+/g, '_');
+  if (s === 'to_ship' || s === 'shipping') return 'shipped';
+  if (s === 'out_for_delivery') return 'to_receive';
+  if (s === 'to_receive' || s === 'toreceive') return 'to_receive';
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+  if (s === 'return' || s === 'returned' || s === 'returns') return 'return';
+  if (s in STATUS_CONFIG) return s as keyof typeof STATUS_CONFIG;
+  return 'pending' as keyof typeof STATUS_CONFIG;
+};
 
 export default function PurchasesScreen({
   token,
@@ -118,6 +141,7 @@ export default function PurchasesScreen({
   const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
   const [cancelLoading, setCancelLoading] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<any>(initialStatus);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailSlideAnim] = useState(new Animated.Value(0));
@@ -207,7 +231,15 @@ export default function PurchasesScreen({
 
       // Filter orders by selected status
       const allOrders = response.data?.orders || [];
-      const filteredOrders = allOrders.filter((order: Order) => order.status === selectedStatus);
+      const counts = allOrders.reduce((acc: Record<string, number>, order: Order) => {
+        const key = normalizeStatusKey(order.status);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      setStatusCounts(counts);
+
+      const normalizedSelected = normalizeStatusKey(selectedStatus);
+      const filteredOrders = allOrders.filter((order: Order) => normalizeStatusKey(order.status) === normalizedSelected);
 
       console.log('[PurchasesScreen] Filtered orders for status', selectedStatus, ':', {
         totalOrders: allOrders.length,
@@ -444,7 +476,7 @@ export default function PurchasesScreen({
     }
   };
 
-  const statusConfig = STATUS_CONFIG[selectedStatus as keyof typeof STATUS_CONFIG];
+  const statusConfig = STATUS_CONFIG[normalizeStatusKey(selectedStatus)];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -497,6 +529,13 @@ export default function PurchasesScreen({
                 ]}>
                   {config.label}
                 </Text>
+                {Number(statusCounts[filterStatus] || 0) > 0 && (
+                  <View style={[styles.filterCountBadge, isSelected && styles.filterCountBadgeActive]}>
+                    <Text style={[styles.filterCountBadgeText, isSelected && styles.filterCountBadgeTextActive]}>
+                      {statusCounts[filterStatus] > 99 ? '99+' : statusCounts[filterStatus]}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -751,14 +790,14 @@ export default function PurchasesScreen({
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: colors.textSec }]}>Status</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: `${STATUS_CONFIG[selectedOrder.status as keyof typeof STATUS_CONFIG].color}20` }]}>
+                  <View style={[styles.statusBadge, { backgroundColor: `${STATUS_CONFIG[normalizeStatusKey(selectedOrder.status)].color}20` }]}>
                     <Ionicons
-                      name={STATUS_CONFIG[selectedOrder.status as keyof typeof STATUS_CONFIG].icon as any}
+                      name={STATUS_CONFIG[normalizeStatusKey(selectedOrder.status)].icon as any}
                       size={14}
-                      color={STATUS_CONFIG[selectedOrder.status as keyof typeof STATUS_CONFIG].color}
+                      color={STATUS_CONFIG[normalizeStatusKey(selectedOrder.status)].color}
                     />
-                    <Text style={[styles.statusText, { color: STATUS_CONFIG[selectedOrder.status as keyof typeof STATUS_CONFIG].color }]}>
-                      {STATUS_CONFIG[selectedOrder.status as keyof typeof STATUS_CONFIG].label}
+                    <Text style={[styles.statusText, { color: STATUS_CONFIG[normalizeStatusKey(selectedOrder.status)].color }]}>
+                      {STATUS_CONFIG[normalizeStatusKey(selectedOrder.status)].label}
                     </Text>
                   </View>
                 </View>
@@ -1110,6 +1149,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -1124,6 +1166,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.text,
+  },
+  filterCountBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  filterCountBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  filterCountBadgeTextActive: {
+    color: Colors.white,
   },
   // Modal Styles
   modalContainer: {

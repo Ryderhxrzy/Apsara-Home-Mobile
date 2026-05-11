@@ -43,7 +43,7 @@ interface ProfileScreenProps {
   onShowReferralNetwork?: (show: boolean, tree?: ReferralTree | null) => void;
   closeReferralNetwork?: boolean;
   isDarkMode?: boolean;
-  onPurchaseItemClick?: (status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered') => void;
+  onPurchaseItemClick?: (status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return') => void;
 }
 
 const REFERRAL_STATS = [
@@ -57,8 +57,13 @@ const PURCHASE_ITEMS = [
   { icon: 'checkmark' as const, label: 'Paid', key: 'paid' as const },
   { icon: 'hourglass-outline' as const, label: 'Processing', key: 'processing' as const },
   { icon: 'cube-outline' as const, label: 'To Ship', key: 'shipped' as const },
+];
+
+const PURCHASE_BOTTOM_ITEMS = [
   { icon: 'car-outline' as const, label: 'To Receive', key: 'to_receive' as const },
   { icon: 'checkmark-circle-outline' as const, label: 'Delivered', key: 'delivered' as const },
+  { icon: 'close-circle-outline' as const, label: 'Cancelled', key: 'cancelled' as const },
+  { icon: 'return-down-back-outline' as const, label: 'Return', key: 'return' as const },
 ];
 
 const SOCIAL_ITEMS = [
@@ -114,13 +119,29 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     });
   };
 
-  const handlePurchaseItemClick = (label: string, key: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered') => {
+  const handlePurchaseItemClick = (label: string, key: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return') => {
     onPurchaseItemClick?.(key);
   };
 
-  const getPurchaseCount = (key: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered') => {
+  const getPurchaseCount = (key: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return') => {
     if (!orderCounts) return 0;
-    return Number(orderCounts?.[key] ?? 0);
+    const aliases: Record<string, string[]> = {
+      pending: ['pending'],
+      paid: ['paid'],
+      processing: ['processing'],
+      shipped: ['shipped', 'to_ship', 'toship'],
+      to_receive: ['to_receive', 'out_for_delivery', 'outfordelivery', 'toReceive'],
+      delivered: ['delivered'],
+      cancelled: ['cancelled', 'canceled'],
+      return: ['return', 'returned', 'returns'],
+    };
+
+    for (const alias of aliases[key] || [key]) {
+      const value = Number(orderCounts?.[alias]);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+
+    return 0;
   };
 
 
@@ -179,6 +200,8 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
         to_receive: Number(data?.to_receive ?? data?.out_for_delivery ?? data?.outfordelivery ?? data?.toReceive ?? 0),
         delivered: Number(data?.delivered ?? 0),
         shipped: Number(data?.shipped ?? data?.to_ship ?? data?.toship ?? 0),
+        cancelled: Number(data?.cancelled ?? data?.canceled ?? 0),
+        return: Number(data?.return ?? data?.returned ?? data?.returns ?? 0),
       });
     } catch (error: any) {
       console.error('Error fetching order counts:', error);
@@ -329,33 +352,58 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={true}
-            contentContainerStyle={styles.purchasesGrid}
-            scrollEnabled={true}
-          >
-            {PURCHASE_ITEMS.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.purchaseItem}
-                activeOpacity={0.7}
-                onPress={() => handlePurchaseItemClick(item.label, item.key)}
-              >
+          <View style={styles.purchasesWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={true}
+              contentContainerStyle={styles.purchasesGrid}
+              scrollEnabled={true}
+            >
+              {PURCHASE_ITEMS.map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={styles.purchaseItem}
+                  activeOpacity={0.7}
+                  onPress={() => handlePurchaseItemClick(item.label, item.key)}
+                >
+                    <View style={[styles.purchaseIconContainer, { backgroundColor: colors.purchaseIconBg }]}>
+                    <Ionicons name={item.icon} size={24} color={Colors.sky} />
+                    {item.key && getPurchaseCount(item.key) > 0 && (
+                      <View style={[styles.itemCountBadge, { borderColor: isDarkMode ? colors.containerBg : Colors.white }]}>
+                        <Text style={styles.itemCountBadgeText}>
+                          {getPurchaseCount(item.key) > 99 ? '99+' : getPurchaseCount(item.key)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.purchaseLabel, { color: colors.text }]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.bottomPurchaseRow}>
+              {PURCHASE_BOTTOM_ITEMS.map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={styles.purchaseItemBottom}
+                  activeOpacity={0.7}
+                  onPress={() => handlePurchaseItemClick(item.label, item.key)}
+                >
                   <View style={[styles.purchaseIconContainer, { backgroundColor: colors.purchaseIconBg }]}>
-                  <Ionicons name={item.icon} size={24} color={Colors.sky} />
-                  {item.key && getPurchaseCount(item.key) > 0 && (
-                    <View style={[styles.itemCountBadge, { borderColor: isDarkMode ? colors.containerBg : Colors.white }]}>
-                      <Text style={styles.itemCountBadgeText}>
-                        {getPurchaseCount(item.key) > 99 ? '99+' : getPurchaseCount(item.key)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.purchaseLabel, { color: colors.text }]}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                    <Ionicons name={item.icon} size={24} color={Colors.sky} />
+                    {item.key && getPurchaseCount(item.key) > 0 && (
+                      <View style={[styles.itemCountBadge, { borderColor: isDarkMode ? colors.containerBg : Colors.white }]}>
+                        <Text style={styles.itemCountBadgeText}>
+                          {getPurchaseCount(item.key) > 99 ? '99+' : getPurchaseCount(item.key)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.purchaseLabel, { color: colors.text }]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
 
         {/* My Referrals */}
@@ -943,10 +991,25 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: 'center',
   },
+  purchasesWrap: {
+    gap: 12,
+  },
   purchaseItem: {
     alignItems: 'center',
     gap: 8,
     width: 80,
+  },
+  purchaseItemBottom: {
+    alignItems: 'center',
+    gap: 8,
+    width: 96,
+  },
+  bottomPurchaseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   purchaseIconContainer: {
     width: 50,
