@@ -46,18 +46,20 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
   };
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
+    Animated.spring(slideAnim, {
       toValue: 0,
-      duration: 400,
+      friction: 8,
+      tension: 40,
       useNativeDriver: true,
     }).start();
   }, [slideAnim]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 100,
-        duration: 300,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }).start(() => onBack());
       return true;
@@ -87,10 +89,35 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+
     if (newPassword.length < 8) {
       Alert.alert('Error', 'New password must be at least 8 characters');
       return;
     }
+
+    // Validate password strength
+    const hasUppercase = /[A-Z]/.test(newPassword);
+    const hasLowercase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
+
+    if (!hasUppercase) {
+      Alert.alert('Error', 'New password must include at least one uppercase letter');
+      return;
+    }
+    if (!hasLowercase) {
+      Alert.alert('Error', 'New password must include at least one lowercase letter');
+      return;
+    }
+    if (!hasNumber) {
+      Alert.alert('Error', 'New password must include at least one number');
+      return;
+    }
+    if (!hasSpecialChar) {
+      Alert.alert('Error', 'New password must include at least one special character');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       Alert.alert('Error', 'New password and confirm password do not match');
       return;
@@ -98,13 +125,24 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
 
     setLoadingPassword(true);
     try {
-      // API call would go here
+      const headers = { Authorization: `Bearer ${token}` };
+      const payload = {
+        current_password: currentPassword,
+        new_password: newPassword,
+        new_password_confirmation: confirmPassword,
+      };
+
+      await axios.post(`${API_CONFIG.BASE_URL}/auth/change-password`, payload, { headers });
+
       Alert.alert('Success', 'Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to change password');
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message
+        || error.response?.data?.error
+        || 'Failed to change password';
+      Alert.alert('Error', errorMsg);
     } finally {
       setLoadingPassword(false);
     }
