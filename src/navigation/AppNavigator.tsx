@@ -474,7 +474,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
     orderService.getNotifications(token)
       .then(data => {
         setNotificationUnreadCount(data.unread_count || 0);
-        setNotificationTotalCount(data.items?.length || 0);
+        setNotificationTotalCount(data.total || data.notifications?.length || 0);
       })
       .catch(() => {});
 
@@ -851,6 +851,10 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               <NotificationsScreen
                 token={token}
                 isDarkMode={isDarkMode}
+                onNavigateToPurchases={(status) => {
+                  setPurchasesStatus(status as 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered');
+                  setShowPurchases(true);
+                }}
               />
             </>
 
