@@ -200,7 +200,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showPurchases, setShowPurchases] = useState(false);
-  const [purchasesStatus, setPurchasesStatus] = useState<'pending' | 'paid' | 'processing' | 'shipped' | 'delivered'>('pending');
+  const [purchasesStatus, setPurchasesStatus] = useState<'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered'>('pending');
   const [purchasesInitialOrderId, setPurchasesInitialOrderId] = useState<string | undefined>(undefined);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentCancel, setShowPaymentCancel] = useState(false);
@@ -694,6 +694,15 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const activeTabRef = useRef<TabKey>('home');
 
+  const normalizePurchaseStatus = (status?: string) => {
+    const s = String(status || '').trim().toLowerCase().replace(/-/g, '_').replace(/\s+/g, '_');
+    if (s === 'to_ship') return 'shipped' as const;
+    if (s === 'out_for_delivery') return 'to_receive' as const;
+    if (s === 'to_receive' || s === 'toreceive') return 'to_receive' as const;
+    if (s === 'pending' || s === 'paid' || s === 'processing' || s === 'shipped' || s === 'delivered') return s;
+    return 'pending' as const;
+  };
+
   function navigateTo(key: TabKey) {
     if (key === activeTabRef.current) return;
 
@@ -879,7 +888,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 token={token}
                 isDarkMode={isDarkMode}
                 onNavigateToPurchases={(status, orderId) => {
-                  setPurchasesStatus(status as 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered');
+                  setPurchasesStatus(normalizePurchaseStatus(status));
                   setPurchasesInitialOrderId(orderId);
                   setShowPurchases(true);
                 }}
@@ -951,7 +960,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               }}
               closeReferralNetwork={closeReferralNetwork}
               onPurchaseItemClick={(status) => {
-                setPurchasesStatus(status);
+                setPurchasesStatus(normalizePurchaseStatus(status));
                 setShowPurchases(true);
               }}
             />
