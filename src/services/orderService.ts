@@ -22,11 +22,16 @@ export interface OrderCounts {
 export interface NotificationItem {
   id: string;
   title: string;
-  description: string;
-  count: number;
+  message: string;
+  description?: string;
+  count?: number;
   severity: 'success' | 'info' | 'warning' | 'error';
-  href: string;
-  latest_at: string | null;
+  href?: string;
+  latest_at?: string | null;
+  created_at?: string;
+  is_read: boolean;
+  amount?: number;
+  product_image?: string;
 }
 
 export interface Notifications {
@@ -51,9 +56,9 @@ export const orderService = {
     }
   },
 
-  async getNotifications(token: string): Promise<Notifications> {
+  async getNotifications(token: string): Promise<any> {
     try {
-      const response = await api.get('/notifications/customer', {
+      const response = await api.get('/mobile/notifications', {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
