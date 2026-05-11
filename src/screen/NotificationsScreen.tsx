@@ -5,6 +5,8 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
@@ -14,11 +16,13 @@ import { ChatBotIcon } from '../components/ChatBot';
 interface NotificationsScreenProps {
   token?: string | null;
   isDarkMode?: boolean;
+  onNavigateToPurchases?: (status: string) => void;
 }
 
-export default function NotificationsScreen({ token, onBack, isDarkMode = false }: NotificationsScreenProps) {
+export default function NotificationsScreen({ token, onBack, isDarkMode = false, onNavigateToPurchases }: NotificationsScreenProps) {
   const [notifications, setNotifications] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'unread' | 'read'>('all');
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -27,6 +31,7 @@ export default function NotificationsScreen({ token, onBack, isDarkMode = false 
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
     border: isDarkMode ? '#374151' : '#e5e7eb',
     emptyIcon: isDarkMode ? '#0284c7' : Colors.sky,
+    unreadBg: isDarkMode ? '#374151' : '#f8f8f8',
   };
 
   useEffect(() => {
@@ -76,21 +81,117 @@ export default function NotificationsScreen({ token, onBack, isDarkMode = false 
     }
   };
 
-  const totalNotifications = notifications?.items?.length || 0;
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } else if (isYesterday) {
+      return 'Yesterday ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+    }
+  };
+
+  const getFilteredNotifications = () => {
+    if (!notifications?.notifications) return [];
+    if (filterType === 'all') return notifications.notifications;
+    if (filterType === 'unread') return notifications.notifications.filter((item: any) => !item.is_read);
+    if (filterType === 'read') return notifications.notifications.filter((item: any) => item.is_read);
+    return notifications.notifications;
+  };
+
+  const handleNotificationPress = (href?: string) => {
+    if (!href) return;
+
+    // Parse deep link format: purchases://status
+    const deepLinkRegex = /^purchases:\/\/(.+)$/;
+    const match = href.match(deepLinkRegex);
+
+    if (match && match[1]) {
+      const status = match[1];
+      onNavigateToPurchases?.(status);
+    }
+  };
+
+  const totalNotifications = notifications?.unread_count || 0;
 
   return (
     <View style={styles.root}>
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <View style={[styles.titleSection, { backgroundColor: colors.containerBg, borderBottomColor: colors.border }]}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
-          {totalNotifications > 0 && (
-            <View style={styles.totalBadge}>
-              <Text style={styles.totalBadgeText}>{totalNotifications}</Text>
-            </View>
-          )}
+          <View style={styles.titleRow}>
+            <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
+            {totalNotifications > 0 && (
+              <View style={styles.totalBadge}>
+                <Text style={styles.totalBadgeText}>{totalNotifications}</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+
+        <View style={[styles.filterSection, { backgroundColor: colors.containerBg, borderBottomColor: colors.border }]}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'all' && { backgroundColor: Colors.sky, borderColor: Colors.sky },
+              filterType !== 'all' && { borderColor: colors.border },
+            ]}
+            onPress={() => setFilterType('all')}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                filterType === 'all' ? { color: Colors.white } : { color: colors.text },
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'unread' && { backgroundColor: Colors.sky, borderColor: Colors.sky },
+              filterType !== 'unread' && { borderColor: colors.border },
+            ]}
+            onPress={() => setFilterType('unread')}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                filterType === 'unread' ? { color: Colors.white } : { color: colors.text },
+              ]}
+            >
+              Unread
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'read' && { backgroundColor: Colors.sky, borderColor: Colors.sky },
+              filterType !== 'read' && { borderColor: colors.border },
+            ]}
+            onPress={() => setFilterType('read')}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                filterType === 'read' ? { color: Colors.white } : { color: colors.text },
+              ]}
+            >
+              Read
+            </Text>
+          </TouchableOpacity>
+        </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -98,39 +199,66 @@ export default function NotificationsScreen({ token, onBack, isDarkMode = false 
         </View>
       ) : (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {notifications?.items && notifications.items.length > 0 ? (
-            notifications.items.map((item: any, index: number) => (
-              <View
+          {notifications?.notifications && notifications.notifications.length > 0 ? (
+            (() => {
+              const filtered = getFilteredNotifications();
+              return filtered.length > 0 ? filtered.map((item: any, index: number) => (
+              <TouchableOpacity
                 key={item.id}
                 style={[
                   styles.notificationItem,
-                  { borderBottomColor: colors.border },
-                  index !== notifications.items.length - 1 && styles.notificationItemBorder,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: !item.is_read ? colors.unreadBg : 'transparent',
+                  },
+                  index !== notifications.notifications.length - 1 && styles.notificationItemBorder,
                 ]}
+                onPress={() => handleNotificationPress(item.href)}
+                activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.notificationIconBox,
-                    { backgroundColor: getSeverityColor(item.severity) },
-                  ]}
-                >
-                  <Ionicons
-                    name={getSeverityIcon(item.severity)}
-                    size={24}
-                    color={Colors.white}
-                  />
-                </View>
+                {item.product_image ? (
+                  <View style={[styles.notificationImageBox, { backgroundColor: colors.borderLight }]}>
+                    <Image
+                      source={{ uri: item.product_image }}
+                      style={styles.notificationImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.notificationIconBox,
+                      { backgroundColor: getSeverityColor(item.severity) },
+                    ]}
+                  >
+                    <Ionicons
+                      name={getSeverityIcon(item.severity)}
+                      size={24}
+                      color={Colors.white}
+                    />
+                  </View>
+                )}
                 <View style={styles.notificationContent}>
-                  <Text style={[styles.notificationTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.notificationDescription, { color: colors.textSec }]}>{item.description}</Text>
-                  {item.count > 0 && (
-                    <Text style={[styles.notificationCount, { color: colors.emptyIcon }]}>
-                      ({item.count} update{item.count !== 1 ? 's' : ''})
+                  <View style={styles.notificationHeaderRow}>
+                    <Text style={[styles.notificationTitle, { color: colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.notificationTime, { color: colors.textSec }]}>{formatDate(item.created_at)}</Text>
+                  </View>
+                  <Text style={[styles.notificationDescription, { color: colors.textSec }]}>{item.message}</Text>
+                  {item.amount > 0 && (
+                    <Text style={[styles.notificationAmount, { color: colors.emptyIcon }]}>
+                      Amount: ₱{item.amount.toLocaleString()}
                     </Text>
                   )}
                 </View>
-              </View>
-            ))
+              </TouchableOpacity>
+              )) : (
+                    <View style={styles.emptyContainer}>
+                  <Ionicons name="checkmark-circle-outline" size={64} color={colors.emptyIcon} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>All caught up!</Text>
+                  <Text style={[styles.emptyDescription, { color: colors.textSec }]}>You have no new notifications</Text>
+                </View>
+              );
+            })()
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="checkmark-circle-outline" size={64} color={colors.emptyIcon} />
@@ -161,6 +289,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
+  },
+  filterSection: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   titleRow: {
     flexDirection: 'row',
@@ -195,7 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingVertical: 8,
+    paddingBottom: 8,
   },
   notificationItem: {
     flexDirection: 'row',
@@ -220,10 +365,23 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  notificationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
   notificationTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
+    flex: 1,
+  },
+  notificationTime: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    flexShrink: 0,
   },
   notificationDescription: {
     fontSize: 13,
@@ -236,6 +394,24 @@ const styles = StyleSheet.create({
     color: Colors.sky,
     fontWeight: '600',
     marginTop: 2,
+  },
+  notificationImageBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    overflow: 'hidden',
+  },
+  notificationImage: {
+    width: '100%',
+    height: '100%',
+  },
+  notificationAmount: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
