@@ -464,6 +464,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                   title="Share"
                   icon="share-social"
                   onPress={() => handleShare(signupUrl, 'signup')}
+                  size="small"
                   style={{ flex: 1 }}
                 />
                 <OutlineButton
@@ -471,6 +472,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                   icon="copy-outline"
                   onPress={() => handleCopy(signupUrl)}
                   color={Colors.sky}
+                  size="small"
                   style={{ flex: 1 }}
                 />
               </View>
@@ -521,6 +523,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                   title="Share"
                   icon="share-social"
                   onPress={() => handleShare(shoppingUrl, 'shopping')}
+                  size="small"
                   style={{ backgroundColor: '#f97316', flex: 1 }}
                 />
                 <OutlineButton
@@ -528,6 +531,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                   icon="copy-outline"
                   onPress={() => handleCopy(shoppingUrl)}
                   color="#f97316"
+                  size="small"
                   style={{ flex: 1 }}
                 />
               </View>
@@ -1108,8 +1112,8 @@ const styles = StyleSheet.create({
 
   // ── Menu ──
   section: {
-    borderRadius: 16,
-    borderWidth: 0.5,
+    borderRadius: 8,
+    borderWidth: 1,
     overflow: 'hidden',
   },
   menuRow: {
