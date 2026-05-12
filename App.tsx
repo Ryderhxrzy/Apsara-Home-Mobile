@@ -13,6 +13,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screen/OnboardingScreen';
 import { storageService, StoredUser } from './src/services/storageService';
 import LoadingScreen from './src/screen/LoadingScreen';
+import { useExpoTokenRegistration } from './src/hooks/useExpoTokenRegistration';
 
 type AuthScreen = 'login' | 'signup' | 'otp';
 
@@ -47,6 +48,9 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
+
+  // Register Expo push token when authenticated
+  useExpoTokenRegistration(authToken, authUser?.id || null);
 
   useEffect(() => {
     checkStoredAuth();
