@@ -1,73 +1,61 @@
 {
     "expo": {
-    "name": "AF Home",
-    "slug": "apsara-mobile-application",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon1.png",
-    "userInterfaceStyle": "light",
-    "scheme": "apsarahome",
-
-    "deeplinks": {
-        "urls": [
-            "apsarahome://payment/success",
-            "apsarahome://payment/cancel"
-        ]
-    },
-
-    "splash": {
-    "image": "./assets/splash-icon1.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#ffffff"
-    },
-
-    "ios": {
-    "supportsTablet": true,
-    "bundleIdentifier": "com.afhome.mobile"
-    },
-
-    "android": {
-    "package": "com.afhome.mobile",
-
-    "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon1.png",
-        "backgroundColor": "#ffffff"
-    },
-
-    "notification": {
-        "icon": "./assets/af_home_logo.png",
-        "color": "#0ea5e9"
-    },
-
-    "predictiveBackGestureEnabled": false
-    },
-
-    "web": {
-    "favicon": "./assets/favicon.png"
-    },
-
-    "plugins": [
-    "expo-video",
-    "expo-font",
-    "expo-secure-store",
-    "expo-web-browser",
-    [
-        "expo-notifications",
-        {
-        "icon": "./assets/af_home_logo.png",
-        "color": "#0ea5e9",
-        "sounds": []
-        }
-    ]
-    ],
-
-    "extra": {
-    "eas": {
-        "projectId": "ed682d76-4287-4417-a52d-35601ed2fe7e"
-    }
-    },
-
-    "owner": "ryderharzys-organization"
-
+        "name": "AF Home",
+        "slug": "apsara-mobile-application",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon1.png",
+        "userInterfaceStyle": "light",
+        "scheme": "apsarahome",
+        "deeplinks": {
+            "urls": [
+                "apsarahome://payment/success",
+                "apsarahome://payment/cancel"
+            ]
+        },
+        "splash": {
+            "image": "./assets/splash-icon1.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.afhome.mobile"
+        },
+        "android": {
+            "package": "com.afhome.mobile",
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon1.png",
+                "backgroundColor": "#ffffff"
+            },
+            "notification": {
+                "icon": "./assets/af_home_logo.png",
+                "color": "#0ea5e9"
+            },
+            "predictiveBackGestureEnabled": false
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            "expo-video",
+            "expo-font",
+            "expo-secure-store",
+            "expo-web-browser",
+            [
+                "expo-notifications",
+                {
+                    "icon": "./assets/af_home_logo.png",
+                    "color": "#0ea5e9",
+                    "sounds": []
+                }
+            ]
+        ],
+        "extra": {
+            "eas": {
+                "projectId": "ed682d76-4287-4417-a52d-35601ed2fe7e"
+            }
+        },
+        "owner": "ryderharzys-organization"
     }
 }
