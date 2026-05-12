@@ -4,7 +4,7 @@
         "slug": "apsara-mobile-application",
         "version": "1.0.0",
         "orientation": "portrait",
-        "icon": "./assets/icon2.png",
+        "icon": "./assets/icon.png",
         "userInterfaceStyle": "light",
         "scheme": "apsarahome",
         "deeplinks": {
@@ -46,7 +46,7 @@
             [
                 "expo-notifications",
                 {
-                    "icon": "./assets/af_home_logo.png",
+                    "icon": "./assets/notification.png",
                     "color": "#0ea5e9",
                     "sounds": []
                 }
