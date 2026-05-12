@@ -117,9 +117,9 @@ export const useNotifications = (userId: string | number, token: string) => {
       });
 
       // Listen for order status updates
-      channel.bind('order.status.updated', (data: OrderStatusData) => {
+      channel.bind('order.notification.updated', (data: OrderStatusData) => {
         if (isMounted) {
-          console.log('Order status updated:', data);
+          console.log('Order notification updated:', data);
 
           // Show toast for order status change
           Toast.show({
@@ -132,9 +132,10 @@ export const useNotifications = (userId: string | number, token: string) => {
         }
       });
 
-      channel.bind('notification.updated', (data: NotificationData) => {
+      channel.bind('notification.count.updated', (data: { unread_count: number; updated_at: string }) => {
         if (isMounted) {
-          console.log('Notification updated event received:', data);
+          console.log('Notification count updated:', data);
+          setUnreadCount(data.unread_count);
         }
       });
     };
