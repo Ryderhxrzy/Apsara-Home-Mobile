@@ -225,4 +225,31 @@ export const storageService = {
       return false;
     }
   },
+
+  // Generic get item
+  async getItem(key: string): Promise<string | null> {
+    try {
+      if (!isSecureStoreAvailable()) {
+        console.warn('SecureStore not available, returning null');
+        return null;
+      }
+      return await SecureStore.getItemAsync(key);
+    } catch (error) {
+      console.error(`Error getting item ${key}:`, error);
+      return null;
+    }
+  },
+
+  // Generic set item
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      if (!isSecureStoreAvailable()) {
+        console.warn('SecureStore not available, skipping set');
+        return;
+      }
+      await SecureStore.setItemAsync(key, value);
+    } catch (error) {
+      console.error(`Error setting item ${key}:`, error);
+    }
+  },
 };

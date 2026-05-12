@@ -8,6 +8,7 @@ export interface NotificationData {
   type: string;
   title: string;
   description: string;
+  message?: string;
   count?: number;
   severity: string;
   href: string;
@@ -19,18 +20,19 @@ export interface NotificationData {
 }
 
 export interface OrderStatusData {
-  order_id: number;
+  order_id?: number;
   checkout_id: string;
-  event_type: string;
-  title: string;
-  description: string;
+  event_type?: string;
+  title?: string;
+  description?: string;
+  message?: string;
   status: string;
-  payment_status: string;
+  payment_status?: string;
   tracking_number?: string;
-  created_at: string;
+  created_at?: string;
 }
 
-export const useNotifications = (userId: string | number, token: string) => {
+export const useNotifications = (userId: string | number, token: string, onNavigateToPurchases?: (status: string, orderId?: string) => void, onNotificationUpdate?: () => void) => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -105,13 +107,25 @@ export const useNotifications = (userId: string | number, token: string) => {
           setNotifications(prev => [data, ...prev]);
           setUnreadCount(prev => prev + (data.count || 1));
 
-          // Show toast notification
+          // Show toast notification with actual message from backend
           Toast.show({
             type: data.severity === 'critical' ? 'error' : data.severity === 'warning' ? 'info' : 'success',
             text1: data.title,
-            text2: data.description,
+            text2: data.description || data.message,
             position: 'top',
             visibilityTime: 5000,
+            onPress: () => {
+              if (onNavigateToPurchases && data.href) {
+                // Parse deep link format: purchases://status or purchases://status/mobile-order-id
+                const deepLinkRegex = /^purchases:\/\/([^\/]+)(?:\/(.+))?$/;
+                const match = data.href.match(deepLinkRegex);
+                if (match && match[1]) {
+                  const status = match[1];
+                  const orderId = match[2] || (data.order_id?.toString());
+                  onNavigateToPurchases(status, orderId);
+                }
+              }
+            },
           });
         }
       });
@@ -121,13 +135,21 @@ export const useNotifications = (userId: string | number, token: string) => {
         if (isMounted) {
           console.log('Order notification updated:', data);
 
-          // Show toast for order status change
+          // Trigger refresh in notification screen
+          onNotificationUpdate?.();
+
+          // Show toast for order status change with actual message from backend
           Toast.show({
             type: 'info',
-            text1: 'Order Status Updated',
-            text2: `Order ${data.checkout_id}: ${data.status}`,
+            text1: data.title || 'Order Status Updated',
+            text2: data.message || `Order ${data.checkout_id}: ${data.status}`,
             position: 'top',
             visibilityTime: 5000,
+            onPress: () => {
+              if (onNavigateToPurchases) {
+                onNavigateToPurchases(data.status, data.checkout_id);
+              }
+            },
           });
         }
       });

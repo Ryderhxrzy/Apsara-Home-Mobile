@@ -13,19 +13,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { orderService } from '../services/orderService';
 import { ChatBotIcon } from '../components/ChatBot';
+import { useNotifications } from '../hooks/useNotifications';
 
 interface NotificationsScreenProps {
   token?: string | null;
+  userId?: string | number;
   isDarkMode?: boolean;
   onNavigateToPurchases?: (status: string, orderId?: string) => void;
   isVisible?: boolean;
 }
 
-export default function NotificationsScreen({ token, onBack, isDarkMode = false, onNavigateToPurchases, isVisible = true }: NotificationsScreenProps) {
+export default function NotificationsScreen({ token, userId, isDarkMode = false, onNavigateToPurchases, isVisible = true }: NotificationsScreenProps) {
   const [notifications, setNotifications] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'unread' | 'read'>('all');
+
+  // Integrate with useNotifications for realtime updates
+  useNotifications(userId || '', token || '', onNavigateToPurchases, () => {
+    // Refresh notification list when realtime event is received
+    if (isVisible) {
+      fetchNotifications(true);
+    }
+  });
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -33,6 +43,7 @@ export default function NotificationsScreen({ token, onBack, isDarkMode = false,
     text: isDarkMode ? '#f8fafc' : Colors.text,
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
     border: isDarkMode ? '#374151' : '#e5e7eb',
+    borderLight: isDarkMode ? '#374151' : '#e5e7eb',
     emptyIcon: isDarkMode ? '#0284c7' : Colors.sky,
     unreadBg: isDarkMode ? '#374151' : '#f8f8f8',
   };

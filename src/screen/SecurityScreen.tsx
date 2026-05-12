@@ -56,16 +56,11 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      Animated.spring(slideAnim, {
-        toValue: 100,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start(() => onBack());
+      onBack();
       return true;
     });
     return () => backHandler.remove();
-  }, [onBack, slideAnim]);
+  }, [onBack]);
 
   useEffect(() => {
     if (token) {

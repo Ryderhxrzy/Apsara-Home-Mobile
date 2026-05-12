@@ -39,16 +39,11 @@ export default function SettingsScreen({ onBack, isDarkMode, setIsDarkMode, onNa
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      Animated.spring(slideAnim, {
-        toValue: 100,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start(() => onBack());
+      onBack();
       return true;
     });
     return () => backHandler.remove();
-  }, [onBack, slideAnim]);
+  }, [onBack]);
 
   return (
     <Animated.View
@@ -72,7 +67,7 @@ export default function SettingsScreen({ onBack, isDarkMode, setIsDarkMode, onNa
         colors={isDarkMode ? ['rgba(59,130,246,0.15)', 'rgba(31,41,55,0)'] : ['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top, borderBottomColor: colors.border }]}
+        style={[styles.header, { paddingTop: insets.top, backgroundColor: isDarkMode ? '#1f2937' : Colors.white, borderBottomColor: colors.border }]}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
