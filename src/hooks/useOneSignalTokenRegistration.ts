@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-const OneSignal = require('react-native-onesignal').default;
+import OneSignal from 'react-native-onesignal';
 import { API_CONFIG } from '../config/api';
 import axios from 'axios';
 
@@ -13,11 +13,18 @@ export const useOneSignalTokenRegistration = (token: string | null, userId: stri
     }
 
     const registerOneSignalToken = async () => {
+      console.log('[useOneSignalTokenRegistration] Starting token registration...');
+
       try {
-        // Wait longer for OneSignal native module to be fully ready in native builds
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Skip if OneSignal is not available
+        if (!OneSignal?.User) {
+          console.warn('[useOneSignalTokenRegistration] OneSignal.User not available - skipping');
+          setRegistrationAttempted(true);
+          return;
+        }
 
         // Set the customer ID for targeting
+        console.log('[useOneSignalTokenRegistration] Setting customer ID...');
         OneSignal.User.addAlias('customer_id', userId.toString());
         console.log('[useOneSignalTokenRegistration] Set customer ID:', userId);
 
@@ -57,11 +64,13 @@ export const useOneSignalTokenRegistration = (token: string | null, userId: stri
           setRegistrationAttempted(true);
         }
       } catch (error) {
-        console.error('[useOneSignalTokenRegistration] Failed to register OneSignal token:', error);
-        // Retry after a delay if OneSignal wasn't ready
-        setTimeout(() => {
-          registerOneSignalToken();
-        }, 2000);
+        console.error('[useOneSignalTokenRegistration] Failed to register OneSignal token');
+        console.error('[useOneSignalTokenRegistration] Error:', error);
+        console.error('[useOneSignalTokenRegistration] Error message:', (error as any)?.message);
+
+        // OneSignal integration failed, but don't crash the app
+        console.warn('[useOneSignalTokenRegistration] OneSignal not available - app will work without push notifications');
+        setRegistrationAttempted(true);
       }
     };
 

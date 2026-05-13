@@ -7,7 +7,6 @@ import type { AppStateStatus } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-const OneSignal = require('react-native-onesignal').default;
 import { Colors } from '../constants/colors';
 import { getBadgeImage, getBadgeImageSource } from '../constants/tierConfig';
 import axios from 'axios';
@@ -320,61 +319,6 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
     init();
   }, []);
 
-  // Setup push notifications with navigation
-  useEffect(() => {
-    if (!navigationRef.current) {
-      console.log('Navigation ref not ready yet');
-      return;
-    }
-
-    let isMounted = true;
-    let unsubscribeNotifications: (() => void) | null = null;
-
-    const setupNotifications = async () => {
-      try {
-        // Wait for OneSignal to be fully initialized
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // Request notification permissions
-        OneSignal.Notifications.requestPermission(true);
-        console.log('✅ OneSignal notification permission requested');
-
-        // Handle notification when user taps on it
-        OneSignal.Notifications.addEventListener('click', (event) => {
-          console.log('👆 Notification clicked:', event);
-          const data = event.notification.additionalData || {};
-          const href = data.href || data.on_href;
-
-          if (href) {
-            NotificationService.handleNotificationPress({ ...data, href }, navigationRef.current);
-          }
-          refreshNotificationCount();
-        });
-
-        // Handle foreground notifications
-        OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
-          console.log('📬 Foreground notification:', event.notification.title);
-          Toast.show({
-            type: 'info',
-            text1: event.notification.title || 'Notification',
-            text2: event.notification.subtitle || '',
-          });
-          refreshNotificationCount();
-        });
-
-        console.log('✅ OneSignal notification listeners setup complete');
-      } catch (error) {
-        console.log('OneSignal notification setup error:', error);
-      }
-    };
-
-    setupNotifications();
-
-    return () => {
-      isMounted = false;
-      unsubscribeNotifications?.();
-    };
-  }, [refreshNotificationCount, navigationRef]);
 
   // Handle deep linking for payment redirects
   useEffect(() => {

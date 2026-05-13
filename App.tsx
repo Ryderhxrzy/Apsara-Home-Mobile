@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, LogBox, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-const OneSignal = require('react-native-onesignal').default;
 
 // Suppress the "Text strings must be rendered within a <Text> component" error
 LogBox.ignoreLogs(['Text strings must be rendered within a <Text> component']);
@@ -14,7 +13,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screen/OnboardingScreen';
 import { storageService, StoredUser } from './src/services/storageService';
 import LoadingScreen from './src/screen/LoadingScreen';
-import { useOneSignalTokenRegistration } from './src/hooks/useOneSignalTokenRegistration';
+import { useDeviceRegistration } from './src/hooks/useDeviceRegistration';
 
 type AuthScreen = 'login' | 'signup' | 'otp';
 
@@ -49,33 +48,9 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
-  const [oneSignalReady, setOneSignalReady] = useState(false);
 
-  useEffect(() => {
-    const initializeOneSignal = async () => {
-      try {
-        // Wait longer for native module to be ready
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        if (OneSignal && typeof OneSignal.initialize === 'function') {
-          OneSignal.initialize('b4c95a1a-c525-447d-80bb-2c8dc63f4531');
-          console.log('[App] OneSignal initialized successfully');
-          setOneSignalReady(true);
-        } else {
-          console.warn('[App] OneSignal not available');
-          setOneSignalReady(true); // Continue anyway
-        }
-      } catch (error) {
-        console.error('[App] Failed to initialize OneSignal:', error);
-        setOneSignalReady(true); // Continue anyway
-      }
-    };
-
-    initializeOneSignal();
-  }, []);
-
-  // Register OneSignal push token when authenticated AND OneSignal is ready
-  useOneSignalTokenRegistration(oneSignalReady ? authToken : null, oneSignalReady ? (authUser?.id || null) : null);
+  // Register device with OneSignal when authenticated
+  useDeviceRegistration(authToken, authUser?.id || null);
 
   useEffect(() => {
     checkStoredAuth();

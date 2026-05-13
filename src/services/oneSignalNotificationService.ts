@@ -1,4 +1,4 @@
-const OneSignal = require('react-native-onesignal').default;
+import OneSignal from 'react-native-onesignal';
 
 export class OneSignalNotificationService {
   static async initialize(
