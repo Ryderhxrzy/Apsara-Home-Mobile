@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, LogBox, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import OneSignal from 'react-native-onesignal';
 
 // Suppress the "Text strings must be rendered within a <Text> component" error
 LogBox.ignoreLogs(['Text strings must be rendered within a <Text> component']);
@@ -48,9 +49,41 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [oneSignalReady, setOneSignalReady] = useState(false);
 
-  // Register device with OneSignal when authenticated
-  useDeviceRegistration(authToken, authUser?.id || null);
+  // Initialize OneSignal (step 1: init only)
+  useEffect(() => {
+    const initializeOneSignal = async () => {
+      try {
+        console.log('[App] Initializing OneSignal...');
+        await OneSignal.initialize('b4c95a1a-c525-447d-80bb-2c8dc63f4531');
+        console.log('[App] ✅ OneSignal initialized');
+        setOneSignalReady(true);
+      } catch (error) {
+        console.error('[App] OneSignal initialization error:', error);
+      }
+    };
+    initializeOneSignal();
+  }, []);
+
+  // Request notification permissions (step 2: after init)
+  useEffect(() => {
+    if (!oneSignalReady) return;
+
+    const requestPermissions = async () => {
+      try {
+        console.log('[App] Requesting notification permissions...');
+        await OneSignal.Notifications.requestPermission(true);
+        console.log('[App] ✅ Permissions requested');
+      } catch (error) {
+        console.error('[App] Permission request error:', error);
+      }
+    };
+    requestPermissions();
+  }, [oneSignalReady]);
+
+  // Register device with OneSignal when authenticated (step 3: after ready + auth)
+  useDeviceRegistration(oneSignalReady ? authToken : null, authUser?.id || null);
 
   useEffect(() => {
     checkStoredAuth();

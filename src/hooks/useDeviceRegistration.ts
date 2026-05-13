@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import axios from 'axios';
+import OneSignal from 'react-native-onesignal';
 import { API_CONFIG } from '../config/api';
 import * as SecureStore from 'expo-secure-store';
-
-const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
 
 export const useDeviceRegistration = (token: string | null, userId: string | number | null) => {
   const [registrationAttempted, setRegistrationAttempted] = useState(false);
@@ -24,13 +17,19 @@ export const useDeviceRegistration = (token: string | null, userId: string | num
       try {
         console.log('[useDeviceRegistration] Starting device registration...');
 
-        // Get or create a device ID
-        let deviceId = await SecureStore.getItemAsync('device_id');
-        if (!deviceId) {
-          // Generate a valid UUID v4 for OneSignal
-          deviceId = generateUUID();
-          await SecureStore.setItemAsync('device_id', deviceId);
-          console.log('[useDeviceRegistration] Created new device ID:', deviceId);
+        // Get the actual OneSignal player ID
+        let playerId: string | null = null;
+        try {
+          playerId = await OneSignal.User.pushSubscription.getIdAsync();
+          console.log('[useDeviceRegistration] Got OneSignal player ID:', playerId);
+        } catch (error) {
+          console.error('[useDeviceRegistration] Failed to get OneSignal player ID:', error);
+          return;
+        }
+
+        if (!playerId) {
+          console.warn('[useDeviceRegistration] OneSignal player ID is empty');
+          return;
         }
 
         // Register with OneSignal backend
@@ -40,7 +39,7 @@ export const useDeviceRegistration = (token: string | null, userId: string | num
         const response = await axios.post(
           `${API_CONFIG.BASE_URL}/notifications/onesignal/register-token`,
           {
-            player_id: deviceId,
+            player_id: playerId,
             device_name: `${platform}-device`,
             platform: platform,
           },
