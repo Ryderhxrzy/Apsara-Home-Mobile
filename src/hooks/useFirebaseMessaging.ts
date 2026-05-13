@@ -49,7 +49,20 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
           console.log('[useFirebaseMessaging] 📬 Foreground notification received:', remoteMessage);
         });
 
-        return unsubscribe;
+        // Handle notification taps when app opens from closed state
+        const notificationOpenedApp = await messaging().getInitialNotification();
+        if (notificationOpenedApp) {
+          console.log('[useFirebaseMessaging] 🔔 App opened from closed state via notification');
+        }
+
+        const unsubscribeNotificationOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
+          console.log('[useFirebaseMessaging] 📲 Notification opened:', remoteMessage);
+        });
+
+        return () => {
+          unsubscribe();
+          unsubscribeNotificationOpened();
+        };
       } catch (error) {
         console.error('[useFirebaseMessaging] Error:', error);
       }
