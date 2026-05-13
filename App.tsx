@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, LogBox, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import OneSignal from 'react-native-onesignal';
+const OneSignal = require('react-native-onesignal').default;
 
 // Suppress the "Text strings must be rendered within a <Text> component" error
 LogBox.ignoreLogs(['Text strings must be rendered within a <Text> component']);
@@ -52,8 +52,17 @@ export default function App() {
   const [oneSignalReady, setOneSignalReady] = useState(false);
 
   useEffect(() => {
-    OneSignal.initialize('b4c95a1a-c525-447d-80bb-2c8dc63f4531');
-    setOneSignalReady(true);
+    try {
+      if (OneSignal && typeof OneSignal.initialize === 'function') {
+        OneSignal.initialize('b4c95a1a-c525-447d-80bb-2c8dc63f4531');
+        console.log('[App] OneSignal initialized successfully');
+        setOneSignalReady(true);
+      } else {
+        console.warn('[App] OneSignal not available or initialize is not a function', OneSignal);
+      }
+    } catch (error) {
+      console.error('[App] Failed to initialize OneSignal:', error);
+    }
   }, []);
 
   // Register OneSignal push token when authenticated AND OneSignal is ready

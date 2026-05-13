@@ -7,7 +7,7 @@ import type { AppStateStatus } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-import OneSignal from 'react-native-onesignal';
+const OneSignal = require('react-native-onesignal').default;
 import { Colors } from '../constants/colors';
 import { getBadgeImage, getBadgeImageSource } from '../constants/tierConfig';
 import axios from 'axios';

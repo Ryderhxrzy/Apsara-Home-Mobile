@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import OneSignal from 'react-native-onesignal';
+const OneSignal = require('react-native-onesignal').default;
 import { API_CONFIG } from '../config/api';
 import axios from 'axios';
 
