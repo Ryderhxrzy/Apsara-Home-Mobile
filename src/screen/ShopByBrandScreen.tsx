@@ -88,6 +88,7 @@ export default function ShopByBrandScreen({
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'home' | 'products' | 'categories'>('products');
   const perPage = 20;
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -470,6 +471,33 @@ export default function ShopByBrandScreen({
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Tab Navigation */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={styles.tabItem}
+            onPress={() => setSelectedTab('home')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'home' && styles.tabTextActive]}>Home</Text>
+            {selectedTab === 'home' && <View style={[styles.tabIndicator, { backgroundColor: Colors.sky }]} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tabItem}
+            onPress={() => setSelectedTab('products')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'products' && styles.tabTextActive]}>Products</Text>
+            {selectedTab === 'products' && <View style={[styles.tabIndicator, { backgroundColor: Colors.sky }]} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tabItem}
+            onPress={() => setSelectedTab('categories')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'categories' && styles.tabTextActive]}>Categories</Text>
+            {selectedTab === 'categories' && <View style={[styles.tabIndicator, { backgroundColor: Colors.sky }]} />}
+          </TouchableOpacity>
+        </View>
       </ImageBackground>
 
       <ScrollView
@@ -738,6 +766,34 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 32,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingHorizontal: 0,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9ca3af',
+  },
+  tabTextActive: {
+    color: Colors.sky,
+  },
+  tabIndicator: {
+    width: '80%',
+    height: 2.5,
+    marginTop: 10,
+    borderRadius: 1.5,
   },
   masonryGrid: {
     flexDirection: 'row',
