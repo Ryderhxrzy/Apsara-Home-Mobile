@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform, PermissionsAndroid, Linking } from 'react-native';
 import {
   getMessaging,
   onMessage,
@@ -92,33 +92,19 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
           const title = remoteMessage.notification?.title || 'New notification';
           const body = remoteMessage.notification?.body || '';
           const imageUrl = remoteMessage.notification?.imageUrl || remoteMessage.data?.image;
+          const deeplink = remoteMessage.data?.href || remoteMessage.data?.deeplink || null;
+
+          console.log('[useFirebaseMessaging] Extracted image URL:', imageUrl);
+          console.log('[useFirebaseMessaging] Extracted deeplink:', deeplink);
 
           try {
-            // Try displaying with image first
-            if (imageUrl) {
-              try {
-                await notifee.displayNotification({
-                  title,
-                  body,
-                  android: {
-                    channelId: androidChannelId || 'default',
-                    smallIcon: 'ic_stat_notify',
-                    pressAction: {
-                      id: 'default',
-                    },
-                    largeIcon: imageUrl,
-                  },
-                });
-                return;
-              } catch (imageError) {
-                console.warn('[useFirebaseMessaging] Failed to display with image, falling back to text:', imageError);
-              }
-            }
-
-            // Fallback: Display without image (pure text)
-            await notifee.displayNotification({
+            // Notification config with deeplink
+            const notificationConfig: any = {
               title,
               body,
+              data: {
+                href: deeplink || '/orders',
+              },
               android: {
                 channelId: androidChannelId || 'default',
                 smallIcon: 'ic_stat_notify',
@@ -126,9 +112,74 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
                   id: 'default',
                 },
               },
-            });
+            };
+
+            // Try displaying with large image first (bigPicture)
+            if (imageUrl) {
+              try {
+                console.log('[useFirebaseMessaging] Attempting to display with bigPicture:', imageUrl);
+                await notifee.displayNotification({
+                  ...notificationConfig,
+                  android: {
+                    ...notificationConfig.android,
+                    bigPicture: {
+                      image: imageUrl,
+                    },
+                  },
+                });
+                console.log('[useFirebaseMessaging] Successfully displayed with bigPicture');
+                return;
+              } catch (imageError) {
+                console.warn('[useFirebaseMessaging] Failed to display with bigPicture, trying largeIcon:', imageError);
+
+                // Fallback to largeIcon if bigPicture fails
+                try {
+                  await notifee.displayNotification({
+                    ...notificationConfig,
+                    android: {
+                      ...notificationConfig.android,
+                      largeIcon: imageUrl,
+                    },
+                  });
+                  console.log('[useFirebaseMessaging] Successfully displayed with largeIcon');
+                  return;
+                } catch (largeIconError) {
+                  console.warn('[useFirebaseMessaging] Failed with largeIcon too, falling back to text:', largeIconError);
+                }
+              }
+            }
+
+            // Fallback: Display without image (pure text)
+            console.log('[useFirebaseMessaging] Displaying text-only notification');
+            await notifee.displayNotification(notificationConfig);
           } catch (displayError) {
             console.error('[useFirebaseMessaging] Foreground local notification failed:', displayError);
+          }
+        });
+
+        // Handle notification press (when user clicks the notification and app opens from background)
+        const unsubscribeOnNotificationOpenedApp = onNotificationOpenedApp(messaging_, (remoteMessage) => {
+          console.log('[useFirebaseMessaging] App opened from notification:', remoteMessage);
+          const deeplink = remoteMessage?.data?.href || remoteMessage?.data?.deeplink;
+          if (deeplink) {
+            console.log('[useFirebaseMessaging] Emitting deeplink event:', deeplink);
+            Linking.openURL(deeplink).catch(err => {
+              console.error('[useFirebaseMessaging] Failed to open deeplink:', err);
+            });
+          }
+        });
+
+        // Handle foreground notification press (notifee - when app is already open)
+        const unsubscribeNotifeePress = notifee.onForegroundEvent(({ type, notification }) => {
+          console.log('[useFirebaseMessaging] Foreground notification event:', type, notification);
+          if (type === 1) { // PressAction = 1
+            const deeplink = notification?.data?.href as string | undefined;
+            if (deeplink) {
+              console.log('[useFirebaseMessaging] User pressed foreground notification, emitting deeplink:', deeplink);
+              Linking.openURL(deeplink).catch(err => {
+                console.error('[useFirebaseMessaging] Failed to open deeplink:', err);
+              });
+            }
           }
         });
 
@@ -145,6 +196,12 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
           unsubscribe();
           unsubscribeNotificationOpened();
           unsubscribeTokenRefresh();
+          if (unsubscribeOnNotificationOpenedApp) {
+            unsubscribeOnNotificationOpenedApp();
+          }
+          if (unsubscribeNotifeePress) {
+            unsubscribeNotifeePress();
+          }
         };
       } catch (error) {
         console.error('[useFirebaseMessaging] Error:', error);

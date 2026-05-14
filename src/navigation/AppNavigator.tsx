@@ -320,7 +320,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   }, []);
 
 
-  // Handle deep linking for payment redirects
+  // Handle deep linking for payment redirects and notification orders
   useEffect(() => {
     const handleDeepLink = async ({ url }: { url: string }) => {
       console.log('[AppNavigator] Deep link received:', url);
@@ -389,6 +389,21 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
         console.log('[AppNavigator] Payment cancel deep link triggered');
         setShowPaymentCancel(true);
         setShowPaymentWebView(false);
+      } else if (url.includes('purchases://')) {
+        console.log('[AppNavigator] Order notification deep link triggered:', url);
+        // Parse purchases:// deeplinks - Format: purchases://status/checkout_id
+        const parts = url.replace('purchases://', '').split('/');
+        const status = parts[0];
+        const checkoutId = parts[1];
+
+        if (checkoutId) {
+          console.log('[AppNavigator] Navigating to order:', { status, checkoutId });
+          navigation.navigate('OrderDetail', {
+            orderId: checkoutId,
+            checkoutId: checkoutId,
+            status: status,
+          });
+        }
       }
     };
 
