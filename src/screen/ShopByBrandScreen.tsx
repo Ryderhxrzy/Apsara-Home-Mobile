@@ -416,7 +416,7 @@ export default function ShopByBrandScreen({
         {/* Bottom Row: Brand Info and Follow Button */}
         <View style={styles.headerContent}>
           <View style={styles.brandHeaderContent}>
-            <View style={[styles.brandLogoHeader, { borderColor: Colors.sky }]}>
+            <View style={[styles.brandLogoHeader, { borderColor: '#cbd5e1' }]}>
               {getBrandLogo() ? (
                 <Image source={{ uri: getBrandLogo() }} style={styles.brandLogoImageHeader} />
               ) : (
@@ -453,7 +453,8 @@ export default function ShopByBrandScreen({
             style={[
               styles.topFollowButton,
               {
-                backgroundColor: Colors.sky
+                backgroundColor: isFollowing ? '#0369a1' : Colors.sky,
+                borderWidth: isFollowing ? 0 : 0,
               }
             ]}
             activeOpacity={0.7}
@@ -465,7 +466,7 @@ export default function ShopByBrandScreen({
               style={{ marginRight: 4 }}
             />
             <Text style={[styles.topFollowButtonText, { color: Colors.white }]}>
-              {followLoading ? 'Follow' : (isFollowing ? 'Following' : 'Follow')}
+              {followLoading ? 'Follow' : (isFollowing ? 'Followed' : 'Follow')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -568,6 +569,9 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 24,
     position: 'relative',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
   },
   headerOverlay: {
     position: 'absolute',
@@ -681,12 +685,14 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 4,
   },
   brandHeaderName: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
     lineHeight: 18,
+    marginBottom: 6,
   },
   brandHeaderSupplier: {
     fontSize: 12,
@@ -738,6 +744,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
   featuredSection: {
     marginHorizontal: 8,
@@ -745,8 +754,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   featuredHeaderRow: {
     paddingHorizontal: 4,
