@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../constants/colors';
 import Button from '../components/Button/PrimaryButton';
@@ -46,6 +47,13 @@ export default function LoginScreen({
   const [otpError, setOtpError] = useState('');
   const [mfaPolling, setMfaPolling] = useState(false);
   const otpInputRef = useRef<TextInput | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [savedUser, setSavedUser] = useState<{ id: string; email: string; name: string; avatar_url?: string } | null>(null);
+  const [showRememberedUserUI, setShowRememberedUserUI] = useState(false);
+
+  useEffect(() => {
+    loadSavedUser();
+  }, []);
 
   useEffect(() => {
     if (authStep === '2fa') {
@@ -53,6 +61,40 @@ export default function LoginScreen({
       return () => clearTimeout(timer);
     }
   }, [authStep]);
+
+  async function loadSavedUser() {
+    try {
+      const saved = await AsyncStorage.getItem('rememberedUser');
+      if (saved) {
+        const user = JSON.parse(saved);
+        setSavedUser(user);
+        setShowRememberedUserUI(true);
+      }
+    } catch (error) {
+      console.error('Failed to load saved user:', error);
+    }
+  }
+
+  async function saveUserCredentials(user: { id: string; email: string; name: string; avatar_url?: string }) {
+    try {
+      await AsyncStorage.setItem('rememberedUser', JSON.stringify(user));
+    } catch (error) {
+      console.error('Failed to save user:', error);
+    }
+  }
+
+  async function clearSavedUser() {
+    try {
+      await AsyncStorage.removeItem('rememberedUser');
+      setSavedUser(null);
+      setShowRememberedUserUI(false);
+      setPassword('');
+      setEmail('');
+      setErrors({});
+    } catch (error) {
+      console.error('Failed to clear saved user:', error);
+    }
+  }
 
   const player = useVideoPlayer(require('../../assets/login/home-login.mp4'), p => {
     p.loop = true;
@@ -73,6 +115,42 @@ export default function LoginScreen({
     setLoading(true);
     try {
       const response = await authService.login(email, password);
+      if (!response.user && !response.accessToken && !response.token) {
+        Toast.show({ type: 'error', text1: 'Login failed', text2: 'Invalid credentials.' });
+        return;
+      }
+      if (rememberMe && response.user) {
+        await saveUserCredentials(response.user);
+      }
+      Toast.show({ type: 'success', text1: 'Login successful!' });
+      setTimeout(() => onAuthenticated?.(response.user, response.token ?? response.accessToken), 700);
+    } catch (error: any) {
+      if (error.type === '2FA_REQUIRED') {
+        setAuthToken(error.token);
+        setAuthStep('2fa');
+        Toast.show({ type: 'info', text1: 'OTP required', text2: error.message });
+      } else if (error.type === 'MFA_APPROVAL_REQUIRED') {
+        setAuthToken(error.token);
+        setAuthStep('mfa');
+        Toast.show({ type: 'info', text1: 'MFA approval required', text2: error.message });
+        startMfaPolling();
+      } else {
+        Toast.show({ type: 'error', text1: 'Login failed', text2: error.message || 'Please try again.' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRememberedUserLogin() {
+    if (!password.trim()) {
+      setErrors({ password: 'Password is required.' });
+      return;
+    }
+    if (!savedUser?.email) return;
+    setLoading(true);
+    try {
+      const response = await authService.login(savedUser.email, password);
       if (!response.user && !response.accessToken && !response.token) {
         Toast.show({ type: 'error', text1: 'Login failed', text2: 'Invalid credentials.' });
         return;
@@ -194,22 +272,64 @@ export default function LoginScreen({
                 </Pressable>
               </View>
 
-              <Text style={styles.heading}>Welcome back!</Text>
-              <Text style={styles.subheading}>Sign in to your AF Home account</Text>
+              {showRememberedUserUI && savedUser ? (
+                <>
+                  <Text style={styles.heading}>Welcome back!</Text>
+                  <Text style={styles.subheading}>Signing in as {savedUser.name}</Text>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Username or Email</Text>
-                <TextInput style={[styles.input, errors.email ? styles.inputError : null]} value={email} onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: undefined })); }} placeholderTextColor={Colors.textSecondary} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-                {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-              </View>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Password</Text>
-                <View style={[styles.passwordRow, errors.password ? styles.inputError : null]}>
-                  <TextInput style={styles.passwordInput} value={password} onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: undefined })); }} placeholderTextColor={Colors.textSecondary} secureTextEntry={!showPassword} autoComplete="password" onSubmitEditing={handleSignIn} />
-                  <TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textSecondary} /></TouchableOpacity>
-                </View>
-              </View>
-              <Button title="Sign in" onPress={handleSignIn} loading={loading} style={styles.signInBtn} />
+                  <View style={styles.profileSection}>
+                    {savedUser.avatar_url ? (
+                      <Image source={{ uri: savedUser.avatar_url }} style={styles.profilePicture} />
+                    ) : (
+                      <View style={styles.profilePictureDefault}>
+                        <Text style={styles.profilePictureDefaultText}>{savedUser.name?.charAt(0).toUpperCase() || '?'}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.profileName}>{savedUser.name}</Text>
+                    <Text style={styles.profileEmail}>{savedUser.email}</Text>
+                  </View>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <View style={[styles.passwordRow, errors.password ? styles.inputError : null]}>
+                      <TextInput style={styles.passwordInput} value={password} onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: undefined })); }} placeholderTextColor={Colors.textSecondary} secureTextEntry={!showPassword} autoComplete="password" onSubmitEditing={handleRememberedUserLogin} />
+                      <TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textSecondary} /></TouchableOpacity>
+                    </View>
+                    {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                  </View>
+                  <Button title="Sign in" onPress={handleRememberedUserLogin} loading={loading} style={styles.signInBtn} />
+                  <TouchableOpacity style={styles.notYouButton} onPress={clearSavedUser} disabled={loading}>
+                    <Text style={styles.notYouText}>Not you? Use a different account</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.heading}>Welcome back!</Text>
+                  <Text style={styles.subheading}>Sign in to your AF Home account</Text>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Username or Email</Text>
+                    <TextInput style={[styles.input, errors.email ? styles.inputError : null]} value={email} onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: undefined })); }} placeholderTextColor={Colors.textSecondary} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+                    {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                  </View>
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <View style={[styles.passwordRow, errors.password ? styles.inputError : null]}>
+                      <TextInput style={styles.passwordInput} value={password} onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: undefined })); }} placeholderTextColor={Colors.textSecondary} secureTextEntry={!showPassword} autoComplete="password" onSubmitEditing={handleSignIn} />
+                      <TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textSecondary} /></TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.rememberMeRow}>
+                    <TouchableOpacity style={styles.checkboxRow} onPress={() => setRememberMe(v => !v)} activeOpacity={0.7}>
+                      <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                        {rememberMe && <Ionicons name="checkmark" size={12} color={Colors.white} />}
+                      </View>
+                      <Text style={styles.rememberMeText}>Remember me</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Button title="Sign in" onPress={handleSignIn} loading={loading} style={styles.signInBtn} />
+                </>
+              )}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -280,6 +400,19 @@ const styles = StyleSheet.create({
   passwordRow: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.inputBorder, borderRadius: 10, paddingLeft: 14, paddingRight: 12 },
   passwordInput: { flex: 1, fontSize: 15, color: Colors.text },
   signInBtn: { borderRadius: 10 },
+  profileSection: { alignItems: 'center', marginBottom: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: Colors.inputBorder },
+  profilePicture: { width: 80, height: 80, borderRadius: 40, marginBottom: 12 },
+  profilePictureDefault: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.sky, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  profilePictureDefaultText: { fontSize: 32, fontWeight: '800', color: Colors.white },
+  profileName: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  profileEmail: { fontSize: 12, color: Colors.textSecondary },
+  rememberMeRow: { marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  checkbox: { width: 18, height: 18, borderWidth: 1.5, borderColor: Colors.inputBorder, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
+  checkboxChecked: { backgroundColor: Colors.sky, borderColor: Colors.sky },
+  rememberMeText: { fontSize: 13, color: Colors.text, fontWeight: '500' },
+  notYouButton: { marginTop: 16, paddingVertical: 12, alignItems: 'center' },
+  notYouText: { fontSize: 13, color: Colors.sky, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { backgroundColor: Colors.white, borderRadius: 20, padding: 28, width: '100%', maxWidth: 340, alignItems: 'center' },
   modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 8 },
