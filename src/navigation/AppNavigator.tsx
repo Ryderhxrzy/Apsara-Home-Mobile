@@ -324,23 +324,33 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
 
   // Check for pending background deeplinks when app initializes or comes to foreground
   useEffect(() => {
-    const handlePendingBackgroundDeeplink = () => {
-      const deeplink = getPendingBackgroundDeeplink();
+    const handlePendingBackgroundDeeplink = async () => {
+      const deeplink = await getPendingBackgroundDeeplink();
       if (deeplink) {
         console.log('[AppNavigator] Found pending background deeplink:', deeplink);
-        // Process it like a regular deeplink
-        if (deeplink.includes('purchases://')) {
-          const parts = deeplink.replace('purchases://', '').split('/');
-          const status = parts[0];
-          const checkoutId = parts[1];
+        // Add a small delay to ensure navigation context is fully ready
+        setTimeout(() => {
+          processDeeplink(deeplink);
+        }, 100);
+      }
+    };
 
-          if (checkoutId) {
-            console.log('[AppNavigator] Processing pending purchases deeplink:', { status, checkoutId });
-            setPurchasesStatus(normalizePurchaseStatus(status));
-            setPurchasesInitialOrderId(checkoutId);
-            setShowPurchases(true);
-          }
+    const processDeeplink = (deeplink: string) => {
+      if (deeplink.includes('purchases://')) {
+        const parts = deeplink.replace('purchases://', '').split('/');
+        const status = parts[0];
+        const checkoutId = parts[1];
+
+        if (checkoutId) {
+          console.log('[AppNavigator] Processing pending purchases deeplink:', { status, checkoutId });
+          setPurchasesStatus(normalizePurchaseStatus(status));
+          setPurchasesInitialOrderId(checkoutId);
+          setShowPurchases(true);
+        } else {
+          console.warn('[AppNavigator] Invalid purchases deeplink format:', deeplink);
         }
+      } else {
+        console.warn('[AppNavigator] Unknown deeplink format:', deeplink);
       }
     };
 
@@ -350,6 +360,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
     // Also check when app comes to foreground
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        console.log('[AppNavigator] App came to foreground - checking for pending deeplinks');
         handlePendingBackgroundDeeplink();
       }
     });
