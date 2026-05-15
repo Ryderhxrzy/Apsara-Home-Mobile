@@ -39,6 +39,17 @@ import PurchasesScreen from '../screen/PurchasesScreen';
 import PaymentSuccessScreen from '../screen/PaymentSuccessScreen';
 import PaymentCancelScreen from '../screen/PaymentCancelScreen';
 import ShippingAddressSelectionScreen from '../screen/ShippingAddressSelectionScreen';
+import AboutUsScreen from '../screen/AboutUsScreen';
+import PrivacyPolicyScreen from '../screen/PrivacyPolicyScreen';
+import TermsAndConditionsScreen from '../screen/TermsAndConditionsScreen';
+import IncomeDisclaimerScreen from '../screen/IncomeDisclaimerScreen';
+import CookiePolicyScreen from '../screen/CookiePolicyScreen';
+import RewardsAndCommissionsScreen from '../screen/RewardsAndCommissionsScreen';
+import ContactUsScreen from '../screen/ContactUsScreen';
+import OurBranchesScreen from '../screen/OurBranchesScreen';
+import FAQsScreen from '../screen/FAQsScreen';
+import ShippingInfoScreen from '../screen/ShippingInfoScreen';
+import ReturnsScreen from '../screen/ReturnsScreen';
 import { orderService } from '../services/orderService';
 import Toast from 'react-native-toast-message';
 import { useNotifications } from '../hooks/useNotifications';
@@ -216,6 +227,17 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [paymentConfirmationData, setPaymentConfirmationData] = useState<any>(null);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showAboutUs, setShowAboutUs] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsAndConditions, setShowTermsAndConditions] = useState(false);
+  const [showIncomeDisclaimer, setShowIncomeDisclaimer] = useState(false);
+  const [showCookiePolicy, setShowCookiePolicy] = useState(false);
+  const [showRewardsAndCommissions, setShowRewardsAndCommissions] = useState(false);
+  const [showContactUs, setShowContactUs] = useState(false);
+  const [showOurBranches, setShowOurBranches] = useState(false);
+  const [showFAQs, setShowFAQs] = useState(false);
+  const [showShippingInfo, setShowShippingInfo] = useState(false);
+  const [showReturns, setShowReturns] = useState(false);
   const [paymentSourceScreen, setPaymentSourceScreen] = useState<'checkout' | 'purchases'>('checkout');
   const [showAffiliateReferralModal, setShowAffiliateReferralModal] = useState(false);
   const [showShippingAddressScreen, setShowShippingAddressScreen] = useState(false);
@@ -941,10 +963,24 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
 
           ) : activeTab === 'settings' ? (
             <SettingsScreen
+              user={enrichedUser}
               isDarkMode={isDarkMode}
               setIsDarkMode={setIsDarkMode}
               onBack={() => navigateTo('profile')}
+              onEditProfile={() => setShowProfileDetails(true)}
               onNavigateSecurity={() => setShowSecurity(true)}
+              onNavigateAboutUs={() => setShowAboutUs(true)}
+              onNavigatePrivacyPolicy={() => setShowPrivacyPolicy(true)}
+              onNavigateTermsAndConditions={() => setShowTermsAndConditions(true)}
+              onNavigateIncomeDisclaimer={() => setShowIncomeDisclaimer(true)}
+              onNavigateCookiePolicy={() => setShowCookiePolicy(true)}
+              onNavigateRewardsAndCommissions={() => setShowRewardsAndCommissions(true)}
+              onNavigateContactUs={() => setShowContactUs(true)}
+              onNavigateOurBranches={() => setShowOurBranches(true)}
+              onNavigateFAQs={() => setShowFAQs(true)}
+              onNavigateShippingInfo={() => setShowShippingInfo(true)}
+              onNavigateReturns={() => setShowReturns(true)}
+              onLogout={onLogout}
             />
           ) : activeTab === 'wishlist' ? (
             <>
@@ -1631,6 +1667,105 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             isDarkMode={isDarkMode}
             token={token}
             onBack={() => setShowSecurity(false)}
+          />
+        </View>
+      )}
+
+      {showAboutUs && (
+        <View style={styles.cartScreenOverlay}>
+          <AboutUsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowAboutUs(false)}
+          />
+        </View>
+      )}
+
+      {showPrivacyPolicy && (
+        <View style={styles.cartScreenOverlay}>
+          <PrivacyPolicyScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowPrivacyPolicy(false)}
+          />
+        </View>
+      )}
+
+      {showTermsAndConditions && (
+        <View style={styles.cartScreenOverlay}>
+          <TermsAndConditionsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowTermsAndConditions(false)}
+          />
+        </View>
+      )}
+
+      {showIncomeDisclaimer && (
+        <View style={styles.cartScreenOverlay}>
+          <IncomeDisclaimerScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowIncomeDisclaimer(false)}
+          />
+        </View>
+      )}
+
+      {showCookiePolicy && (
+        <View style={styles.cartScreenOverlay}>
+          <CookiePolicyScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowCookiePolicy(false)}
+          />
+        </View>
+      )}
+
+      {showRewardsAndCommissions && (
+        <View style={styles.cartScreenOverlay}>
+          <RewardsAndCommissionsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowRewardsAndCommissions(false)}
+          />
+        </View>
+      )}
+
+      {showContactUs && (
+        <View style={styles.cartScreenOverlay}>
+          <ContactUsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowContactUs(false)}
+          />
+        </View>
+      )}
+
+      {showOurBranches && (
+        <View style={styles.cartScreenOverlay}>
+          <OurBranchesScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowOurBranches(false)}
+          />
+        </View>
+      )}
+
+      {showFAQs && (
+        <View style={styles.cartScreenOverlay}>
+          <FAQsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowFAQs(false)}
+          />
+        </View>
+      )}
+
+      {showShippingInfo && (
+        <View style={styles.cartScreenOverlay}>
+          <ShippingInfoScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowShippingInfo(false)}
+          />
+        </View>
+      )}
+
+      {showReturns && (
+        <View style={styles.cartScreenOverlay}>
+          <ReturnsScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowReturns(false)}
           />
         </View>
       )}
