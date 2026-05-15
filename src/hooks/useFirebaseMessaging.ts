@@ -412,10 +412,18 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
           console.log('[useFirebaseMessaging] App opened from closed state via Firebase notification');
           const deeplink = notificationOpenedApp?.data?.href || notificationOpenedApp?.data?.deeplink;
           if (deeplink && typeof deeplink === 'string' && deeplink.trim()) {
-            console.log('[useFirebaseMessaging] Opening deeplink from closed state after delay');
-            setTimeout(() => {
-              Linking.openURL(deeplink).catch(err => console.error('[useFirebaseMessaging] Failed to open deeplink:', err));
-            }, 1000);
+            console.log('[useFirebaseMessaging] Storing initial deeplink:', deeplink);
+            // For internal deeplinks, store in pending - will be handled when app fully initializes
+            // For external URLs, try to open directly
+            if (deeplink.startsWith('purchases://')) {
+              pendingBackgroundDeeplink = deeplink;
+              console.log('[useFirebaseMessaging] Stored initial purchases deeplink as pending');
+            } else {
+              // Only open external URLs through Linking
+              setTimeout(() => {
+                Linking.openURL(deeplink).catch(err => console.error('[useFirebaseMessaging] Failed to open external URL:', err));
+              }, 1000);
+            }
             initialNotificationProcessed = true;
           }
         }
@@ -428,10 +436,18 @@ export const useFirebaseMessaging = (token: string | null, userId: string | numb
               console.log('[useFirebaseMessaging] App opened from notification (notifee)', { hasData: !!notifeeInitialNotification.notification.data });
               const deeplink = (notifeeInitialNotification.notification.data?.href || notifeeInitialNotification.notification.data?.deeplink) as string | undefined;
               if (deeplink && typeof deeplink === 'string' && deeplink.trim()) {
-                console.log('[useFirebaseMessaging] Opening deeplink from notifee initial notification after delay');
-                setTimeout(() => {
-                  Linking.openURL(deeplink).catch(err => console.error('[useFirebaseMessaging] Failed to open deeplink:', err));
-                }, 1000);
+                console.log('[useFirebaseMessaging] Storing initial notifee deeplink:', deeplink);
+                // For internal deeplinks, store in pending - will be handled when app fully initializes
+                // For external URLs, try to open directly
+                if (deeplink.startsWith('purchases://')) {
+                  pendingBackgroundDeeplink = deeplink;
+                  console.log('[useFirebaseMessaging] Stored initial purchases deeplink as pending');
+                } else {
+                  // Only open external URLs through Linking
+                  setTimeout(() => {
+                    Linking.openURL(deeplink).catch(err => console.error('[useFirebaseMessaging] Failed to open external URL:', err));
+                  }, 1000);
+                }
                 initialNotificationProcessed = true;
               }
             }
