@@ -79,14 +79,9 @@ export default function IndexScreen({
           <SafeAreaView style={styles.contentSection} edges={['bottom']}>
             {/* Logo and Text Section */}
           <View style={styles.textWithLogoSection}>
-              <Image
-                source={require('../../assets/index-logo.avif')}
-                style={styles.sideLogoImage}
-                resizeMode="contain"
-              />
               <View style={styles.headingSection}>
                 <Text style={styles.heading}>Share. Earn. Enjoy</Text>
-                <Text style={styles.subheading}>
+                <Text style={styles.subheading} numberOfLines={1}>
                   Start your affiliate journey today
                 </Text>
               </View>
@@ -178,18 +173,19 @@ const styles = StyleSheet.create({
   textWithLogoSection: {
     flexDirection: 'column',
     alignItems: 'flex-start',
-    gap: 12,
     marginBottom: 24,
   },
   sideLogoImage: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     opacity: 0.6,
+    marginBottom: -15,
+    backgroundColor: 'transparent',
   },
   headingSection: {
     gap: 4,
     alignItems: 'flex-start',
-    marginTop: 48,
+    marginTop: -5,
   },
   heading: {
     fontSize: 28,
@@ -203,15 +199,16 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   subheading: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '400',
     fontStyle: 'italic',
     color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 24,
+    lineHeight: 18,
     textAlign: 'left',
   },
   buttonSection: {
     gap: 12,
+    marginTop: -16,
   },
   loginButton: {
     flexDirection: 'row',
