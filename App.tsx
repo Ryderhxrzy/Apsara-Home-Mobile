@@ -7,6 +7,7 @@ LogBox.ignoreLogs(['Text strings must be rendered within a <Text> component']);
 import Toast from 'react-native-toast-message';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import notifee, { AndroidImportance } from '@notifee/react-native';
+import IndexScreen from './src/screen/IndexScreen';
 import LoginScreen from './src/screen/LoginScreen';
 import SignupScreen from './src/screen/SignupScreen';
 import OtpScreen from './src/screen/OtpScreen';
@@ -36,7 +37,7 @@ const initializeNotificationChannel = async () => {
   }
 };
 
-type AuthScreen = 'login' | 'signup' | 'otp';
+type AuthScreen = 'index' | 'login' | 'signup' | 'otp';
 
 
 const queryClient = new QueryClient({
@@ -61,7 +62,7 @@ interface AuthUser {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<AuthScreen>('login');
+  const [screen, setScreen] = useState<AuthScreen>('index');
   const [otpEmail, setOtpEmail] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
@@ -137,7 +138,7 @@ export default function App() {
       setAuthenticated(false);
       setAuthUser(null);
       setAuthToken(null);
-      setScreen('login');
+      setScreen('index');
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -145,10 +146,20 @@ export default function App() {
 
 
   function renderAuth() {
+    if (screen === 'index') {
+      return (
+        <IndexScreen
+          onGoToLogin={() => setScreen('login')}
+          onGoToSignup={() => setScreen('signup')}
+        />
+      );
+    }
+
     if (screen === 'signup') {
       return (
         <SignupScreen
           onGoToLogin={() => setScreen('login')}
+          onGoToIndex={() => setScreen('index')}
           onContinueToOtp={(email, token) => {
             setOtpEmail(email);
             setVerificationToken(token);
@@ -169,7 +180,7 @@ export default function App() {
       );
     }
 
-    return <LoginScreen onGoToSignup={() => setScreen('signup')} onAuthenticated={(user, token) => goAuthenticated(user, token)} onResetOnboarding={resetOnboarding} />;
+    return <LoginScreen onGoToSignup={() => setScreen('signup')} onGoToIndex={() => setScreen('index')} onAuthenticated={(user, token) => goAuthenticated(user, token)} onResetOnboarding={resetOnboarding} />;
   }
 
   return (
