@@ -98,6 +98,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [referralTree, setReferralTree] = useState<ReferralTree | null>(null);
   const [showReferralNetwork, setShowReferralNetwork] = useState(false);
   const [loadingReferral, setLoadingReferral] = useState(false);
+  const [googleLinked, setGoogleLinked] = useState(false);
   const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
@@ -314,6 +315,22 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Google Account Link Banner */}
+        {!googleLinked && (
+          <View style={[styles.googleLinkBanner, { backgroundColor: isDarkMode ? '#1e3a8a' : '#dbeafe', borderColor: Colors.sky }]}>
+            <View style={styles.googleLinkContent}>
+              <Ionicons name="logo-google" size={20} color={Colors.sky} />
+              <View style={styles.googleLinkText}>
+                <Text style={[styles.googleLinkTitle, { color: isDarkMode ? '#e0e7ff' : '#1e40af' }]}>Google Account Not Linked</Text>
+                <Text style={[styles.googleLinkSubtitle, { color: isDarkMode ? '#bfdbfe' : '#1e3a8a' }]}>Link your Google account to enable quick login</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[styles.googleLinkBtn, { backgroundColor: Colors.sky }]}>
+              <Text style={styles.googleLinkBtnText}>Link Now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Level Progress */}
         {loyaltyData && (
           <LevelProgress
@@ -1297,6 +1314,53 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
     backgroundColor: Colors.white,
+  },
+
+  // ── Google Link Banner ──
+  googleLinkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.sky,
+    gap: 10,
+  },
+  googleLinkContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  googleLinkText: {
+    flex: 1,
+    gap: 0,
+  },
+  googleLinkTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1e40af',
+  },
+  googleLinkSubtitle: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#1e3a8a',
+    opacity: 0.8,
+  },
+  googleLinkBtn: {
+    backgroundColor: Colors.sky,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleLinkBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.white,
   },
 
 });
