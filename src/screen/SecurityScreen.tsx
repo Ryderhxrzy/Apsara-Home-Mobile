@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, BackHandler, TextInput, Alert, ActivityIndicator, Animated, Linking,
+  View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, BackHandler, TextInput, Alert, ActivityIndicator, Animated, Linking, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,11 +9,13 @@ import { Colors } from '../constants/colors';
 import { API_CONFIG } from '../config/api';
 import axios from 'axios';
 import GoogleSignInService from '../services/googleSignInService';
+import BiometricUtils from '../utils/biometricUtils';
 
 interface SecurityScreenProps {
   onBack: () => void;
   isDarkMode: boolean;
   token?: string | null;
+  onGoogleLinked?: () => void;
 }
 
 interface Passkey {
@@ -22,7 +24,7 @@ interface Passkey {
   created_at?: string;
 }
 
-export default function SecurityScreen({ onBack, isDarkMode, token }: SecurityScreenProps) {
+export default function SecurityScreen({ onBack, isDarkMode, token, onGoogleLinked }: SecurityScreenProps) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(100)).current;
   const [currentPassword, setCurrentPassword] = useState('');
@@ -37,7 +39,10 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [googleLinked, setGoogleLinked] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
-  const [googleAccount, setGoogleAccount] = useState<any>(null);;
+  const [googleAccount, setGoogleAccount] = useState<any>(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [loadingBiometric, setLoadingBiometric] = useState(false);;
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -69,8 +74,13 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
   useEffect(() => {
     if (token) {
       fetchPasskeys();
+      fetchGoogleLinkedStatus();
     }
   }, [token]);
+
+  useEffect(() => {
+    checkBiometricAvailability();
+  }, []);
 
   const fetchPasskeys = async () => {
     if (!token) return;
@@ -80,6 +90,28 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
       setPasskeys(res.data?.data || []);
     } catch (error) {
       console.error('Error fetching passkeys:', error);
+    }
+  };
+
+  const fetchGoogleLinkedStatus = async () => {
+    if (!token) return;
+    try {
+      console.log('[SecurityScreen] Fetching Google linked status');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`${API_CONFIG.BASE_URL}/auth/mobile/check-google-linked`, { headers });
+      console.log('[SecurityScreen] Google linked status response:', res.data);
+
+      if (res.data?.linked) {
+        setGoogleLinked(true);
+        // Optionally fetch the account email if available
+        if (res.data?.provider_data?.email) {
+          setGoogleAccount({ email: res.data.provider_data.email });
+        }
+      } else {
+        setGoogleLinked(false);
+      }
+    } catch (error) {
+      console.error('[SecurityScreen] Error fetching Google linked status:', error);
     }
   };
 
@@ -243,6 +275,7 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
       const currentUser = await GoogleSignInService.getCurrentUser();
       setGoogleAccount(currentUser?.data?.user);
       setGoogleLinked(true);
+      onGoogleLinked?.();
 
       Alert.alert('Success', 'Account linked successfully');
     } catch (error: any) {
@@ -254,6 +287,193 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
     } finally {
       setLoadingGoogle(false);
     }
+  };
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const available = await BiometricUtils.isBiometricAvailable();
+      const enrolled = await BiometricUtils.isBiometricEnrolled();
+      const hasCredential = await BiometricUtils.hasBiometricCredential();
+
+      setBiometricAvailable(available && enrolled);
+      setBiometricEnabled(hasCredential);
+    } catch (error) {
+      console.error('Error checking biometric:', error);
+    }
+  };
+
+  const handleEnableBiometric = async () => {
+    setLoadingBiometric(true);
+    try {
+      console.log('[SecurityScreen] Starting biometric enable process');
+
+      if (!token) {
+        console.error('[SecurityScreen] Token missing');
+        Alert.alert('Error', 'Authentication token missing');
+        return;
+      }
+
+      console.log('[SecurityScreen] Token verified, triggering biometric prompt');
+      // Authenticate with biometric first
+      const authenticated = await BiometricUtils.authenticate();
+      if (!authenticated) {
+        console.error('[SecurityScreen] Biometric authentication cancelled by user');
+        Alert.alert('Error', 'Biometric authentication cancelled');
+        return;
+      }
+
+      console.log('[SecurityScreen] Biometric authentication successful');
+      // Generate device ID and get device name
+      const deviceId = BiometricUtils.generateDeviceId();
+      const deviceName = BiometricUtils.getDeviceName();
+      console.log('[SecurityScreen] Device ID generated', { deviceId, deviceName, platform: Platform.OS });
+
+      // Call backend to enable biometric
+      const headers = { Authorization: `Bearer ${token}` };
+      const payload = {
+        device_id: deviceId,
+        device_name: deviceName,
+        device_type: Platform.OS,
+      };
+
+      console.log('[SecurityScreen] Calling backend API', { endpoint: `${API_CONFIG.BASE_URL}/auth/mobile/enable-biometric`, payload });
+      const response = await axios.post(
+        `${API_CONFIG.BASE_URL}/auth/mobile/enable-biometric`,
+        payload,
+        { headers }
+      );
+
+      console.log('[SecurityScreen] API response received', { status: response.status, data: response.data });
+
+      if (response.data?.credential_token) {
+        console.log('[SecurityScreen] Credential token received, saving to keychain');
+        // Save credential to keychain
+        const saved = await BiometricUtils.saveBiometricCredential({
+          credential_token: response.data.credential_token,
+          device_id: deviceId,
+          device_name: deviceName,
+        });
+
+        if (saved) {
+          console.log('[SecurityScreen] Credential saved successfully');
+          setBiometricEnabled(true);
+          Alert.alert('Success', 'Biometric authentication enabled');
+        } else {
+          console.error('[SecurityScreen] Failed to save credential to keychain');
+          Alert.alert('Error', 'Failed to save biometric credential to device. Please try again.');
+        }
+      } else {
+        console.error('[SecurityScreen] No credential token in response', { response: response.data });
+        Alert.alert('Error', 'Invalid response from server. No credential token received.');
+      }
+    } catch (error: any) {
+      console.error('[SecurityScreen] Error in biometric enable', {
+        errorType: error.constructor.name,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code,
+      });
+
+      let errorMsg = 'Failed to enable biometric';
+
+      if (error.response?.status === 401) {
+        errorMsg = 'Your session has expired. Please log in again.';
+      } else if (error.response?.status === 409) {
+        errorMsg = 'This device is already registered for biometric login.';
+      } else if (error.response?.status === 422) {
+        errorMsg = `Validation error: ${error.response?.data?.errors?.[0] || error.response?.data?.message || 'Invalid data'}`;
+      } else if (error.response?.status === 500) {
+        errorMsg = 'Server error. Please try again later or contact support.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMsg = 'Request timeout. Please check your connection and try again.';
+      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        errorMsg = 'Cannot reach the server. Please check your internet connection.';
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setLoadingBiometric(false);
+    }
+  };
+
+  const handleDisableBiometric = () => {
+    Alert.alert('Disable Biometric', 'Are you sure you want to disable biometric login?', [
+      { text: 'Cancel', onPress: () => {} },
+      {
+        text: 'Disable',
+        onPress: async () => {
+          setLoadingBiometric(true);
+          try {
+            console.log('[SecurityScreen] Starting biometric disable process');
+
+            if (!token) {
+              console.error('[SecurityScreen] Token missing for disable');
+              Alert.alert('Error', 'Authentication token missing');
+              return;
+            }
+
+            console.log('[SecurityScreen] Retrieving credential from keychain');
+            const credential = await BiometricUtils.getBiometricCredential();
+            if (!credential) {
+              console.error('[SecurityScreen] No credential found in keychain');
+              Alert.alert('Error', 'Biometric credential not found on device');
+              return;
+            }
+
+            console.log('[SecurityScreen] Credential retrieved, calling backend', { device_id: credential.device_id });
+            const headers = { Authorization: `Bearer ${token}` };
+            const payload = { device_id: credential.device_id };
+
+            const response = await axios.post(
+              `${API_CONFIG.BASE_URL}/auth/mobile/disable-biometric`,
+              payload,
+              { headers }
+            );
+
+            console.log('[SecurityScreen] Backend disable successful, deleting keychain credential');
+            // Delete credential from keychain
+            const deleted = await BiometricUtils.deleteBiometricCredential();
+            if (deleted) {
+              console.log('[SecurityScreen] Keychain credential deleted');
+            } else {
+              console.warn('[SecurityScreen] Failed to delete keychain credential, but backend was disabled');
+            }
+
+            setBiometricEnabled(false);
+            Alert.alert('Success', 'Biometric authentication disabled');
+          } catch (error: any) {
+            console.error('[SecurityScreen] Error in biometric disable', {
+              errorType: error.constructor.name,
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status,
+            });
+
+            let errorMsg = 'Failed to disable biometric';
+
+            if (error.response?.status === 401) {
+              errorMsg = 'Your session has expired. Please log in again.';
+            } else if (error.response?.status === 500) {
+              errorMsg = 'Server error. Please try again later.';
+            } else if (error.response?.data?.message) {
+              errorMsg = error.response.data.message;
+            } else if (error.message) {
+              errorMsg = error.message;
+            }
+
+            Alert.alert('Error', errorMsg);
+          } finally {
+            setLoadingBiometric(false);
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
   };
 
   const handleUnlinkGoogle = () => {
@@ -274,6 +494,7 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
 
             setGoogleLinked(false);
             setGoogleAccount(null);
+            onGoogleLinked?.();
             Alert.alert('Success', 'Account unlinked successfully');
           } catch (error: any) {
             const errorMsg = error.response?.data?.message || 'Failed to unlink account';
@@ -437,6 +658,69 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
             </View>
           )}
         </View>
+
+        {/* Biometric Authentication */}
+        {biometricAvailable && (
+          <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
+            <View style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitleText, { color: colors.text }]}>Biometric Login</Text>
+              <Text style={[styles.sectionTitleDescription, { color: colors.textSec }]}>Use Face ID, Touch ID, or Fingerprint to sign in quickly and securely.</Text>
+            </View>
+
+            <View style={[styles.accountItem, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+              <View style={styles.accountItemLeft}>
+                <View style={[styles.accountIcon, { backgroundColor: '#dbeafe' }]}>
+                  <Ionicons name="finger-print" size={20} color={Colors.sky} />
+                </View>
+                <View>
+                  <Text style={[styles.accountName, { color: colors.text }]}>Biometric Authentication</Text>
+                  {biometricEnabled ? (
+                    <Text style={[styles.accountEmail, { color: colors.textSec }]}>Enabled</Text>
+                  ) : (
+                    <Text style={[styles.accountEmail, { color: colors.textSec }]}>Not enabled</Text>
+                  )}
+                </View>
+              </View>
+              <View style={styles.accountStatus}>
+                {biometricEnabled ? (
+                  <View style={[styles.statusBadge, { backgroundColor: '#dcfce7' }]}>
+                    <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                    <Text style={[styles.statusBadgeText, { color: '#22c55e' }]}>Enabled</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.statusBadge, { backgroundColor: '#fee2e2' }]}>
+                    <Ionicons name="close-circle" size={14} color="#ef4444" />
+                    <Text style={[styles.statusBadgeText, { color: '#ef4444' }]}>Disabled</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.accountActionsContainer}>
+              {biometricEnabled ? (
+                <TouchableOpacity
+                  style={[styles.accountButton, { borderColor: '#ef4444' }]}
+                  onPress={handleDisableBiometric}
+                  disabled={loadingBiometric}
+                >
+                  {loadingBiometric && <ActivityIndicator color="#ef4444" style={{ marginRight: 8 }} />}
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                  <Text style={[styles.accountButtonText, { color: '#ef4444' }]}>Disable Biometric</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.accountButton, { backgroundColor: '#f97316' }]}
+                  onPress={handleEnableBiometric}
+                  disabled={loadingBiometric}
+                >
+                  {loadingBiometric && <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />}
+                  <Ionicons name="finger-print" size={16} color="#fff" />
+                  <Text style={[styles.accountButtonText, { color: '#fff' }]}>Enable Biometric</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Connected Accounts */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>

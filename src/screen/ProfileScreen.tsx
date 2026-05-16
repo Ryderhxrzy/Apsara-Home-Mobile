@@ -44,6 +44,7 @@ interface ProfileScreenProps {
   closeReferralNetwork?: boolean;
   isDarkMode?: boolean;
   onPurchaseItemClick?: (status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return') => void;
+  linkedAccountsRefreshTrigger?: number;
 }
 
 const REFERRAL_STATS = [
@@ -78,7 +79,12 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger }: ProfileScreenProps) {
+  console.log('[ProfileScreen] Component mounted/updated', {
+    userEmail: user?.email,
+    hasToken: !!token,
+    linkedAccountsRefreshTrigger,
+  });
   console.log('[ProfileScreen] User object received:', { name: user?.name, badge_name: user?.badge_name, badge_image: user?.badge_image, avatar_url: user?.avatar_url });
   const insets = useSafeAreaInsets();
 
@@ -161,12 +167,23 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   }, [closeReferralNetwork]);
 
   useEffect(() => {
+    console.log('[ProfileScreen] useEffect token changed:', { token: !!token });
     if (token) {
+      console.log('[ProfileScreen] Token available, fetching data');
       fetchLoyaltyData();
       fetchOrderCounts();
       fetchReferralTree();
+      fetchLinkedAccounts();
     }
   }, [token]);
+
+  useEffect(() => {
+    console.log('[ProfileScreen] linkedAccountsRefreshTrigger changed:', linkedAccountsRefreshTrigger);
+    if (linkedAccountsRefreshTrigger && linkedAccountsRefreshTrigger > 0) {
+      console.log('[ProfileScreen] Trigger detected, refetching linked accounts');
+      fetchLinkedAccounts();
+    }
+  }, [linkedAccountsRefreshTrigger]);
 
   const fetchReferralTree = async () => {
     if (!token) return;
@@ -209,6 +226,47 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     }
   };
 
+  const fetchLinkedAccounts = async () => {
+    if (!token) {
+      console.log('[ProfileScreen] No token available for fetching linked accounts');
+      return;
+    }
+
+    try {
+      console.log('[ProfileScreen] Fetching Google linked status from endpoint');
+      const endpoint = `${require('../config/api').API_CONFIG.BASE_URL}/auth/mobile/check-google-linked`;
+      console.log('[ProfileScreen] Endpoint:', endpoint);
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('[ProfileScreen] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ProfileScreen] API Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[ProfileScreen] Full API response:', JSON.stringify(data));
+      console.log('[ProfileScreen] data.linked:', data.linked);
+
+      const isLinked = data.linked === true;
+      console.log('[ProfileScreen] Setting googleLinked to:', isLinked);
+      setGoogleLinked(isLinked);
+    } catch (error: any) {
+      console.error('[ProfileScreen] Error fetching Google linked status:', {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
+  };
 
   const handleViewNetwork = async () => {
     if (!token) {
