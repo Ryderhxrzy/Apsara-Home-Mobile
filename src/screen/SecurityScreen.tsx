@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { API_CONFIG } from '../config/api';
 import axios from 'axios';
+import GoogleSignInService from '../services/googleSignInService';
 
 interface SecurityScreenProps {
   onBack: () => void;
@@ -33,7 +34,10 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [loadingPasskey, setLoadingPasskey] = useState(false);
-  const [passkeys, setPasskeys] = useState<Passkey[]>([]);;
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [googleAccount, setGoogleAccount] = useState<any>(null);;
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -205,6 +209,84 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
     }
   };
 
+  const handleLinkGoogle = async () => {
+    setLoadingGoogle(true);
+    try {
+      const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!googleClientId) {
+        Alert.alert('Error', 'Google Client ID not configured');
+        return;
+      }
+
+      await GoogleSignInService.initialize({
+        webClientId: googleClientId,
+      });
+
+      const userInfo = await GoogleSignInService.signIn();
+      const idToken = userInfo.data?.idToken;
+
+      if (!idToken) {
+        Alert.alert('Error', 'Failed to get Google ID token');
+        return;
+      }
+
+      if (!token) {
+        Alert.alert('Error', 'Authentication token missing');
+        return;
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+      const payload = { id_token: idToken };
+
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/mobile/link-account`, payload, { headers });
+
+      const currentUser = await GoogleSignInService.getCurrentUser();
+      setGoogleAccount(currentUser?.data?.user);
+      setGoogleLinked(true);
+
+      Alert.alert('Success', 'Account linked successfully');
+    } catch (error: any) {
+      if (error.message?.includes('cancelled')) {
+        return;
+      }
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to link account';
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
+  const handleUnlinkGoogle = () => {
+    Alert.alert('Unlink Account', 'Are you sure you want to unlink your account?', [
+      { text: 'Cancel', onPress: () => {} },
+      {
+        text: 'Unlink',
+        onPress: async () => {
+          setLoadingGoogle(true);
+          try {
+            if (!token) {
+              Alert.alert('Error', 'Authentication token missing');
+              return;
+            }
+
+            const headers = { Authorization: `Bearer ${token}` };
+            await axios.post(`${API_CONFIG.BASE_URL}/auth/mobile/unlink-account`, {}, { headers });
+
+            setGoogleLinked(false);
+            setGoogleAccount(null);
+            Alert.alert('Success', 'Account unlinked successfully');
+          } catch (error: any) {
+            const errorMsg = error.response?.data?.message || 'Failed to unlink account';
+            Alert.alert('Error', errorMsg);
+          } finally {
+            setLoadingGoogle(false);
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
+  };
+
   return (
     <Animated.View
       style={[
@@ -354,6 +436,67 @@ export default function SecurityScreen({ onBack, isDarkMode, token }: SecuritySc
               ))}
             </View>
           )}
+        </View>
+
+        {/* Connected Accounts */}
+        <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
+          <View style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitleText, { color: colors.text }]}>Connected Accounts</Text>
+            <Text style={[styles.sectionTitleDescription, { color: colors.textSec }]}>Manage your connected social accounts for quick login.</Text>
+          </View>
+
+          <View style={[styles.accountItem, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <View style={styles.accountItemLeft}>
+              <View style={[styles.accountIcon, { backgroundColor: '#fee2e2' }]}>
+                <Ionicons name="logo-google" size={20} color="#ef4444" />
+              </View>
+              <View>
+                <Text style={[styles.accountName, { color: colors.text }]}>Google</Text>
+                {googleLinked && googleAccount ? (
+                  <Text style={[styles.accountEmail, { color: colors.textSec }]}>{googleAccount.email}</Text>
+                ) : (
+                  <Text style={[styles.accountEmail, { color: colors.textSec }]}>Not connected</Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.accountStatus}>
+              {googleLinked ? (
+                <View style={[styles.statusBadge, { backgroundColor: '#dcfce7' }]}>
+                  <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                  <Text style={[styles.statusBadgeText, { color: '#22c55e' }]}>Connected</Text>
+                </View>
+              ) : (
+                <View style={[styles.statusBadge, { backgroundColor: '#fee2e2' }]}>
+                  <Ionicons name="close-circle" size={14} color="#ef4444" />
+                  <Text style={[styles.statusBadgeText, { color: '#ef4444' }]}>Not connected</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.accountActionsContainer}>
+            {googleLinked ? (
+              <TouchableOpacity
+                style={[styles.accountButton, { borderColor: '#ef4444' }]}
+                onPress={handleUnlinkGoogle}
+                disabled={loadingGoogle}
+              >
+                {loadingGoogle && <ActivityIndicator color="#ef4444" style={{ marginRight: 8 }} />}
+                <Ionicons name="unlink" size={16} color="#ef4444" />
+                <Text style={[styles.accountButtonText, { color: '#ef4444' }]}>Unlink Account</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.accountButton, { backgroundColor: '#f97316' }]}
+                onPress={handleLinkGoogle}
+                disabled={loadingGoogle}
+              >
+                {loadingGoogle && <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />}
+                <Ionicons name="link" size={16} color="#fff" />
+                <Text style={[styles.accountButtonText, { color: '#fff' }]}>Link Account</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Danger Zone */}
@@ -541,5 +684,69 @@ const styles = StyleSheet.create({
   passkeyDate: {
     fontSize: 12,
     marginTop: 2,
+  },
+  accountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  accountItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  accountIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountEmail: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  accountStatus: {
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  accountActionsContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  accountButton: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
