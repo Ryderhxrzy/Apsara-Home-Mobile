@@ -19,6 +19,9 @@ import Toast from 'react-native-toast-message';
 import { Colors } from '../constants/colors';
 import GoogleSignInService from '../services/googleSignInService';
 import { getFCMToken } from '../utils/fcmUtils';
+import BiometricUtils from '../utils/biometricUtils';
+import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 export default function IndexScreen({
   onGoToLogin,
@@ -30,6 +33,7 @@ export default function IndexScreen({
   onAuthenticated?: (user?: { id: string; email: string; name: string; avatar_url?: string }, token?: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   const player = useVideoPlayer(require('../../assets/login/afhome.mp4'), p => {
     p.loop = true;
@@ -38,7 +42,7 @@ export default function IndexScreen({
     p.play();
   });
 
-  // Initialize Google Sign-In
+  // Initialize Google Sign-In and check biometric
   useEffect(() => {
     const initializeGoogleSignIn = async () => {
       try {
@@ -59,7 +63,18 @@ export default function IndexScreen({
       }
     };
 
+    const checkBiometric = async () => {
+      try {
+        const hasCredential = await BiometricUtils.hasBiometricCredential();
+        const available = await BiometricUtils.isBiometricAvailable();
+        setBiometricAvailable(hasCredential && available);
+      } catch (error) {
+        console.error('[IndexScreen] Failed to check biometric:', error);
+      }
+    };
+
     initializeGoogleSignIn();
+    checkBiometric();
   }, []);
 
   React.useEffect(() => {
@@ -78,6 +93,70 @@ export default function IndexScreen({
 
     return () => clearInterval(interval);
   }, [player]);
+
+  const handleBiometricLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      console.log('[IndexScreen] Starting biometric login');
+
+      // Authenticate with biometric
+      const authenticated = await BiometricUtils.authenticate();
+      if (!authenticated) {
+        console.log('[IndexScreen] Biometric authentication cancelled');
+        setLoading(false);
+        return;
+      }
+
+      // Get credential from keychain
+      const credential = await BiometricUtils.getBiometricCredential();
+      if (!credential) {
+        Alert.alert('Error', 'Biometric credential not found. Please enable biometric login first.');
+        setLoading(false);
+        return;
+      }
+
+      // Get FCM token
+      const fcmToken = await getFCMToken();
+
+      // Send biometric login request
+      const response = await axios.post(
+        `${API_CONFIG.BASE_URL}/auth/mobile/login-biometric`,
+        {
+          device_id: credential.device_id,
+          credential_token: credential.credential_token,
+        }
+      );
+
+      console.log('[IndexScreen] Biometric login successful');
+
+      // Show success toast
+      Toast.show({
+        type: 'success',
+        text1: 'Login Successful',
+        text2: `Welcome, ${response.data?.user?.name || 'User'}!`,
+        duration: 2000,
+      });
+
+      // Trigger the authenticated callback
+      setTimeout(() => {
+        onAuthenticated?.(response.data?.user, response.data?.token);
+      }, 700);
+    } catch (error: any) {
+      console.error('[IndexScreen] Biometric login failed:', error);
+      const errorMessage = error.response?.data?.message || 'Biometric login failed. Please try again.';
+
+      Alert.alert('Login Error', errorMessage, [
+        {
+          text: 'OK',
+          onPress: () => {},
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     if (loading) return;
@@ -183,6 +262,26 @@ export default function IndexScreen({
 
           {/* Login Buttons */}
           <View style={styles.buttonSection}>
+            {biometricAvailable && (
+              <Pressable
+                style={[styles.biometricButton, loading && styles.disabledButton]}
+                onPress={handleBiometricLogin}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <ActivityIndicator color={Colors.white} style={styles.buttonLoader} />
+                    <Text style={styles.biometricButtonText}>Authenticating...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="finger-print" size={18} color={Colors.white} />
+                    <Text style={styles.biometricButtonText}>Login with Biometric</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+
             <Pressable
               style={styles.loginButton}
               onPress={onGoToLogin}
@@ -483,5 +582,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.9)',
     textDecorationLine: 'underline',
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#f97316',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  biometricButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });
