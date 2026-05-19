@@ -167,16 +167,20 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   // Enrich user object with badge_image if missing
   const enrichedUser = useMemo(() => {
     if (!user) return null;
-    if (user.badge_image) return user; // Already has badge_image
+
+    let enriched = { ...user };
 
     const badgeImageSource = getBadgeImage(user.rank || (user as any).badge);
-    if (!badgeImageSource) return user; // No badge image available
+    if (badgeImageSource) {
+      enriched.badge_image = badgeImageSource;
+    }
 
-    return {
-      ...user,
-      badge_image: badgeImageSource,
-    };
-  }, [user]);
+    if (referralCodeFromDeepLink && !enriched.referrer_username) {
+      enriched.referrer_username = referralCodeFromDeepLink;
+    }
+
+    return enriched;
+  }, [user, referralCodeFromDeepLink]);
 
   // Initialize real-time notifications
   const { notifications, unreadCount } = useNotifications(user?.id || '', token || '');
@@ -202,6 +206,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [referralNetworkFromTab, setReferralNetworkFromTab] = useState(false);
   const [referralTree, setReferralTree] = useState<any>(null);
   const [closeReferralNetwork, setCloseReferralNetwork] = useState(false);
+  const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<string | null>(null);
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [previousTab, setPreviousTab] = useState<TabKey>('home');
@@ -474,6 +479,36 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           setPurchasesInitialOrderId(checkoutId);
           setShowPurchases(true);
         }
+      } else if (url.includes('/ref/')) {
+        console.log('[AppNavigator] Referral deep link triggered:', url);
+        // Parse referral link - Format: https://www.afhome.ph/ref/username
+        const username = url.split('/ref/')[1]?.split('?')[0] || '';
+        if (username) {
+          console.log('[AppNavigator] Opening referral with username:', username);
+          setReferralCodeFromDeepLink(username);
+          // Navigate to home and show referral modal or navigate to referral network
+          setActiveTab('home');
+          Toast.show({
+            type: 'info',
+            text1: 'Referral Link',
+            text2: `Referred by ${username}`,
+          });
+        }
+      } else if (url.includes('/shop')) {
+        console.log('[AppNavigator] Shop deep link triggered:', url);
+        // Parse shop link - Format: https://www.afhome.ph/shop?ref=username
+        const refParam = new URL(url).searchParams.get('ref');
+        if (refParam) {
+          console.log('[AppNavigator] Opening shop with referral:', refParam);
+          setReferralCodeFromDeepLink(refParam);
+          Toast.show({
+            type: 'info',
+            text1: 'Shopping Link',
+            text2: `Referred by ${refParam}`,
+          });
+        }
+        // Navigate to shop tab
+        setActiveTab('shop');
       }
     };
 
