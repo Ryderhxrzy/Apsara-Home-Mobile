@@ -274,6 +274,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [shippingAddressScreenData, setShippingAddressScreenData] = useState<any>(null);
   const [shopSourceIsCart, setShopSourceIsCart] = useState(false);
   const [shopSourceIsCheckout, setShopSourceIsCheckout] = useState(false);
+  const [checkoutSource, setCheckoutSource] = useState<'product' | 'cart'>('cart');
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -933,8 +934,10 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                   variant_image: variant?.images?.[0],
                 };
                 setCheckoutItem(item);
+                setCheckoutCartItems([]); // Clear cart items when selecting single product
                 setPreviousTab(activeTabRef.current);
                 setSelectedProductId(null);
+                setCheckoutSource('product');
                 setShowCheckout(true);
               }}
               isDarkMode={isDarkMode}
@@ -1487,6 +1490,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 setCheckoutCartItems(formattedItems);
               }
               setShowCart(false);
+              setCheckoutSource('cart');
               setShowCheckout(true);
             }}
             onWishlistPress={() => {
@@ -1500,15 +1504,23 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
       {showCheckout && (
         <View style={styles.cartScreenOverlay}>
           <CheckoutScreen
-            item={checkoutItem}
-            items={checkoutCartItems}
+            item={checkoutCartItems.length === 0 ? checkoutItem : undefined}
+            items={checkoutCartItems.length > 0 ? checkoutCartItems : []}
             token={token}
             user={enrichedUser}
             isDarkMode={isDarkMode}
             brands={homeBrands}
             onBack={() => {
               setShowCheckout(false);
-              setShowCart(true);
+              if (checkoutSource === 'product') {
+                // If came from product detail, restore it
+                if (checkoutItem) {
+                  setSelectedProductId(checkoutItem.product_id);
+                }
+              } else {
+                // If came from cart, go back to cart
+                setShowCart(true);
+              }
             }}
             onShopNavigate={(brandId, shopName) => {
               setShowCheckout(false);
@@ -1530,6 +1542,9 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               setCheckoutOrderData(orderData);
               setShowCheckout(false);
               setShowOrderSuccess(true);
+              // Clear checkout items to prevent stale data
+              setCheckoutItem(null);
+              setCheckoutCartItems([]);
             }}
             onNavigateToShippingAddress={(addresses, selectedAddress, onSelect) => {
               setShippingAddressScreenData({ addresses, selectedAddress, onSelect });
