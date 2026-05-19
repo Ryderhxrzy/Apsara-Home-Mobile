@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/colors';
 import PrimaryButton from '../Button/PrimaryButton';
@@ -93,9 +92,10 @@ export default function AffiliateReferralModal({
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 300,
+        friction: 8,
+        tension: 60,
         useNativeDriver: true,
       }).start();
     } else {
@@ -162,21 +162,12 @@ export default function AffiliateReferralModal({
         </View>
 
         {/* Header */}
-        <LinearGradient
-          colors={isDarkMode ? ['rgba(59,130,246,0.18)', 'rgba(15,23,42,0)'] : ['rgba(14,165,233,0.16)', 'rgba(255,255,255,0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.borderLight }]}
-        >
-          <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={handleClose} activeOpacity={0.8}>
-            <Ionicons name="close" size={20} color={colors.text} />
-          </TouchableOpacity>
+        <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.borderLight }]}>
           <View style={styles.headerCenter}>
             <Text style={[styles.title, { color: colors.text }]}>Affiliate Referral</Text>
             <Text style={[styles.subtitle, { color: colors.textSec }]}>Share your links and grow your network</Text>
           </View>
-          <View style={{ width: 36 }} />
-        </LinearGradient>
+        </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -307,11 +298,9 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 12,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   closeBtn: {
     width: 36,
@@ -322,7 +311,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerCenter: {
-    flex: 1,
     alignItems: 'center',
   },
   title: {
