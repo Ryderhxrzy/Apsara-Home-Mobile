@@ -11,7 +11,7 @@ export default function LoadingScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.title}>Apsara Furniture</Text>
+        <Text style={styles.title}>Affordahome</Text>
       </View>
       <ActivityIndicator size="large" color={Colors.sky} style={styles.loader} />
     </View>
