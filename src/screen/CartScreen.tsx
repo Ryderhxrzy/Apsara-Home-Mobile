@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,12 @@ const hashBrandName = (brandName: string): number => {
     hash = hash & hash;
   }
   return hash;
+};
+
+const getBrandLogo = (brandName: string, brands: BrandItem[]): string | null => {
+  const brand = brands.find(b => b.name === brandName);
+  if (!brand) return null;
+  return brand.logo || (brand as any).brand_image || (brand as any).image || null;
 };
 
 interface BrandItem {
@@ -249,7 +255,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
     }
   };
 
-  const getGroupedCartItems = () => {
+  const getGroupedCartItems = useMemo(() => {
     // Group items by brand
     const grouped: { [key: string]: CartItem[] } = {};
     cartItems.forEach(item => {
@@ -269,59 +275,65 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
       });
     });
 
-    // Return grouped items
     return grouped;
-  };
+  }, [cartItems, sortOrder]);
 
-  const getSortedCartItems = () => {
-    // Flatten grouped items for display
-    const grouped = getGroupedCartItems();
+  const getSortedCartItems = useMemo(() => {
     const flattened: CartItem[] = [];
-    Object.keys(grouped).forEach(brand => {
-      flattened.push(...grouped[brand]);
+    Object.keys(getGroupedCartItems).forEach(brand => {
+      flattened.push(...getGroupedCartItems[brand]);
     });
     return flattened;
-  };
+  }, [getGroupedCartItems]);
 
-  const getSelectedTotal = () => {
+  const getSelectedTotal = useMemo(() => {
     return Array.from(selectedItems).reduce((total, crtId) => {
       const item = cartItems.find(c => c.crt_id === crtId);
       return total + (item ? parseFloat(item.crt_total_price) : 0);
     }, 0);
-  };
+  }, [selectedItems, cartItems]);
 
-  const getCartItemsWithBrandHeaders = () => {
-    const grouped = getGroupedCartItems();
+  const getCartItemsWithBrandHeaders = useMemo(() => {
     const itemsWithHeaders: (CartItem & { isBrandHeader?: boolean })[] = [];
+    let headerIndex = 0;
 
-    Object.keys(grouped).forEach(brand => {
-      // Add brand header
+    Object.keys(getGroupedCartItems).forEach(brand => {
+      // Add brand header with stable key
       itemsWithHeaders.push({
-        crt_id: Math.random(),
+        crt_id: -1 - headerIndex++,
         brand_name: brand,
         isBrandHeader: true,
       } as CartItem & { isBrandHeader: boolean });
 
       // Add items in this group
-      itemsWithHeaders.push(...grouped[brand]);
+      itemsWithHeaders.push(...getGroupedCartItems[brand]);
     });
 
     return itemsWithHeaders;
-  };
+  }, [getGroupedCartItems]);
+
+  const brandItemsMap = useMemo(() => {
+    const map = new Map<string, number[]>();
+    cartItems.forEach(item => {
+      const brand = item.brand_name || 'Unknown Brand';
+      if (!map.has(brand)) {
+        map.set(brand, []);
+      }
+      map.get(brand)!.push(item.crt_id);
+    });
+    return map;
+  }, [cartItems]);
 
   const handleBrandSelectAll = (brandName: string) => {
-    const brandItems = cartItems.filter(item => item.brand_name === brandName);
-    const brandItemIds = new Set(brandItems.map(item => item.crt_id));
-    const newSelected = new Set(selectedItems);
+    const brandItemIds = brandItemsMap.get(brandName);
+    if (!brandItemIds) return;
 
-    // Check if all items in this brand are selected
-    const allSelected = brandItems.every(item => newSelected.has(item.crt_id));
+    const newSelected = new Set(selectedItems);
+    const allSelected = brandItemIds.every(id => newSelected.has(id));
 
     if (allSelected) {
-      // Deselect all items in this brand
       brandItemIds.forEach(id => newSelected.delete(id));
     } else {
-      // Select all items in this brand
       brandItemIds.forEach(id => newSelected.add(id));
     }
 
@@ -329,8 +341,8 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
   };
 
   const isBrandFullySelected = (brandName: string) => {
-    const brandItems = cartItems.filter(item => item.brand_name === brandName);
-    return brandItems.length > 0 && brandItems.every(item => selectedItems.has(item.crt_id));
+    const brandItemIds = brandItemsMap.get(brandName);
+    return brandItemIds ? brandItemIds.length > 0 && brandItemIds.every(id => selectedItems.has(id)) : false;
   };
 
   const renderCartItem = ({ item }: { item: CartItem & { isBrandHeader?: boolean } }) => {
@@ -352,21 +364,41 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
             onPress={() => {
               if (onShopNavigate) {
                 const brandName = item.brand_name || '';
-                // Find the brand in the brands array by name
-                const brand = brands.find(b => b.name === brandName);
-                const brandId = brand?.id || Math.abs(hashBrandName(brandName));
+                const brandItems = cartItems.filter(c => c.brand_name === brandName);
+
+                // Try multiple sources for brand ID
+                let brandId = (brandItems[0] as any)?.brand_id;
+                if (!brandId) {
+                  const brand = brands.find(b => b.name === brandName);
+                  brandId = brand?.id;
+                }
+                if (!brandId) {
+                  brandId = Math.abs(hashBrandName(brandName));
+                }
+
+                console.log('[CartScreen] Brand clicked:', { brandName, brandId, fromItem: (brandItems[0] as any)?.brand_id, fromBrandsArray: brands.find(b => b.name === brandName)?.id, availableBrands: brands.length });
                 onShopNavigate(brandId, brandName);
               }
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="storefront" size={16} color={Colors.sky} />
+            {(() => {
+              const logoUrl = getBrandLogo(item.brand_name || '', brands);
+              return logoUrl ? (
+                <Image
+                  source={{ uri: logoUrl }}
+                  style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border }}
+                />
+              ) : (
+                <Ionicons name="storefront" size={16} color={Colors.sky} />
+              );
+            })()}
             <Text style={[styles.brandHeaderText, { color: colors.text }]}>{item.brand_name}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
           </TouchableOpacity>
         </View>
       );
     }
-    const scaleAnim = new Animated.Value(1);
     const discount = Math.round(
       ((parseFloat(item.product_price_srp) - parseFloat(item.crt_unit_price)) / parseFloat(item.product_price_srp)) * 100
     );
@@ -400,7 +432,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           onPress={() => handleSelectItem(item.crt_id)}
           activeOpacity={0.7}
         >
-          <Animated.View style={[styles.checkboxBox, { borderColor: colors.border }, selectedItems.has(item.crt_id) && styles.checkboxBoxChecked, { transform: [{ scale: scaleAnim }] }]}>
+          <Animated.View style={[styles.checkboxBox, { borderColor: colors.border }, selectedItems.has(item.crt_id) && styles.checkboxBoxChecked]}>
             {selectedItems.has(item.crt_id) && <Ionicons name="checkmark" size={14} color={Colors.white} />}
           </Animated.View>
         </TouchableOpacity>
@@ -735,7 +767,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
 
       {/* Cart Items */}
       <SwipeListView
-        data={getCartItemsWithBrandHeaders()}
+        data={getCartItemsWithBrandHeaders}
         renderItem={renderCartItem}
         renderHiddenItem={renderHiddenItem}
         leftOpenValue={90}
@@ -746,6 +778,9 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
         keyExtractor={(item) => item.isBrandHeader ? `brand-${item.brand_name}` : item.crt_id.toString()}
         contentContainerStyle={[styles.listContent, { backgroundColor: colors.bg }]}
         scrollEnabled={true}
+        maxToRenderPerBatch={10}
+        initialNumToRender={10}
+        updateCellsBatchingPeriod={50}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -762,7 +797,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
           <View style={styles.totalSection}>
             <View>
               <Text style={[styles.totalLabel, { color: colors.textSec }]}>Total ({selectedItems.size}):</Text>
-              <Text style={[styles.totalPrice, { color: colors.text }]}>₱{getSelectedTotal().toLocaleString()}</Text>
+              <Text style={[styles.totalPrice, { color: colors.text }]}>₱{getSelectedTotal.toLocaleString()}</Text>
             </View>
           </View>
           <TouchableOpacity
