@@ -449,7 +449,7 @@ export default function ProductDetailScreen({
 
     try {
       const slug = slugify(product.name);
-      const shareUrl = `https://afhome.ph/product/${slug}-i${product.id}`;
+      const shareUrl = `https://www.afhome.ph/product/${slug}-i${product.id}`;
 
       await Share.share({
         message: `Check out this product: ${product.name}\n\n${shareUrl}`,
