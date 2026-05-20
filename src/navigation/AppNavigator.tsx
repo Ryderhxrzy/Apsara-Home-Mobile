@@ -21,6 +21,7 @@ import ProductsScreen from '../screen/ProductsScreen';
 import SearchResultScreen from '../screen/SearchResultScreen';
 import SettingsScreen from '../screen/SettingsScreen';
 import SecurityScreen from '../screen/SecurityScreen';
+import HistoryScreen from '../screen/HistoryScreen';
 import ProductDetailScreen from '../screen/ProductDetailScreen';
 import WishlistScreen from '../screen/WishlistScreen';
 import CartScreen from '../screen/CartScreen';
@@ -256,6 +257,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [paymentConfirmationData, setPaymentConfirmationData] = useState<any>(null);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [linkedAccountsRefreshTrigger, setLinkedAccountsRefreshTrigger] = useState(0);
   const [showAboutUs, setShowAboutUs] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
@@ -1740,6 +1742,17 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             token={token}
             onBack={() => setShowSecurity(false)}
             onGoogleLinked={() => setLinkedAccountsRefreshTrigger(prev => prev + 1)}
+            onOpenHistory={() => setShowHistory(true)}
+          />
+        </View>
+      )}
+
+      {showHistory && (
+        <View style={styles.cartScreenOverlay}>
+          <HistoryScreen
+            isDarkMode={isDarkMode}
+            token={token}
+            onBack={() => setShowHistory(false)}
           />
         </View>
       )}
