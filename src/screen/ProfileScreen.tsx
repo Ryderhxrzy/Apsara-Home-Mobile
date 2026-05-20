@@ -59,6 +59,10 @@ interface ProfileScreenProps {
   onPurchaseItemClick?: (status: 'pending' | 'paid' | 'processing' | 'shipped' | 'to_receive' | 'delivered' | 'cancelled' | 'return') => void;
   linkedAccountsRefreshTrigger?: number;
   onSecuritySettingsPress?: () => void;
+  onShowAFWalletOverview?: () => void;
+  onShowAFWalletVoucher?: () => void;
+  onShowAFWalletRewards?: () => void;
+  onShowAFWalletNetwork?: () => void;
 }
 
 const REFERRAL_STATS = [
@@ -93,7 +97,7 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress, onShowAFWalletOverview, onShowAFWalletVoucher, onShowAFWalletRewards, onShowAFWalletNetwork }: ProfileScreenProps) {
   console.log('[ProfileScreen] Component mounted/updated', {
     userEmail: user?.email,
     hasToken: !!token,
@@ -126,6 +130,8 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [showLevelProgressDetails, setShowLevelProgressDetails] = useState(false);
   const [orderCounts, setOrderCounts] = useState<any>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(true);
+  const [walletData, setWalletData] = useState<any>(null);
+  const [loadingWallet, setLoadingWallet] = useState(false);
   const photoUrl = user?.avatar_url ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const firstName = user?.name?.split(' ')[0] ?? 'User';
@@ -191,6 +197,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       fetchReferralTree();
       fetchLinkedAccounts();
       fetchSecuritySettings();
+      fetchWalletData();
     }
   }, [token]);
 
@@ -294,6 +301,22 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       setBiometricEnabled(securityData?.biometric_enabled ?? false);
     } catch (error) {
       console.log('Error fetching security settings:', error);
+    }
+  };
+
+  const fetchWalletData = async () => {
+    if (!token) return;
+    setLoadingWallet(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`${API_CONFIG.BASE_URL}/encashment/wallet?wallet_type=all`, { headers });
+      const walletSummary = res?.data?.data?.summary || res?.data?.summary;
+      setWalletData(walletSummary);
+      console.log('[ProfileScreen] Wallet data fetched:', walletSummary);
+    } catch (error) {
+      console.log('Error fetching wallet data:', error);
+    } finally {
+      setLoadingWallet(false);
     }
   };
 
@@ -456,6 +479,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             }}
           />
         )}
+
 
         {/* My Purchases */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
@@ -718,6 +742,71 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               </View>
             </View>
           </View>
+        </View>
+
+        {/* AF Wallet Section */}
+        <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
+          <View style={[styles.purchasesHeader, { borderBottomColor: colors.borderLight }]}>
+            <Text style={[styles.purchasesTitle, { color: colors.text }]}>AF Wallet</Text>
+          </View>
+
+          {loadingWallet ? (
+            <ActivityIndicator size="large" color={Colors.sky} style={{ paddingVertical: 20 }} />
+          ) : walletData ? (
+            <View style={styles.walletCardsContainer}>
+              {/* Overview Card */}
+              <TouchableOpacity
+                style={[styles.walletCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+                onPress={() => onShowAFWalletOverview?.()}
+                activeOpacity={0.7}
+              >
+                <View style={styles.walletCardTitle}>
+                  <Ionicons name="wallet-outline" size={18} color={Colors.sky} />
+                  <Text style={[styles.walletCardTitleText, { color: colors.text }]}>Overview</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
+              </TouchableOpacity>
+
+              {/* AF Voucher Card */}
+              <TouchableOpacity
+                style={[styles.walletCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 12 }]}
+                onPress={() => onShowAFWalletVoucher?.()}
+                activeOpacity={0.7}
+              >
+                <View style={styles.walletCardTitle}>
+                  <Ionicons name="ticket-outline" size={18} color="#f97316" />
+                  <Text style={[styles.walletCardTitleText, { color: colors.text }]}>AF Voucher</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
+              </TouchableOpacity>
+
+              {/* Rewards Card */}
+              <TouchableOpacity
+                style={[styles.walletCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 12 }]}
+                onPress={() => onShowAFWalletRewards?.()}
+                activeOpacity={0.7}
+              >
+                <View style={styles.walletCardTitle}>
+                  <Ionicons name="gift-outline" size={18} color="#f59e0b" />
+                  <Text style={[styles.walletCardTitleText, { color: colors.text }]}>Rewards & Cashback</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
+              </TouchableOpacity>
+
+              {/* Network Earnings Card */}
+              <TouchableOpacity
+                style={[styles.walletCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 12 }]}
+                onPress={() => onShowAFWalletNetwork?.()}
+                activeOpacity={0.7}
+              >
+                <View style={styles.walletCardTitle}>
+                  <Ionicons name="git-network-outline" size={18} color="#8b5cf6" />
+                  <Text style={[styles.walletCardTitleText, { color: colors.text }]}>Network Earnings</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         {/* Menu */}
@@ -1521,6 +1610,71 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.white,
+  },
+
+  // ── Wallet Section ──
+  walletCardsContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 0,
+  },
+  walletSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    marginBottom: 12,
+  },
+  walletSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  walletCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 14,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  walletCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  walletCardTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  walletCardTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  walletCardContent: {
+    marginTop: 12,
+    gap: 10,
+  },
+  walletStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  walletStatLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  walletStatValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  walletCardFooterText: {
+    fontSize: 10,
+    fontWeight: '400',
+    lineHeight: 14,
   },
 
 });
