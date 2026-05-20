@@ -1137,6 +1137,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                 setShowPurchases(true);
               }}
               linkedAccountsRefreshTrigger={linkedAccountsRefreshTrigger}
+              onSecuritySettingsPress={() => setShowSecurity(true)}
             />
           ) : activeTab === 'shop' ? (
             selectedBrandId != null && selectedBrand ? (
