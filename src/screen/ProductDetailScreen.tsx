@@ -452,9 +452,7 @@ export default function ProductDetailScreen({
       const shareUrl = `https://www.afhome.ph/product/${slug}-i${product.id}`;
 
       await Share.share({
-        message: `Check out this product: ${product.name}`,
-        url: shareUrl,
-        title: product.name,
+        message: `Check out this product: ${product.name}\n\n${shareUrl}`,
       });
     } catch (error) {
       console.error('Error sharing product:', error);
