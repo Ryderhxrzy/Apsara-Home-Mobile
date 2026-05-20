@@ -72,9 +72,18 @@ export default function SecurityScreen({ onBack, isDarkMode, token, onGoogleLink
   }, [onBack]);
 
   useEffect(() => {
+    console.log('[SecurityScreen] Token status:', {
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'null',
+    });
+
     if (token) {
       fetchGoogleLinkedStatus();
       fetchActiveSessions();
+    } else {
+      console.warn('[SecurityScreen] No token provided to SecurityScreen');
+      Alert.alert('Warning', 'Authentication token not available. Some features may not work.');
     }
   }, [token]);
 
@@ -109,15 +118,39 @@ export default function SecurityScreen({ onBack, isDarkMode, token, onGoogleLink
   };
 
   const fetchActiveSessions = async () => {
-    if (!token) return;
+    if (!token) {
+      console.error('[SecurityScreen] No token available');
+      Alert.alert('Error', 'Authentication token missing. Please login again.');
+      return;
+    }
+
     try {
       setLoadingSessions(true);
-      const headers = { Authorization: `Bearer ${token}` };
+      console.log('[SecurityScreen] Fetching sessions with token:', token.substring(0, 20) + '...');
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
       const res = await axios.get(`${API_CONFIG.BASE_URL}/sessions`, { headers });
       console.log('[SecurityScreen] Active sessions:', res.data);
-      setActiveSessions(res.data.data || res.data.sessions || []);
-    } catch (error) {
-      console.error('[SecurityScreen] Error fetching active sessions:', error);
+
+      // The /api/sessions endpoint returns sessions wrapped in an 'items' key
+      const sessions = Array.isArray(res.data) ? res.data : (res.data.items || res.data.data || res.data.sessions || []);
+      setActiveSessions(sessions);
+    } catch (error: any) {
+      console.error('[SecurityScreen] Error fetching active sessions:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message,
+      });
+
+      if (error.response?.status === 401) {
+        Alert.alert('Session Expired', 'Your session has expired. Please login again.');
+      } else {
+        Alert.alert('Error', error.response?.data?.message || 'Failed to load active sessions');
+      }
     } finally {
       setLoadingSessions(false);
     }
@@ -909,7 +942,7 @@ export default function SecurityScreen({ onBack, isDarkMode, token, onGoogleLink
               No active sessions found.
             </Text>
           ) : (
-            activeSessions.map((session, index) => (
+            activeSessions.filter(s => s.is_current).map((session, index) => (
               <View
                 key={index}
                 style={[
@@ -941,27 +974,25 @@ export default function SecurityScreen({ onBack, isDarkMode, token, onGoogleLink
                     </Text>
                   </View>
                 </View>
-                {!session.is_current && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      Alert.alert(
-                        'Logout Device',
-                        'Are you sure you want to logout from this device?',
-                        [
-                          { text: 'Cancel', onPress: () => {} },
-                          {
-                            text: 'Logout',
-                            onPress: () => revokeLoginSession(session.token_id),
-                            style: 'destructive',
-                          },
-                        ]
-                      );
-                    }}
-                    style={[styles.sessionButton, { borderColor: '#ef4444' }]}
-                  >
-                    <Ionicons name="log-out" size={16} color="#ef4444" />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Logout Device',
+                      `Are you sure you want to logout from this device?${session.is_current ? ' You will be logged out from the website.' : ''}`,
+                      [
+                        { text: 'Cancel', onPress: () => {} },
+                        {
+                          text: 'Logout',
+                          onPress: () => revokeLoginSession(session.token_id),
+                          style: 'destructive',
+                        },
+                      ]
+                    );
+                  }}
+                  style={[styles.sessionButton, { borderColor: '#ef4444' }]}
+                >
+                  <Ionicons name="log-out" size={16} color="#ef4444" />
+                </TouchableOpacity>
               </View>
             ))
           )}
@@ -1059,8 +1090,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   section: {
-    borderRadius: 16,
-    borderWidth: 0.5,
+    borderRadius: 8,
+    borderWidth: 1,
     overflow: 'hidden',
   },
   sectionTitle: {
