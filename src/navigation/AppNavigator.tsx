@@ -32,6 +32,7 @@ import ShopByBrandScreen from '../screen/ShopByBrandScreen';
 import NotificationsScreen from '../screen/NotificationsScreen';
 import LoadingScreen from '../screen/LoadingScreen';
 import ReferralNetworkScreen from '../screen/ReferralNetworkScreen';
+import ReferralScreen from '../screen/ReferralScreen';
 import CheckoutScreen from '../screen/CheckoutScreen';
 import OrderSuccessScreen from '../screen/OrderSuccessScreen';
 import PaymentWebViewScreen from '../screen/PaymentWebViewScreen';
@@ -236,6 +237,8 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [referralTree, setReferralTree] = useState<any>(null);
   const [closeReferralNetwork, setCloseReferralNetwork] = useState(false);
   const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<string | null>(null);
+  const [referrerProfileData, setReferrerProfileData] = useState<any>(null);
+  const [referrerProfileLoading, setReferrerProfileLoading] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [previousTab, setPreviousTab] = useState<TabKey>('home');
@@ -285,6 +288,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showAFWalletVoucher, setShowAFWalletVoucher] = useState(false);
   const [showAFWalletRewards, setShowAFWalletRewards] = useState(false);
   const [showAFWalletNetwork, setShowAFWalletNetwork] = useState(false);
+  const [showReferralScreen, setShowReferralScreen] = useState(false);
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -517,15 +521,9 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
         // Parse referral link - Format: https://www.afhome.ph/ref/username
         const username = url.split('/ref/')[1]?.split('?')[0] || '';
         if (username) {
-          console.log('[AppNavigator] Opening referral with username:', username);
+          console.log('[AppNavigator] Opening referral screen with username:', username);
           setReferralCodeFromDeepLink(username);
-          // Navigate to home and show referral modal or navigate to referral network
-          setActiveTab('home');
-          Toast.show({
-            type: 'info',
-            text1: 'Referral Link',
-            text2: `Referred by ${username}`,
-          });
+          setShowReferralScreen(true);
         }
       } else if (url.includes('/shop')) {
         console.log('[AppNavigator] Shop deep link triggered:', url);
@@ -813,6 +811,27 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
   }, [token, refreshNotificationCount]);
+
+  // Fetch referrer's public profile when referral code from deep link is set
+  useEffect(() => {
+    if (!referralCodeFromDeepLink || referrerProfileData) return;
+
+    const fetchReferrerProfile = async () => {
+      try {
+        setReferrerProfileLoading(true);
+        const { referralService } = require('../services/referralService');
+        const profile = await referralService.getPublicProfile(referralCodeFromDeepLink);
+        setReferrerProfileData(profile);
+      } catch (error: any) {
+        console.error('Error fetching referrer profile:', error);
+        // Silently fail - the screen will still show with username only
+      } finally {
+        setReferrerProfileLoading(false);
+      }
+    };
+
+    fetchReferrerProfile();
+  }, [referralCodeFromDeepLink]);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -1998,6 +2017,31 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             isDarkMode={isDarkMode}
             onClose={() => setShowAFWalletNetwork(false)}
             token={token}
+          />
+        </View>
+      )}
+
+      {showReferralScreen && referralCodeFromDeepLink && (
+        <View style={styles.cartScreenOverlay}>
+          <ReferralScreen
+            referrerUsername={referralCodeFromDeepLink}
+            referrerName={referrerProfileData?.name}
+            referrerAvatarUrl={referrerProfileData?.avatar_url}
+            isDarkMode={isDarkMode}
+            onClose={() => {
+              setShowReferralScreen(false);
+              setReferralCodeFromDeepLink(null);
+              setReferrerProfileData(null);
+            }}
+            onRegister={() => {
+              setShowReferralScreen(false);
+              // Navigate to signup screen - will implement this with proper navigation
+              Toast.show({
+                type: 'info',
+                text1: 'Register',
+                text2: 'Navigate to registration screen',
+              });
+            }}
           />
         </View>
       )}
