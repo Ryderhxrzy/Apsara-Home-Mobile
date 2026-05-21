@@ -33,6 +33,7 @@ import NotificationsScreen from '../screen/NotificationsScreen';
 import LoadingScreen from '../screen/LoadingScreen';
 import ReferralNetworkScreen from '../screen/ReferralNetworkScreen';
 import ReferralScreen from '../screen/ReferralScreen';
+import ReferralSignupScreen from '../screen/ReferralSignupScreen';
 import CheckoutScreen from '../screen/CheckoutScreen';
 import OrderSuccessScreen from '../screen/OrderSuccessScreen';
 import PaymentWebViewScreen from '../screen/PaymentWebViewScreen';
@@ -289,6 +290,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showAFWalletRewards, setShowAFWalletRewards] = useState(false);
   const [showAFWalletNetwork, setShowAFWalletNetwork] = useState(false);
   const [showReferralScreen, setShowReferralScreen] = useState(false);
+  const [showReferralSignupScreen, setShowReferralSignupScreen] = useState(false);
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -2034,13 +2036,25 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               setReferrerProfileData(null);
             }}
             onRegister={() => {
+              setShowReferralSignupScreen(true);
+            }}
+          />
+        </View>
+      )}
+
+      {showReferralSignupScreen && referralCodeFromDeepLink && (
+        <View style={styles.cartScreenOverlay}>
+          <ReferralSignupScreen
+            referrerUsername={referralCodeFromDeepLink}
+            isDarkMode={isDarkMode}
+            onBack={() => {
+              setShowReferralSignupScreen(false);
+            }}
+            onContinueToOtp={() => {
+              setShowReferralSignupScreen(false);
               setShowReferralScreen(false);
-              // Navigate to signup screen - will implement this with proper navigation
-              Toast.show({
-                type: 'info',
-                text1: 'Register',
-                text2: 'Navigate to registration screen',
-              });
+              setReferralCodeFromDeepLink(null);
+              setReferrerProfileData(null);
             }}
           />
         </View>
