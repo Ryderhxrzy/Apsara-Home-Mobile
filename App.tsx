@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, LogBox, Platform } from 'react-native';
+import { View, LogBox, Platform, Linking, Modal } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Suppress the "Text strings must be rendered within a <Text> component" error
@@ -16,6 +16,10 @@ import OnboardingScreen from './src/screen/OnboardingScreen';
 import { storageService, StoredUser } from './src/services/storageService';
 import LoadingScreen from './src/screen/LoadingScreen';
 import { useFirebaseMessaging } from './src/hooks/useFirebaseMessaging';
+import ReferralScreen from './src/screen/ReferralScreen';
+import ReferralSignupScreen from './src/screen/ReferralSignupScreen';
+import ReferralOtpScreen from './src/screen/ReferralOtpScreen';
+import { referralService } from './src/services/referralService';
 
 // Initialize notification channel on app start
 const initializeNotificationChannel = async () => {
@@ -37,7 +41,7 @@ const initializeNotificationChannel = async () => {
   }
 };
 
-type AuthScreen = 'index' | 'login' | 'signup' | 'otp';
+type AuthScreen = 'index' | 'login' | 'signup' | 'otp' | 'referral-signup' | 'referral-otp';
 
 
 const queryClient = new QueryClient({
@@ -101,6 +105,11 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<string | null>(null);
+  const [referrerProfileData, setReferrerProfileData] = useState<any>(null);
+  const [showReferralScreenModal, setShowReferralScreenModal] = useState(false);
+  const [referralOtpEmail, setReferralOtpEmail] = useState('');
+  const [referralOtpToken, setReferralOtpToken] = useState('');
 
   // Initialize FCM and register device when authenticated
   useFirebaseMessaging(authToken, authUser?.id || null);
@@ -112,6 +121,40 @@ export default function App() {
 
   useEffect(() => {
     checkStoredAuth();
+  }, []);
+
+  // Handle referral deep links at app level (works in unauthenticated flow)
+  useEffect(() => {
+    const handleDeepLink = async ({ url }: { url: string }) => {
+      console.log('[App] Deep link received:', url);
+      if (url.includes('/ref/')) {
+        console.log('[App] Referral deep link detected:', url);
+        const username = url.split('/ref/')[1]?.split('?')[0] || '';
+        if (username) {
+          setReferralCodeFromDeepLink(username);
+          setShowReferralScreenModal(true);
+          // Fetch referrer's public profile
+          try {
+            const profile = await referralService.getPublicProfile(username);
+            setReferrerProfileData(profile);
+          } catch (error: any) {
+            console.error('[App] Failed to fetch referrer profile:', error);
+          }
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check if app was launched from deep link
+    Linking.getInitialURL().then((url) => {
+      if (url != null) {
+        console.log('[App] Initial deep link:', url);
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
 
   async function checkStoredAuth() {
@@ -152,7 +195,14 @@ export default function App() {
     setScreen('login');
     if (user) setAuthUser(user);
     if (token) setAuthToken(token);
-    
+
+    // Clear referral state after authentication
+    setReferralCodeFromDeepLink(null);
+    setReferrerProfileData(null);
+    setShowReferralScreenModal(false);
+    setReferralOtpEmail('');
+    setReferralOtpToken('');
+
     // Save authentication data to storage for persistence
     if (user && token) {
       try {
@@ -170,6 +220,11 @@ export default function App() {
       setAuthUser(null);
       setAuthToken(null);
       setScreen('index');
+
+      // Clear referral state on logout
+      setReferralCodeFromDeepLink(null);
+      setReferrerProfileData(null);
+      setShowReferralScreenModal(false);
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -181,7 +236,7 @@ export default function App() {
       return (
         <IndexScreen
           onGoToLogin={() => setScreen('login')}
-          onGoToSignup={() => setScreen('signup')}
+          onGoToSignup={() => setScreen('referral-signup')}
           onAuthenticated={(user, token) => goAuthenticated(user, token)}
         />
       );
@@ -201,6 +256,45 @@ export default function App() {
       );
     }
 
+    if (screen === 'referral-signup') {
+      return (
+        <ReferralSignupScreen
+          referrerUsername={referralCodeFromDeepLink || ''}
+          isDarkMode={false}
+          pendingOtpEmail={referralOtpEmail}
+          pendingOtpToken={referralOtpToken}
+          onBack={() => {
+            setReferralOtpEmail('');
+            setReferralOtpToken('');
+            setScreen('index');
+          }}
+          onContinueToOtp={(email, token) => {
+            setReferralOtpEmail(email);
+            setReferralOtpToken(token);
+            setScreen('referral-otp');
+          }}
+          onResumOtp={() => setScreen('referral-otp')}
+        />
+      );
+    }
+
+    if (screen === 'referral-otp') {
+      return (
+        <ReferralOtpScreen
+          email={referralOtpEmail}
+          verificationToken={referralOtpToken}
+          isDarkMode={false}
+          onBack={() => setScreen('referral-signup')}
+          onSuccess={() => {
+            setReferralOtpEmail('');
+            setReferralOtpToken('');
+            setScreen('index');
+            // TODO: Auto-login user after OTP verification
+          }}
+        />
+      );
+    }
+
     if (screen === 'otp') {
       return (
         <OtpScreen
@@ -212,7 +306,7 @@ export default function App() {
       );
     }
 
-    return <LoginScreen onGoToSignup={() => setScreen('signup')} onGoToIndex={() => setScreen('index')} onAuthenticated={(user, token) => goAuthenticated(user, token)} onResetOnboarding={resetOnboarding} />;
+    return <LoginScreen onGoToSignup={() => setScreen('referral-signup')} onGoToIndex={() => setScreen('index')} onAuthenticated={(user, token) => goAuthenticated(user, token)} onResetOnboarding={resetOnboarding} />;
   }
 
   return (
@@ -225,7 +319,30 @@ export default function App() {
         ) : authenticated ? (
           <AppNavigator user={authUser} token={authToken} onLogout={logout} />
         ) : (
-          renderAuth()
+          <>
+            {renderAuth()}
+            {showReferralScreenModal && referralCodeFromDeepLink && (
+              <Modal visible={showReferralScreenModal} transparent animationType="slide">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+                  <ReferralScreen
+                    referrerUsername={referralCodeFromDeepLink}
+                    referrerName={referrerProfileData?.name}
+                    referrerAvatarUrl={referrerProfileData?.avatar_url}
+                    isDarkMode={false}
+                    onClose={() => {
+                      setShowReferralScreenModal(false);
+                      setReferralCodeFromDeepLink(null);
+                      setReferrerProfileData(null);
+                    }}
+                    onRegister={() => {
+                      setShowReferralScreenModal(false);
+                      setScreen('referral-signup');
+                    }}
+                  />
+                </View>
+              </Modal>
+            )}
+          </>
         )}
         <Toast />
       </SafeAreaProvider>
