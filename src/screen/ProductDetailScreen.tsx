@@ -10,6 +10,7 @@ import RenderHtml from 'react-native-render-html';
 import { Colors } from '../constants/colors';
 import { productService, type Product, type ProductCard, type ProductReviewsResponse, type ProductReview } from '../services/productService';
 import { authService } from '../services/authService';
+import { userBehaviorService } from '../services/userBehaviorService';
 import ItemCard from '../components/Items/ItemCard';
 import ImageViewerModal from '../components/Items/ImageViewerModal';
 import BuyNowModal from '../components/Items/BuyNowModal';
@@ -222,6 +223,17 @@ export default function ProductDetailScreen({
           }
         }
 
+        // Track product view behavior
+        if (token && active && data?.id) {
+          userBehaviorService.trackBehavior(
+            token,
+            'product_view',
+            data.id,
+            data.catid,
+            data.brandType,
+          ).catch(() => {});
+        }
+
         // Fetch related products by brand type
         if (data.brandType && token) {
           productService.getProductsByBrand(data.brandType, token)
@@ -411,6 +423,10 @@ export default function ProductDetailScreen({
       if (response.data?.success) {
         console.log('Item added to cart successfully');
         setShowAddToCartModal(false);
+
+        // Track cart add behavior
+        userBehaviorService.trackBehavior(token, 'cart_add', cartData.product_id).catch(() => {});
+
         onCartUpdate?.();
       }
     } catch (error: any) {
@@ -499,6 +515,11 @@ export default function ProductDetailScreen({
       const newWishlistState = !isWishlisted;
       setIsWishlisted(newWishlistState);
       onWishlistToggle?.(product.id, newWishlistState);
+
+      // Track wishlist behavior
+      const behaviorType = newWishlistState ? 'wishlist_add' : 'wishlist_remove';
+      userBehaviorService.trackBehavior(token, behaviorType, product.id, product.catid, product.brandType).catch(() => {});
+
       Toast.show({
         type: 'success',
         text1: isWishlisted ? 'Removed from wishlist' : 'Added to wishlist',
