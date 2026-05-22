@@ -21,6 +21,7 @@ import { ChatBotIcon } from '../components/ChatBot';
 import ConfirmationModal from '../components/ConfirmationModal/ConfirmationModal';
 import { Colors } from '../constants/colors';
 import Toast from 'react-native-toast-message';
+import { userBehaviorService } from '../services/userBehaviorService';
 
 interface CartItem {
   crt_id: number;
@@ -105,7 +106,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
   const [removingItem, setRemovingItem] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<'new' | 'old'>('new');
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string; productId: number } | null>(null);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f8fbff',
@@ -213,14 +214,14 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
     const item = cartItems.find(c => c.crt_id === crtId);
     const productName = item?.product_name || 'this item';
 
-    setItemToDelete({ id: crtId, name: productName });
+    setItemToDelete({ id: crtId, name: productName, productId: item?.crt_product_id || 0 });
     setConfirmDeleteModal(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
 
-    const { id: crtId, name: productName } = itemToDelete;
+    const { id: crtId, name: productName, productId } = itemToDelete;
 
     try {
       setRemovingItem(crtId);
@@ -236,6 +237,11 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
         newSet.delete(crtId);
         return newSet;
       });
+
+      // Track cart remove behavior
+      if (token && productId) {
+        userBehaviorService.trackBehavior(token, 'cart_remove', productId).catch(() => {});
+      }
 
       Toast.show({
         type: 'success',
