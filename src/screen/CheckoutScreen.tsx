@@ -269,7 +269,8 @@ export default function CheckoutScreen({
     return sum + (srpPrice * (i.quantity || 1));
   }, 0);
   const memberTotal = checkoutItems.reduce((sum, i) => sum + (i.product_price_member * (i.quantity || 1)), 0);
-  const shippingCost = shippingMethods.length > 0 ? shippingMethods[0].fee : 0;
+  // const shippingCost = shippingMethods.length > 0 ? shippingMethods[0].fee : 0;
+  const shippingCost = 0; // Testing: disabled shipping fees
   const selectedShippingMethod = shippingMethods.length > 0 ? shippingMethods[0] : null;
   const shopDiscount = subtotal - memberTotal;
   const total = memberTotal - voucherDiscount + shippingCost;
@@ -320,7 +321,7 @@ export default function CheckoutScreen({
       };
 
       // OPTIONAL FIELDS
-      paymentPayload.payment_mode = 'test';
+      paymentPayload.payment_mode = 'live';
       paymentPayload.device_id = deviceId;
 
       // Customer info (optional)
@@ -346,7 +347,8 @@ export default function CheckoutScreen({
           product_image: singleItem.variant_image || singleItem.product_image,
           quantity: singleItem.quantity,
           subtotal: Math.round(memberTotal * 100) / 100,
-          handling_fee: Math.round(shippingCost * 100) / 100,
+          // handling_fee: Math.round(shippingCost * 100) / 100,
+          handling_fee: 0,
         };
         if (singleItem.variant_color) paymentPayload.order.selected_color = singleItem.variant_color;
         if (singleItem.variant_size) paymentPayload.order.selected_size = singleItem.variant_size;
@@ -363,7 +365,8 @@ export default function CheckoutScreen({
             variant_size: i.variant_size,
           })),
           subtotal: Math.round(memberTotal * 100) / 100,
-          handling_fee: Math.round(shippingCost * 100) / 100,
+          // handling_fee: Math.round(shippingCost * 100) / 100,
+          handling_fee: 0,
         };
       }
 
