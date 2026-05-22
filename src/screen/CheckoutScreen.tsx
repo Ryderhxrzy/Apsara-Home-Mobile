@@ -304,6 +304,7 @@ export default function CheckoutScreen({
     }
 
     setLoading(true);
+    const startTime = Date.now();
 
     try {
       const deviceId = Device.deviceId || 'unknown';
@@ -321,7 +322,7 @@ export default function CheckoutScreen({
       };
 
       // OPTIONAL FIELDS
-      paymentPayload.payment_mode = 'live';
+      paymentPayload.payment_mode = 'test';
       paymentPayload.device_id = deviceId;
 
       // Customer info (optional)
@@ -399,7 +400,10 @@ export default function CheckoutScreen({
       console.log('[CheckoutScreen] ✅ API SUCCESS:', {
         status: response.status,
         orderId: response.data?.order_id,
+        checkoutId: response.data?.checkout_id,
+        mobileOrderId: response.data?.mobile_order_id,
         hasCheckoutUrl: !!response.data?.checkout_url,
+        fullResponse: JSON.stringify(response.data, null, 2),
       });
 
       if (response.data?.checkout_url) {
@@ -418,9 +422,19 @@ export default function CheckoutScreen({
           token,
           checkoutUrl: response.data.checkout_url,
           orderId: response.data?.order_id,
+          checkoutId: response.data?.checkout_id,
+          mobileOrderId: response.data?.mobile_order_id,
+          paymentIntentId: response.data?.payment_intent_id,
         };
 
-        console.log('[CheckoutScreen] Navigating to order success with checkout URL');
+        console.log('[CheckoutScreen] 📍 ORDER DATA CREATED:', {
+          orderId: orderData.orderId,
+          checkoutId: orderData.checkoutId,
+          mobileOrderId: orderData.mobileOrderId,
+          paymentIntentId: orderData.paymentIntentId,
+        });
+
+        console.log('[CheckoutScreen] 🚀 Navigating to PaymentWebView with checkout URL');
         onNavigateToOrderSuccess?.(orderData);
       } else {
         Toast.show({
@@ -449,7 +463,16 @@ export default function CheckoutScreen({
         text2: errorMsg,
       });
     } finally {
-      setLoading(false);
+      // Ensure loading state is visible for at least 800ms
+      const elapsedTime = Date.now() - startTime;
+      const minDuration = 800;
+      const remainingTime = Math.max(0, minDuration - elapsedTime);
+
+      if (remainingTime > 0) {
+        setTimeout(() => setLoading(false), remainingTime);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -875,15 +898,19 @@ export default function CheckoutScreen({
             style={[
               styles.placeOrderBtn,
               {
-                backgroundColor: Colors.sky,
-                opacity: loading ? 0.6 : 1,
+                backgroundColor: loading ? '#64748b' : Colors.sky,
+                opacity: 1,
               },
             ]}
             onPress={handlePlaceOrder}
             disabled={loading}
+            activeOpacity={loading ? 1 : 0.7}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={Colors.white} />
+              <>
+                <ActivityIndicator size="small" color={Colors.white} />
+                <Text style={styles.placeOrderBtnText}>Processing...</Text>
+              </>
             ) : (
               <>
                 <Ionicons name="bag-check" size={18} color={Colors.white} />
