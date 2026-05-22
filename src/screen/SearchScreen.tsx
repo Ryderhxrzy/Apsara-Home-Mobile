@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { Colors } from '../constants/colors';
 import { authService, SearchHistoryItem } from '../services/authService';
+import { userBehaviorService } from '../services/userBehaviorService';
 import { API_CONFIG } from '../config/api';
 import Toast from 'react-native-toast-message';
 
@@ -213,6 +214,8 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
         const normalized = prev.filter(item => getHistoryLabel(item).toLowerCase() !== next.toLowerCase());
         return [{ query: next }, ...normalized].slice(0, 8);
       });
+      // Track search behavior
+      userBehaviorService.trackBehavior(token, 'search', undefined, undefined, undefined, next).catch(() => {});
       onSearchSubmit?.(next);
     } catch (error: any) {
       Toast.show({ type: 'error', text1: 'Search failed', text2: error.message || 'Unable to save the search.' });
