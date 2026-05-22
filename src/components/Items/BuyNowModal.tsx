@@ -410,7 +410,7 @@ export default function BuyNowModal({
         </ScrollView>
 
         {/* Bottom Total & Button - Styled like ProductDetailScreen */}
-        <View style={[styles.shopeeCheckoutFooterGradient, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderTopColor: isDarkMode ? '#334155' : '#f1f5f9', backgroundColor: isDarkMode ? '#1e293b' : Colors.white }]}>
+        <View style={[styles.shopeeCheckoutFooterGradient, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom + 12, 12), borderTopColor: isDarkMode ? '#334155' : '#f1f5f9', backgroundColor: isDarkMode ? '#1e293b' : Colors.white }]}>
           {/* Total Info */}
           <View style={styles.checkoutTotalContainer}>
             <Text style={[styles.checkoutTotalLabel, { color: isDarkMode ? '#94a3b8' : Colors.textSecondary }]}>Total Price</Text>
