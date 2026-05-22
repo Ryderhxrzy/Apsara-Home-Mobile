@@ -36,6 +36,7 @@ export const useNotifications = (userId: string | number, token: string, onNavig
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [lastOrderNotification, setLastOrderNotification] = useState<OrderStatusData | null>(null);
   const { validateToken } = useTokenRefresh();
 
   useEffect(() => {
@@ -135,22 +136,34 @@ export const useNotifications = (userId: string | number, token: string, onNavig
         if (isMounted) {
           console.log('Order notification updated:', data);
 
-          // Trigger refresh in notification screen
-          onNotificationUpdate?.();
+          // Only trigger if the notification data has actually changed
+          const hasChanged = !lastOrderNotification ||
+            lastOrderNotification.checkout_id !== data.checkout_id ||
+            lastOrderNotification.status !== data.status ||
+            lastOrderNotification.message !== data.message;
 
-          // Show toast for order status change with actual message from backend
-          Toast.show({
-            type: 'info',
-            text1: data.title || 'Order Status Updated',
-            text2: data.message || `Order ${data.checkout_id}: ${data.status}`,
-            position: 'top',
-            visibilityTime: 5000,
-            onPress: () => {
-              if (onNavigateToPurchases) {
-                onNavigateToPurchases(data.status, data.checkout_id);
-              }
-            },
-          });
+          if (hasChanged) {
+            setLastOrderNotification(data);
+
+            // Trigger refresh in notification screen
+            onNotificationUpdate?.();
+
+            // Show toast for order status change with actual message from backend
+            Toast.show({
+              type: 'info',
+              text1: data.title || 'Order Status Updated',
+              text2: data.message || `Order ${data.checkout_id}: ${data.status}`,
+              position: 'top',
+              visibilityTime: 5000,
+              onPress: () => {
+                if (onNavigateToPurchases) {
+                  onNavigateToPurchases(data.status, data.checkout_id);
+                }
+              },
+            });
+          } else {
+            console.log('[useNotifications] Ignoring duplicate notification:', data);
+          }
         }
       });
 
