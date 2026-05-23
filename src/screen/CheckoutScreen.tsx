@@ -55,6 +55,9 @@ interface PaymentMethod {
   id: string;
   name: string;
   icon: string;
+  logo?: string;
+  subtitle?: string;
+  badge?: string;
 }
 
 interface UserAddress {
@@ -120,6 +123,8 @@ export default function CheckoutScreen({
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
+  const [isShippingExpanded, setIsShippingExpanded] = useState(true);
+  const [isAddressExpanded, setIsAddressExpanded] = useState(false);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f0f9ff',
@@ -131,10 +136,38 @@ export default function CheckoutScreen({
   };
 
   const paymentMethods: PaymentMethod[] = [
-    { id: 'gcash', name: 'GCash', icon: 'card' },
-    { id: 'maya', name: 'PayMaya', icon: 'card' },
-    { id: 'card', name: 'Credit/Debit Card', icon: 'card' },
-    { id: 'online_banking', name: 'Online Banking', icon: 'checkmark-circle' },
+    {
+      id: 'gcash',
+      name: 'GCash',
+      icon: 'card',
+      logo: 'https://wp.logos-download.com/wp-content/uploads/2020/06/GCash_Logo.png?dl',
+      subtitle: 'Pay via GCash wallet',
+      badge: 'Popular'
+    },
+    {
+      id: 'maya',
+      name: 'PayMaya',
+      icon: 'card',
+      logo: 'https://i.pinimg.com/474x/c8/bf/fc/c8bffcd5f259fee239e58ee22571a2f2.jpg',
+      subtitle: 'Pay via Maya wallet',
+      badge: 'Fast'
+    },
+    {
+      id: 'card',
+      name: 'Credit/Debit Card',
+      icon: 'card',
+      logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMwnnYyysKBShjpO_tS1hVLE9BKlheWWzvTg&s',
+      subtitle: 'Visa or Master Card',
+      badge: '3DS Secured'
+    },
+    {
+      id: 'online_banking',
+      name: 'Online Banking',
+      icon: 'checkmark-circle',
+      logo: 'https://support.coins.ph/hc/article_attachments/360000692201',
+      subtitle: 'Instapay / Peso Net',
+      badge: 'Bank Transfer'
+    },
   ];
 
   const vouchers = [
@@ -540,7 +573,7 @@ export default function CheckoutScreen({
       >
         {/* Order Item Section - Grouped by Brand */}
         {Object.entries(groupedItems).map(([brandName, brandItems]) => (
-          <View key={brandName} style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, padding: 0, borderColor: colors.border, borderWidth: 1 }]}>
+          <View key={brandName} style={[styles.section, { backgroundColor: colors.containerBg, padding: 0 }]}>
             {/* Shop Header */}
             <TouchableOpacity
               style={[styles.shopHeader, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}
@@ -624,83 +657,112 @@ export default function CheckoutScreen({
         ))}
 
         {/* Shipping Address Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, padding: 0, borderColor: colors.border, borderWidth: 1 }]}>
-          <View style={[styles.shippingHeaderRow, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}>
+        <View style={[styles.section, { backgroundColor: colors.containerBg, padding: 0 }]}>
+          <TouchableOpacity
+            style={[styles.shippingHeaderRow, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}
+            onPress={() => setIsAddressExpanded(!isAddressExpanded)}
+            activeOpacity={0.7}
+          >
             <View style={styles.shippingHeaderInfo}>
               <Ionicons name="location" size={16} color={Colors.sky} />
               <Text style={[styles.shippingTitle, { color: colors.text }]}>Shipping To</Text>
             </View>
-            {addresses.length > 1 && (
-              <TouchableOpacity
-                onPress={() => onNavigateToShippingAddress?.(addresses, selectedAddress, setSelectedAddress)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.viewShippingContainer}>
-                  <Text style={[styles.viewShippingText, { color: colors.textSec }]}>View Shipping Address</Text>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.sky} />
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }]}>
-
-          {loadingAddresses ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={Colors.sky} />
-              <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading addresses...</Text>
+            <View style={styles.viewShippingContainer}>
+              {addresses.length > 1 && !isAddressExpanded && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onNavigateToShippingAddress?.(addresses, selectedAddress, setSelectedAddress);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.viewShippingText, { color: colors.textSec }]}>Change</Text>
+                </TouchableOpacity>
+              )}
+              <Ionicons
+                name={isAddressExpanded ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={Colors.sky}
+              />
             </View>
-          ) : selectedAddress ? (
-            <View>
-              <View style={[styles.addressCard, { backgroundColor: colors.borderLight, borderColor: Colors.sky }]}>
-                <Text style={[styles.addressType, { color: Colors.forest }]}>
-                  {selectedAddress.address_type}
-                </Text>
-                <Text style={[styles.addressName, { color: colors.text }]} numberOfLines={1}>
-                  {selectedAddress.full_name} <Text style={[styles.addressPhone, { color: colors.textSec }]}>({selectedAddress.phone})</Text>
-                </Text>
-                <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={3}>
-                  {selectedAddress.full_address}
-                </Text>
-                {selectedAddress.notes && (
-                  <Text style={[styles.addressNotes, { color: colors.textSec }]}>
-                    Notes: {selectedAddress.notes}
-                  </Text>
-                )}
-              </View>
+          </TouchableOpacity>
 
-              {/* Shipping Cost Display */}
-              {loadingShippingRates ? (
-                <View style={styles.shippingInfoContainer}>
-                  <ActivityIndicator size="small" color={Colors.sky} />
-                  <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading shipping...</Text>
-                </View>
-              ) : selectedShippingMethod ? (
-                <View style={[styles.shippingInfo, { backgroundColor: colors.borderLight, marginTop: 8 }]}>
-                  <View style={styles.shippingDetail}>
-                    <Ionicons name="car" size={16} color={Colors.sky} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.shippingLabel, { color: colors.textSec }]}>Shipping</Text>
-                      <Text style={[styles.shippingCity, { color: colors.text }]}>
-                        {selectedShippingMethod.city}, {selectedShippingMethod.province}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.shippingCost, { color: Colors.sky }]}>
-                    ₱{shippingCost.toLocaleString()}
+          {!isAddressExpanded ? (
+            // Sneak peek - collapsed view
+            <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }]}>
+              {selectedAddress ? (
+                <View style={[styles.addressCardCompact, { backgroundColor: colors.borderLight, borderColor: colors.border, borderWidth: 1 }]}>
+                  <Text style={[styles.addressNameCompact, { color: colors.text }]} numberOfLines={1}>
+                    {selectedAddress.full_name}
+                  </Text>
+                  <Text style={[styles.addressTextCompact, { color: colors.textSec }]} numberOfLines={1}>
+                    {selectedAddress.full_address}
                   </Text>
                 </View>
-              ) : null}
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSec }]}>No address found</Text>
+              )}
             </View>
           ) : (
-            <Text style={[styles.emptyText, { color: colors.textSec }]}>No address found</Text>
+            // Full view - expanded
+            <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }]}>
+              {loadingAddresses ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={Colors.sky} />
+                  <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading addresses...</Text>
+                </View>
+              ) : selectedAddress ? (
+                <View>
+                  <View style={[styles.addressCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
+                    <Text style={[styles.addressType, { color: Colors.forest }]}>
+                      {selectedAddress.address_type}
+                    </Text>
+                    <Text style={[styles.addressName, { color: colors.text }]} numberOfLines={1}>
+                      {selectedAddress.full_name} <Text style={[styles.addressPhone, { color: colors.textSec }]}>({selectedAddress.phone})</Text>
+                    </Text>
+                    <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={3}>
+                      {selectedAddress.full_address}
+                    </Text>
+                    {selectedAddress.notes && (
+                      <Text style={[styles.addressNotes, { color: colors.textSec }]}>
+                        Notes: {selectedAddress.notes}
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* Shipping Cost Display */}
+                  {loadingShippingRates ? (
+                    <View style={styles.shippingInfoContainer}>
+                      <ActivityIndicator size="small" color={Colors.sky} />
+                      <Text style={[styles.loadingText, { color: colors.textSec }]}>Loading shipping...</Text>
+                    </View>
+                  ) : selectedShippingMethod ? (
+                    <View style={[styles.shippingInfo, { backgroundColor: colors.borderLight, marginTop: 8 }]}>
+                      <View style={styles.shippingDetail}>
+                        <Ionicons name="car" size={16} color={Colors.sky} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.shippingLabel, { color: colors.textSec }]}>Shipping</Text>
+                          <Text style={[styles.shippingCity, { color: colors.text }]}>
+                            {selectedShippingMethod.city}, {selectedShippingMethod.province}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.shippingCost, { color: Colors.sky }]}>
+                        ₱{shippingCost.toLocaleString()}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSec }]}>No address found</Text>
+              )}
+            </View>
           )}
-          </View>
         </View>
 
         {/* Referred By Section */}
         {user?.referrer_username && (
-          <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, padding: 0, borderColor: colors.border, borderWidth: 1 }]}>
+          <View style={[styles.section, { backgroundColor: colors.containerBg, padding: 0 }]}>
             <View style={[styles.shippingHeaderRow, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}>
               <View style={styles.shippingHeaderInfo}>
                 <Ionicons name="person" size={16} color={Colors.sky} />
@@ -709,7 +771,7 @@ export default function CheckoutScreen({
             </View>
 
             <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12 }]}>
-              <View style={[styles.referrerCard, { backgroundColor: colors.borderLight, borderColor: Colors.sky }]}>
+              <View style={[styles.referrerCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
                 <Ionicons name="person-circle" size={32} color={Colors.sky} />
                 <Text style={[styles.referrerUsername, { color: colors.text }]}>
                   @{user.referrer_username}
@@ -719,84 +781,126 @@ export default function CheckoutScreen({
           </View>
         )}
 
+        {/* Payment Method Section */}
+        <View style={[styles.section, { backgroundColor: colors.containerBg, padding: 0 }]}>
+          <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, borderBottomColor: colors.border, borderBottomWidth: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Method</Text>
+              {!selectedPaymentMethod && (
+                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '500' }}>Required *</Text>
+              )}
+            </View>
+          </View>
+
+          <View style={[styles.paymentGrid, { paddingHorizontal: 14, paddingVertical: 12 }]}>
+            {paymentMethods.map((method) => {
+              const getBadgeColor = (methodId: string) => {
+                const badgeColors: { [key: string]: string } = {
+                  'gcash': '#1F2EF5',
+                  'maya': '#FF6B00',
+                  'card': '#FF0080',
+                  'online_banking': '#00B050',
+                };
+                return badgeColors[methodId] || Colors.sky;
+              };
+
+              const badgeColor = getBadgeColor(method.id);
+
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  style={styles.paymentGridItem}
+                  onPress={() => setSelectedPaymentMethod(method.id)}
+                >
+                  <View style={styles.paymentGridCard}>
+                    {method.logo ? (
+                      <Image
+                        source={{ uri: method.logo }}
+                        style={styles.paymentGridLogo}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Ionicons name={method.icon as any} size={28} color={Colors.sky} />
+                    )}
+                    <View style={styles.paymentGridNameContainer}>
+                      <Text style={[styles.paymentGridName, { color: colors.text }]} numberOfLines={1}>
+                        {method.name}
+                      </Text>
+                      {method.subtitle && (
+                        <Text style={[styles.paymentGridSubtitle, { color: colors.textSec }]} numberOfLines={1}>
+                          {method.subtitle}
+                        </Text>
+                      )}
+                    </View>
+                    {method.badge && (
+                      <View style={[styles.paymentBadge, { backgroundColor: badgeColor }]}>
+                        <Text style={styles.paymentBadgeText}>{method.badge}</Text>
+                      </View>
+                    )}
+                    <View style={[
+                      styles.paymentCircleCheckbox,
+                      selectedPaymentMethod === method.id && styles.paymentCircleCheckboxSelected
+                    ]}>
+                      {selectedPaymentMethod === method.id && (
+                        <Ionicons name="checkmark" size={14} color={Colors.white} />
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Shipping Options Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, padding: 0, borderColor: colors.border, borderWidth: 1 }]}>
-          <View style={[styles.shippingHeaderRow, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}>
+        <View style={[styles.section, { backgroundColor: colors.containerBg, padding: 0 }]}>
+          <TouchableOpacity
+            style={[styles.shippingHeaderRow, { borderBottomColor: colors.border, backgroundColor: colors.containerBg }]}
+            onPress={() => setIsShippingExpanded(!isShippingExpanded)}
+            activeOpacity={0.7}
+          >
             <View style={styles.shippingHeaderInfo}>
               <Ionicons name="layers" size={16} color={Colors.sky} />
               <Text style={[styles.shippingTitle, { color: colors.text }]}>Shipping Options</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
-              <View style={styles.viewShippingContainer}>
-                <Text style={[styles.viewShippingText, { color: colors.textSec }]}>View All</Text>
-                <Ionicons name="chevron-forward" size={16} color={Colors.sky} />
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }]}>
-            <View style={styles.shippingOptionsContainer}>
-              {/* AF Home Delivery - Default */}
-              <TouchableOpacity style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: Colors.sky }]}>
-                <View style={styles.optionContent}>
-                  <Text style={[styles.optionName, { color: colors.text }]}>AF Home Delivery</Text>
-                  <Text style={[styles.optionDays, { color: colors.textSec }]}>Standard</Text>
-                </View>
-                <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{shippingCost.toLocaleString()}</Text>
-              </TouchableOpacity>
-
-              {/* Other Shipping Partners */}
-              {shippingMethods.slice(0, 2).map((method, index) => (
-                <TouchableOpacity key={index} style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionName, { color: colors.text }]}>{method.province}</Text>
-                    <Text style={[styles.optionDays, { color: colors.textSec }]}>Delivery</Text>
-                  </View>
-                  <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{method.fee.toLocaleString()}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.viewShippingContainer}>
+              <Ionicons
+                name={isShippingExpanded ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={Colors.sky}
+              />
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
 
-        {/* Payment Method Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border, borderWidth: 1 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Method</Text>
-            {!selectedPaymentMethod && (
-              <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '500' }}>Required *</Text>
-            )}
-          </View>
+          {isShippingExpanded && (
+            <View style={[styles.shippingContent, { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }]}>
+              <View style={styles.shippingOptionsContainer}>
+                {/* AF Home Delivery - Default */}
+                <TouchableOpacity style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: Colors.sky }]}>
+                  <View style={styles.optionContent}>
+                    <Text style={[styles.optionName, { color: colors.text }]}>AF Home Delivery</Text>
+                    <Text style={[styles.optionDays, { color: colors.textSec }]}>Standard</Text>
+                  </View>
+                  <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{shippingCost.toLocaleString()}</Text>
+                </TouchableOpacity>
 
-          <View style={styles.paymentList}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[
-                  styles.paymentListItem,
-                  {
-                    backgroundColor: selectedPaymentMethod === method.id ? `${Colors.sky}15` : colors.borderLight,
-                    borderColor: selectedPaymentMethod === method.id ? Colors.sky : colors.border,
-                  },
-                ]}
-                onPress={() => setSelectedPaymentMethod(method.id)}
-              >
-                <View style={styles.paymentListContent}>
-                  <Ionicons name={method.icon as any} size={20} color={Colors.sky} />
-                  <Text style={[styles.paymentListName, { color: colors.text }]}>
-                    {method.name}
-                  </Text>
-                </View>
-                {selectedPaymentMethod === method.id && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.sky} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+                {/* Other Shipping Partners */}
+                {shippingMethods.slice(0, 2).map((method, index) => (
+                  <TouchableOpacity key={index} style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionName, { color: colors.text }]}>{method.province}</Text>
+                      <Text style={[styles.optionDays, { color: colors.textSec }]}>Delivery</Text>
+                    </View>
+                    <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{method.fee.toLocaleString()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Voucher Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border, borderWidth: 1 }]}>
+        <View style={[styles.section, { backgroundColor: colors.containerBg }]}>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Vouchers</Text>
           <View style={styles.voucherList}>
             {vouchers.map((voucher) => (
@@ -824,7 +928,7 @@ export default function CheckoutScreen({
         </View>
 
         {/* Price Summary Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border, borderWidth: 1 }]}>
+        <View style={[styles.section, { backgroundColor: colors.containerBg, marginBottom: 0 }]}>
           <Text style={[styles.paymentDetailsLabel, { color: colors.text }]}>Payment Details</Text>
 
           <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
@@ -974,8 +1078,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 8,
-    gap: 16,
+    paddingHorizontal: 0,
+    gap: 0,
   },
   emptyContainer: {
     flex: 1,
@@ -986,12 +1090,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   section: {
-    borderRadius: 10,
+    borderRadius: 0,
     padding: 14,
-    marginTop: 12,
-    marginHorizontal: 'auto',
-    maxWidth: 900,
+    marginHorizontal: 0,
     width: '100%',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 13,
@@ -1081,9 +1184,75 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+  },
+  paymentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  paymentGridItem: {
+    width: '100%',
+  },
+  paymentGridCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderRadius: 0,
+    borderWidth: 0,
+    minHeight: 50,
+    gap: 10,
+  },
+  paymentGridLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+  },
+  paymentGridNameContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  paymentGridName: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  paymentGridSubtitle: {
+    fontSize: 10,
+    fontWeight: '400',
+    marginTop: 2,
+  },
+  paymentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: Colors.sky,
+  },
+  paymentBadgeText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  paymentGridCheckmark: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  paymentCircleCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  paymentCircleCheckboxSelected: {
+    borderColor: Colors.sky,
+    backgroundColor: Colors.sky,
   },
   paymentListContent: {
     flexDirection: 'row',
@@ -1094,6 +1263,25 @@ const styles = StyleSheet.create({
   paymentListName: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  paymentLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+  },
+  circleCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  circleCheckboxSelected: {
+    borderColor: Colors.sky,
+    backgroundColor: Colors.sky,
   },
   paymentDetailsLabel: {
     fontSize: 13,
@@ -1278,6 +1466,20 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     marginBottom: 10,
+  },
+  addressCardCompact: {
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+  },
+  addressNameCompact: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  addressTextCompact: {
+    fontSize: 11,
+    lineHeight: 14,
   },
   addressType: {
     fontSize: 10,
