@@ -251,9 +251,16 @@ export default function ReferralNetworkScreen({ token, onBack, tree }: ReferralN
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your Network</Text>
           </View>
-          <View style={styles.treeContainer}>
-            {renderUserCard(tree.root)}
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={true}
+            scrollEventThrottle={16}
+            style={styles.treeScrollView}
+          >
+            <View style={styles.treeContainer}>
+              {renderUserCard(tree.root)}
+            </View>
+          </ScrollView>
         </View>
       </ScrollView>
     </View>
@@ -276,51 +283,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
 
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
 
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
   },
 
   section: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 0.5,
+    borderRadius: 0,
+    borderWidth: 0,
     borderColor: '#e5e7eb',
     overflow: 'hidden',
+    marginHorizontal: 0,
+    marginBottom: 12,
+    width: '100%',
   },
 
   sectionHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e5e7eb',
   },
 
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: Colors.text,
   },
 
   summaryContainer: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
   },
 
   summaryCard: {
@@ -352,14 +363,20 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    padding: 8,
-    gap: 16,
-    paddingBottom: 32,
+    paddingHorizontal: 0,
+    gap: 0,
+    paddingBottom: 20,
+  },
+
+  treeScrollView: {
+    minHeight: 'auto',
   },
 
   treeContainer: {
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     gap: 8,
+    minWidth: '100%',
   },
 
   treeLine: {
