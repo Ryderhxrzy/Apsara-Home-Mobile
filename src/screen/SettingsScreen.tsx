@@ -41,7 +41,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
   const slideAnim = useRef(new Animated.Value(100)).current;
 
   const colors = {
-    bg: isDarkMode ? '#0f172a' : '#f0f9ff',
+    bg: isDarkMode ? '#0f172a' : '#f5f5f5',
     containerBg: isDarkMode ? '#1f2937' : Colors.white,
     text: isDarkMode ? '#f8fafc' : Colors.text,
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
@@ -146,7 +146,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
 
         {/* Appearance Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-          <View style={styles.sectionTitle}>
+          <View style={[styles.sectionTitle, { borderBottomColor: colors.borderLight }]}>
             <Text style={[styles.sectionTitleText, { color: colors.textSec }]}>APPEARANCE</Text>
           </View>
           <View style={[styles.settingRow, styles.settingRowWithBorder, { borderBottomColor: colors.border }]}>
@@ -157,7 +157,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
             <Switch
               value={isDarkMode}
               onValueChange={setIsDarkMode}
-              trackColor={{ false: '#e2e8f0', true: Colors.sky }}
+              trackColor={{ false: colors.borderLight, true: Colors.sky }}
               thumbColor="#fff"
             />
           </View>
@@ -175,7 +175,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
 
         {/* Account Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-          <View style={styles.sectionTitle}>
+          <View style={[styles.sectionTitle, { borderBottomColor: colors.borderLight }]}>
             <Text style={[styles.sectionTitleText, { color: colors.textSec }]}>ACCOUNT</Text>
           </View>
           {onEditProfile && (
@@ -205,7 +205,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
 
         {/* Information Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-          <View style={styles.sectionTitle}>
+          <View style={[styles.sectionTitle, { borderBottomColor: colors.borderLight }]}>
             <Text style={[styles.sectionTitleText, { color: colors.textSec }]}>INFORMATION</Text>
           </View>
           <TouchableOpacity style={[styles.linkRow, styles.linkRowWithBorder, { borderBottomColor: colors.border }]} onPress={onNavigateAboutUs}>
@@ -236,7 +236,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
 
         {/* Support Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-          <View style={styles.sectionTitle}>
+          <View style={[styles.sectionTitle, { borderBottomColor: colors.borderLight }]}>
             <Text style={[styles.sectionTitleText, { color: colors.textSec }]}>SUPPORT</Text>
           </View>
           <TouchableOpacity style={[styles.linkRow, styles.linkRowWithBorder, { borderBottomColor: colors.border }]} onPress={onNavigateContactUs}>
@@ -263,7 +263,7 @@ export default function SettingsScreen({ user, onBack, isDarkMode, setIsDarkMode
 
         {/* Payments Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
-          <View style={styles.sectionTitle}>
+          <View style={[styles.sectionTitle, { borderBottomColor: colors.borderLight }]}>
             <Text style={[styles.sectionTitleText, { color: colors.textSec }]}>PAYMENTS</Text>
           </View>
           <View style={styles.paymentContent}>
@@ -348,8 +348,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 8,
-    gap: 16,
-    paddingBottom: 32,
+    gap: 8,
+    paddingBottom: 16,
   },
   section: {
     borderRadius: 8,
@@ -358,8 +358,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   sectionTitleText: {
     fontSize: 11,
@@ -506,7 +506,8 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     gap: 12,
   },
   profileAvatarContainer: {
