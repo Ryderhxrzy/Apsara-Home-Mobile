@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, LogBox, Platform, Linking, Modal } from 'react-native';
+import { View, LogBox, Linking, Modal } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Suppress the "Text strings must be rendered within a <Text> component" error
 LogBox.ignoreLogs(['Text strings must be rendered within a <Text> component']);
 import Toast from 'react-native-toast-message';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import notifee, { AndroidImportance } from '@notifee/react-native';
 import IndexScreen from './src/screen/IndexScreen';
 import LoginScreen from './src/screen/LoginScreen';
 import SignupScreen from './src/screen/SignupScreen';
@@ -21,26 +20,6 @@ import ReferralSignupScreen from './src/screen/ReferralSignupScreen';
 import ReferralOtpScreen from './src/screen/ReferralOtpScreen';
 import AFHomeAffiliateScreen from './src/screen/AFHomeAffiliateScreen';
 import { referralService } from './src/services/referralService';
-
-// Initialize notification channel on app start
-const initializeNotificationChannel = async () => {
-  if (Platform.OS === 'android') {
-    try {
-      await notifee.createChannel({
-        id: 'default',
-        name: 'Default Notifications',
-        importance: AndroidImportance.HIGH,
-        sound: 'default',
-        vibration: true,
-        lightColor: '#0284c7',
-        bypassDnd: true,
-      });
-      console.log('[App] Notification channel initialized for Android');
-    } catch (error) {
-      console.error('[App] Error initializing notification channel:', error);
-    }
-  }
-};
 
 type AuthScreen = 'index' | 'login' | 'signup' | 'otp' | 'referral-signup' | 'referral-otp';
 
@@ -115,11 +94,6 @@ export default function App() {
 
   // Initialize FCM and register device when authenticated
   useFirebaseMessaging(authToken, authUser?.id || null);
-
-  // Initialize notification channel on app start
-  useEffect(() => {
-    initializeNotificationChannel();
-  }, []);
 
   useEffect(() => {
     checkStoredAuth();
