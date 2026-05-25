@@ -182,7 +182,7 @@ export default function OrderSuccessScreen({
                 {(orderData.item.variant_color || orderData.item.variant_size) && (
                   <Text style={[styles.productVariant, { color: colors.textSec }]}>
                     {orderData.item.variant_color && `${orderData.item.variant_color}`}
-                    {orderData.item.variant_color && orderData.item.variant_size && ', '}
+                    {orderData.item.variant_color && orderData.item.variant_size ? ', ' : ''}
                     {orderData.item.variant_size && `${orderData.item.variant_size}`}
                   </Text>
                 )}
