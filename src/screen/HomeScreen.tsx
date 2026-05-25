@@ -305,7 +305,7 @@ function HomeScreen({
   console.log('[HomeScreen] User object on mount:', { name: user?.name, badge_name: user?.badge_name, badge_image: user?.badge_image, avatar_url: user?.avatar_url, fullUser: JSON.stringify(user) });
 
   const colors = {
-    bg: isDarkMode ? '#0f172a' : '#f8fbff',
+    bg: isDarkMode ? '#0f172a' : '#f5f5f5',
     card: isDarkMode ? '#1e293b' : Colors.white,
     text: isDarkMode ? '#f8fafc' : Colors.text,
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
@@ -817,8 +817,8 @@ function HomeScreen({
 export default React.memo(HomeScreen);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fbff' },
-  content: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 28, gap: 16 },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  content: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 28, gap: 8 },
   loadingWrap: { paddingVertical: 42, alignItems: 'center', gap: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
   bannerShell: {
