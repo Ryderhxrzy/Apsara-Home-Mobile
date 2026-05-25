@@ -107,7 +107,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const insets = useSafeAreaInsets();
 
   const colors = {
-    bg: isDarkMode ? '#0f172a' : '#f0f9ff',
+    bg: isDarkMode ? '#0f172a' : '#f5f5f5',
     containerBg: isDarkMode ? '#1f2937' : Colors.white,
     text: isDarkMode ? '#f8fafc' : Colors.text,
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
@@ -1096,8 +1096,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 8,
-    gap: 16,
-    paddingBottom: 32,
+    gap: 8,
+    paddingBottom: 16,
   },
 
   // ── Hero ──
@@ -1160,7 +1160,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
   purchasesTitle: {
@@ -1199,7 +1200,7 @@ const styles = StyleSheet.create({
   },
   purchasesGrid: {
     flexDirection: 'row',
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     gap: 10,
     justifyContent: 'center',
@@ -1266,7 +1267,7 @@ const styles = StyleSheet.create({
   // ── My Referrals ──
   referralsGrid: {
     flexDirection: 'row',
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 0,
     justifyContent: 'space-around',
@@ -1303,7 +1304,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   qrContainer: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     gap: 20,
   },
   qrCard: {
@@ -1615,7 +1617,7 @@ const styles = StyleSheet.create({
   // ── Wallet Section ──
   walletCardsContainer: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
     gap: 0,
   },
   walletSectionHeader: {
