@@ -109,7 +109,7 @@ export default function CartScreen({ token, user, onCheckout, onBack, onProductP
   const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string; productId: number } | null>(null);
 
   const colors = {
-    bg: isDarkMode ? '#0f172a' : '#f8fbff',
+    bg: isDarkMode ? '#0f172a' : '#f5f5f5',
     containerBg: isDarkMode ? '#111827' : Colors.white,
     text: isDarkMode ? '#f8fafc' : Colors.text,
     textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
