@@ -552,12 +552,18 @@ export default function ProductDetailScreen({
     console.log('⏳ ProductDetailScreen: Loading state...');
   } else if (product) {
     console.log(`📦 ProductDetailScreen: Rendering product "${product.name}"`);
+    console.log(`📝 Description: ${product.description ? 'YES (length: ' + product.description.length + ')' : 'NO'}`);
+    console.log(`📋 Specifications: ${product.specifications ? 'YES' : 'NO'}`);
+    console.log(`🔧 Material: ${product.material ? 'YES' : 'NO'}`);
+    console.log(`⚡ Warranty: ${product.warranty ? 'YES' : 'NO'}`);
+    console.log(`📐 Dimensions: ${product.pswidth ? 'YES' : 'NO'}`);
   } else {
     console.log('❌ ProductDetailScreen: No product data available');
   }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.containerBg }]}>
+      {console.log('🎯 [ProductDetailScreen] Starting main render...')}
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={Colors.sky} />
@@ -865,9 +871,14 @@ export default function ProductDetailScreen({
           </View>
 
           {/* Variants */}
-          {(product.variants?.length ?? 0) > 0 && (
-            <View style={[styles.variantsSection, { backgroundColor: colors.card }]}>
-              <Text style={[styles.sectionLabel, { color: colors.text }]}>Variants ({product.variants.length})</Text>
+          {(() => {
+            try {
+              console.log('🔄 [Variants] Rendering variants section...');
+              if ((product.variants?.length ?? 0) > 0) {
+                console.log(`📦 [Variants] Found ${product.variants?.length} variants`);
+                return (
+                  <View style={[styles.variantsSection, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.sectionLabel, { color: colors.text }]}>Variants ({product.variants.length})</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1043,8 +1054,15 @@ export default function ProductDetailScreen({
                   </View>
                 );
               })()}
-            </View>
-          )}
+                  </View>
+                );
+              }
+              return null;
+            } catch (error) {
+              console.error('❌ [Variants] Error rendering variants:', error);
+              return null;
+            }
+          })()}
 
           {/* Description & Specifications Wrapper */}
           {(!!product.description || !!product.specifications || !!product.material || !!product.warranty || product.pswidth || product.pslenght || product.psheight) && (
@@ -1067,20 +1085,61 @@ export default function ProductDetailScreen({
               {descriptionExpanded && (
                 <View style={[styles.descriptionContent, { backgroundColor: colors.card }]}>
                   <View style={styles.descriptionContentInner}>
-                    <RenderHtml
-                      source={{ html: product.description }}
-                      contentWidth={SCREEN_WIDTH - 16}
-                      tagsStyles={{
+                    {(() => {
+                      try {
+                        console.log('🔄 [RenderHtml] Rendering description...');
+                        console.log('📄 [RenderHtml] Description HTML:', product.description?.substring(0, 500) + '...');
+
+                        // TEMPORARY: Disable RenderHtml to test if it's the culprit
+                        const useRenderHtml = true; // Set to false to test
+
+                        if (!useRenderHtml) {
+                          return (
+                            <View style={[styles.descriptionContentInner, { padding: 12 }]}>
+                              <Text style={{ color: colors.text, fontSize: 14, lineHeight: 22 }}>{product.description}</Text>
+                            </View>
+                          );
+                        }
+
+                        return (
+                          <RenderHtml
+                            source={{ html: product.description || '<p>No description available</p>' }}
+                            contentWidth={SCREEN_WIDTH - 16}
+                            defaultTextProps={{ selectable: false }}
+                            tagsStyles={{
                         body: { color: colors.text, fontSize: 14, lineHeight: 22 },
+                        div: { color: colors.text, fontSize: 14, lineHeight: 22 },
+                        span: { color: colors.text, fontSize: 14, lineHeight: 22 },
+                        h1: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 12, marginBottom: 6 },
+                        h2: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 12, marginBottom: 6 },
                         h3: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 12, marginBottom: 6 },
                         h4: { color: colors.text, fontSize: 15, fontWeight: '600', marginTop: 10, marginBottom: 6 },
+                        h5: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 8, marginBottom: 4 },
+                        h6: { color: colors.text, fontSize: 13, fontWeight: '600', marginTop: 8, marginBottom: 4 },
                         p: { color: colors.text, fontSize: 14, lineHeight: 22, marginBottom: 10 },
                         ul: { marginLeft: 20, marginBottom: 10 },
+                        ol: { marginLeft: 20, marginBottom: 10 },
                         li: { color: colors.text, fontSize: 14, lineHeight: 22, marginBottom: 6 },
                         hr: { backgroundColor: colors.divider, marginVertical: 12 },
                         strong: { fontWeight: '700' },
+                        b: { fontWeight: '700' },
+                        em: { fontStyle: 'italic' },
+                        i: { fontStyle: 'italic' },
+                        u: { textDecorationLine: 'underline' },
+                        br: { marginVertical: 2 },
+                        a: { color: Colors.sky, textDecorationLine: 'underline' },
                       }}
                     />
+                        );
+                      } catch (error) {
+                        console.error('❌ [RenderHtml] Error rendering description:', error);
+                        return (
+                          <View style={[styles.descriptionContentInner, { padding: 12 }]}>
+                            <Text style={{ color: colors.text }}>Unable to display description</Text>
+                          </View>
+                        );
+                      }
+                    })()}
                   </View>
                 </View>
               )}
@@ -1090,49 +1149,49 @@ export default function ProductDetailScreen({
               {/* Specifications */}
               {(!!product.specifications || !!product.material || !!product.warranty || product.pswidth || product.pslenght || product.psheight) && (
                 <View style={[styles.specificationsSection, { backgroundColor: colors.card, borderBottomColor: colors.divider, borderTopColor: colors.divider }]}>
-                <TouchableOpacity
-                  style={[styles.specificationsHeader, { backgroundColor: isDarkMode ? '#111827' : '#f9fafb' }]}
-                  onPress={() => setSpecificationsExpanded(!specificationsExpanded)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.specificationsTitle, { color: colors.text }]}>Specifications</Text>
-                  <Ionicons
-                    name={specificationsExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.text}
-                  />
-                </TouchableOpacity>
-                {specificationsExpanded && (
-                  <View style={[styles.specificationsContent, { backgroundColor: colors.card }]}>
-                    <View style={styles.specificationsContentInner}>
-                    {product.pswidth || product.pslenght || product.psheight ? (
-                      <View style={styles.specRow}>
-                        <Text style={[styles.specLabel, { color: colors.textSec }]}>Dimensions:</Text>
-                        <Text style={[styles.specValue, { color: colors.text }]}>
-                          W: {product.pswidth} cm x D: {product.pslenght} cm x H: {product.psheight} cm
-                        </Text>
+                  <TouchableOpacity
+                    style={[styles.specificationsHeader, { backgroundColor: isDarkMode ? '#111827' : '#f9fafb' }]}
+                    onPress={() => setSpecificationsExpanded(!specificationsExpanded)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.specificationsTitle, { color: colors.text }]}>Specifications</Text>
+                    <Ionicons
+                      name={specificationsExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+                  {specificationsExpanded && (
+                    <View style={[styles.specificationsContent, { backgroundColor: colors.card }]}>
+                      <View style={styles.specificationsContentInner}>
+                        {product.pswidth || product.pslenght || product.psheight ? (
+                          <View style={styles.specRow}>
+                            <Text style={[styles.specLabel, { color: colors.textSec }]}>Dimensions:</Text>
+                            <Text style={[styles.specValue, { color: colors.text }]}>
+                              {`${product.pswidth || '0'} cm x ${product.pslenght || '0'} cm x ${product.psheight || '0'} cm`}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {product.material ? (
+                          <View style={styles.specRow}>
+                            <Text style={[styles.specLabel, { color: colors.textSec }]}>Material:</Text>
+                            <Text style={[styles.specValue, { color: colors.text }]}>{product.material}</Text>
+                          </View>
+                        ) : null}
+                        {product.warranty ? (
+                          <View style={styles.specRow}>
+                            <Text style={[styles.specLabel, { color: colors.textSec }]}>Warranty:</Text>
+                            <Text style={[styles.specValue, { color: colors.text }]}>{product.warranty}</Text>
+                          </View>
+                        ) : null}
+                        {product.specifications ? (
+                          <View style={styles.specRow}>
+                            <Text style={[styles.specValue, { color: colors.text }]}>{product.specifications}</Text>
+                          </View>
+                        ) : null}
                       </View>
-                    ) : null}
-                    {product.material ? (
-                      <View style={styles.specRow}>
-                        <Text style={[styles.specLabel, { color: colors.textSec }]}>Material:</Text>
-                        <Text style={[styles.specValue, { color: colors.text }]}>{product.material}</Text>
-                      </View>
-                    ) : null}
-                    {product.warranty ? (
-                      <View style={styles.specRow}>
-                        <Text style={[styles.specLabel, { color: colors.textSec }]}>Warranty:</Text>
-                        <Text style={[styles.specValue, { color: colors.text }]}>{product.warranty}</Text>
-                      </View>
-                    ) : null}
-                    {product.specifications ? (
-                      <View style={styles.specRow}>
-                        <Text style={[styles.specValue, { color: colors.text }]}>{product.specifications}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              )}
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -1330,7 +1389,7 @@ export default function ProductDetailScreen({
 
           {/* You May Also Like Section - With Lazy Loading */}
           {youMayAlsoLike.length > 0 && (
-            <View style={[styles.youMayAlsoLikeSection, { backgroundColor: colors.card }]}>
+            <View style={[styles.youMayAlsoLikeSection, { backgroundColor: isDarkMode ? '#0f172a' : '#f5f5f5' }]}>
               <View style={[styles.youMayAlsoLikeHeader, { borderTopColor: colors.divider, borderBottomColor: colors.divider }]}>
                 <View style={[styles.youMayAlsoLikeBorder, { backgroundColor: colors.divider }]} />
                 <Text style={[styles.youMayAlsoLikeTitle, { color: colors.text }]}>You May Also Like</Text>
@@ -3350,9 +3409,10 @@ const styles = StyleSheet.create({
   },
   youMayAlsoLikeSection: {
     paddingHorizontal: 0,
-    paddingTop: 12,
+    paddingTop: 0,
     paddingBottom: 24,
     gap: 0,
+    marginTop: -12,
   },
   youMayAlsoLikeHeader: {
     flexDirection: 'row',
