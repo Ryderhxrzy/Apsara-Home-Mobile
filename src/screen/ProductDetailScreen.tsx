@@ -877,6 +877,35 @@ export default function ProductDetailScreen({
               </Text>
               <Text style={[styles.skuText, { color: colors.textSec }]}> • SKU: {product.id}</Text>
             </View>
+            {/* Selected Variant Info */}
+            {selectedVariant && product.variants && (() => {
+              const selectedVar = product.variants.find(v => v.id === selectedVariant);
+              if (selectedVar && (selectedVar.color || selectedVar.size)) {
+                return (
+                  <View style={styles.selectedVariantInfoRow}>
+                    {selectedVar.colorHex && selectedVar.images?.length ? (
+                      <>
+                        <View
+                          style={[
+                            styles.variantColorIndicator,
+                            { backgroundColor: selectedVar.colorHex }
+                          ]}
+                        />
+                        <Text style={[styles.selectedVariantText, { color: colors.text }]}>
+                          {selectedVar.color || selectedVar.name}
+                        </Text>
+                      </>
+                    ) : null}
+                    {selectedVar.size && (
+                      <Text style={[styles.selectedVariantText, { color: colors.text }]}>
+                        {selectedVar.size}
+                      </Text>
+                    )}
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </View>
 
           {/* Gray Gap Separator */}
@@ -3297,6 +3326,26 @@ const styles = StyleSheet.create({
   },
   skuText: {
     fontSize: 12,
+  },
+  selectedVariantInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  variantColorIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  selectedVariantText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   // Delivery section
   deliverySection: {
