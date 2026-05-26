@@ -718,7 +718,7 @@ function HomeScreen({
 
               return (
                 <Pressable key={`brand-${item.id}`} onPress={() => onShopByBrandPress?.(item.id)}>
-                  <View style={[styles.brandCard, { backgroundColor: colors.card }]}>
+                  <View style={[styles.brandCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.brandLogoContainer}>
                       {logo ? (
                         <Image source={{ uri: logo }} style={styles.brandLogoImage} />
@@ -727,16 +727,21 @@ function HomeScreen({
                           <Text style={styles.brandFallbackInitialLarge}>{getBrandInitial(item)}</Text>
                         </View>
                       )}
-                      <View style={[styles.brandLogoOverlay, { backgroundColor: 'rgba(14, 165, 233, 0.85)' }]}>
-                        <Text style={[styles.brandCardNameOverlay, { color: Colors.white }]} numberOfLines={2}>
-                          {item.name}
-                        </Text>
-                        {item.total_products !== undefined && (
-                          <Text style={[styles.brandProductCountOverlay, { color: 'rgba(255,255,255,0.95)' }]}>
-                            {item.total_products} products
+                      <LinearGradient colors={['rgba(14, 165, 233, 0)', 'rgba(14, 165, 233, 0.95)']} style={styles.brandLogoOverlay}>
+                        <View style={styles.brandOverlayContent}>
+                          <Text style={[styles.brandCardNameOverlay, { color: Colors.white }]} numberOfLines={1}>
+                            {item.name}
                           </Text>
-                        )}
-                      </View>
+                          {item.total_products !== undefined && (
+                            <View style={styles.brandProductBadge}>
+                              <Ionicons name="cube-outline" size={12} color={Colors.white} />
+                              <Text style={styles.brandProductCountOverlay}>
+                                {item.total_products}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </LinearGradient>
                     </View>
                   </View>
                 </Pressable>
@@ -1055,6 +1060,7 @@ const styles = StyleSheet.create({
   },
   sectionOdd: {
     backgroundColor: '#f8fbff',
+    marginHorizontal: -8,
     paddingHorizontal: 8,
     paddingVertical: 18,
     gap: 0,
@@ -1121,9 +1127,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 8,
     fontWeight: 'bold',
-  },
-  categoryGrid: {
-    paddingHorizontal: 12,
   },
   roomItem: {
     flex: 1,
@@ -1207,14 +1210,16 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   brandRowHorizontal: {
-    gap: 12,
-    paddingRight: 4,
+    gap: 14,
+    paddingRight: 8,
   },
   brandCard: {
-    width: 190,
-    height: 180,
-    borderRadius: 18,
+    width: 210,
+    height: 200,
+    borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   brandLogoContainer: {
     width: '100%',
@@ -1242,21 +1247,37 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    height: '50%',
+  },
+  brandOverlayContent: {
+    width: '100%',
+    gap: 8,
+    alignItems: 'flex-start',
   },
   brandCardNameOverlay: {
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'left',
+    letterSpacing: -0.2,
   },
   brandProductCountOverlay: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.95)',
+  },
+  brandProductBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   brandCardImage: {
     width: '100%',
