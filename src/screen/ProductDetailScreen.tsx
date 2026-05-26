@@ -828,15 +828,36 @@ export default function ProductDetailScreen({
           <View style={[styles.newPriceSection, { backgroundColor: colors.card }]}>
             {/* Big Price Row */}
             <View style={styles.bigPriceRow}>
-              <Text style={[styles.bigPrice, { color: Colors.sky }]}>₱{(product.priceMember ?? 0).toLocaleString()}</Text>
-              {hasDiscount && (
-                <>
-                  <Text style={[styles.strikethroughPrice, { color: colors.textSec }]}>₱{(product.priceSrp ?? 0).toLocaleString()}</Text>
-                  <View style={styles.discountBadgeNew}>
-                    <Text style={styles.discountBadgeTextNew}>{discountPct}% OFF</Text>
-                  </View>
-                </>
-              )}
+              {(() => {
+                let memberPrice = product.priceMember ?? 0;
+                let srpPrice = product.priceSrp ?? 0;
+                let variantDiscount = 0;
+
+                // If variant is selected, use variant prices
+                if (selectedVariant && product.variants) {
+                  const selectedVar = product.variants.find(v => v.id === selectedVariant);
+                  if (selectedVar) {
+                    memberPrice = selectedVar.priceMember ?? 0;
+                    srpPrice = selectedVar.priceSrp ?? 0;
+                  }
+                }
+
+                variantDiscount = (memberPrice < srpPrice) ? Math.round(((srpPrice - memberPrice) / srpPrice) * 100) : 0;
+
+                return (
+                  <>
+                    <Text style={[styles.bigPrice, { color: Colors.sky }]}>₱{memberPrice.toLocaleString()}</Text>
+                    {variantDiscount > 0 && (
+                      <>
+                        <Text style={[styles.strikethroughPrice, { color: colors.textSec }]}>₱{srpPrice.toLocaleString()}</Text>
+                        <View style={styles.discountBadgeNew}>
+                          <Text style={styles.discountBadgeTextNew}>{variantDiscount}% OFF</Text>
+                        </View>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </View>
 
             {/* Social Proof Row - Rating, Sold, PV */}
