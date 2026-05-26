@@ -11,7 +11,7 @@ export default function LoadingScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.title}>Affordahome</Text>
+        <Text style={styles.title}>AF Home</Text>
       </View>
       <ActivityIndicator size="large" color={Colors.sky} style={styles.loader} />
     </View>
@@ -30,15 +30,14 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 200,
-    height: 200,
+    width: 140,
+    height: 140,
     marginBottom: 20,
   },
   title: {
     fontSize: 26,
     fontWeight: '900',
     color: Colors.text,
-    letterSpacing: 0.5,
   },
   loader: {
     position: 'absolute',
