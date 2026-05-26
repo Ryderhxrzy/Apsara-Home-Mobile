@@ -364,18 +364,6 @@ export default function AddToCartModal({
                       onPress={() => onSelectVariant(variant.id)}
                       activeOpacity={0.6}
                     >
-                      {variant.images && variant.images.length > 0 ? (
-                        <Image
-                          source={{ uri: variant.images[0] }}
-                          style={styles.shopeeVariantOptionImage}
-                          resizeMode="cover"
-                        />
-                      ) : variant.colorHex ? (
-                        <View style={[
-                          styles.shopeeVariantOptionColor,
-                          { backgroundColor: variant.colorHex }
-                        ]} />
-                      ) : null}
                       <Text
                         style={[styles.shopeeVariantOptionText, { color: colors.text }]}
                         numberOfLines={2}
