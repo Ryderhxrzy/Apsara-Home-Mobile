@@ -53,6 +53,7 @@ interface AddToCartModalProps {
   }) => Promise<void>;
   onCheckout?: () => void;
   onProductPress?: (productId: number) => void;
+  onCartNavigate?: () => void;
   loading?: boolean;
   isDarkMode?: boolean;
 }
@@ -69,6 +70,7 @@ export default function AddToCartModal({
   onAddToCart,
   onCheckout,
   onProductPress,
+  onCartNavigate,
   loading = false,
   isDarkMode = false,
 }: AddToCartModalProps) {
@@ -164,7 +166,7 @@ export default function AddToCartModal({
 
     try {
       // Extract variant details if a variant is selected
-      const selectedVariantData = selectedVariant 
+      const selectedVariantData = selectedVariant
         ? product.variants?.find(v => v.id === selectedVariant)
         : null;
 
@@ -176,6 +178,23 @@ export default function AddToCartModal({
         selected_size: selectedVariantData?.name || null,
         selected_type: selectedVariantData?.name || null, // Using name as type for now
       });
+
+      // Show success message
+      Toast.show({
+        type: 'success',
+        text1: 'Added to Cart',
+        text2: `${product.name} added successfully`,
+        duration: 2000,
+      });
+
+      // Close modal and navigate to cart after brief delay
+      setTimeout(() => {
+        handleClose();
+        // Navigate to cart screen after a short delay
+        setTimeout(() => {
+          onCartNavigate?.();
+        }, 300);
+      }, 500);
     } catch (error: any) {
       console.error('Add to cart error:', error);
       Toast.show({
@@ -331,6 +350,7 @@ export default function AddToCartModal({
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.shopeeVariantScroll}
+                contentContainerStyle={styles.shopeeVariantScrollContent}
               >
                 <View style={styles.shopeeVariantRow}>
                   {(product.variants || []).map((variant, index) => (
@@ -673,6 +693,9 @@ const styles = StyleSheet.create({
   shopeeVariantScroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
+  },
+  shopeeVariantScrollContent: {
+    paddingRight: 16,
   },
   shopeeVariantRow: {
     flexDirection: 'row',
