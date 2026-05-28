@@ -44,13 +44,11 @@
         "backgroundColor": "#13a1d4"
       },
       "notification": {
-        "icon": "./assets/notification.png",
+        "icon": "ic_notification",
         "color": "#13a1d4"
       },
       "predictiveBackGestureEnabled": false,
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
+      "runtimeVersion": "1.0.2"
     },
     "web": {
       "favicon": "./assets/favicon.png"
