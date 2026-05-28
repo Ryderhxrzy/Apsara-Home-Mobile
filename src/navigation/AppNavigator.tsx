@@ -540,13 +540,15 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             });
           }
         }
-      } else if (url.includes('/ref/')) {
+      } else if (url.includes('/ref/') || url.includes('apsarahome://ref/')) {
         console.log('[AppNavigator] Referral deep link triggered:', url);
-        // Parse referral link - Format: https://www.afhome.ph/ref/username
-        const username = url.split('/ref/')[1]?.split('?')[0] || '';
+        // Parse referral link - Format: https://www.afhome.ph/ref/username or apsarahome://ref/username
+        const username = url.includes('apsarahome://ref/')
+          ? url.split('apsarahome://ref/')[1]?.split('?')[0] || ''
+          : url.split('/ref/')[1]?.split('?')[0] || '';
         if (username) {
           console.log('[AppNavigator] Opening referral screen with username:', username);
-          setReferralCodeFromDeepLink(username);
+          setReferralCodeFromDeepLink(decodeURIComponent(username));
           setShowReferralScreen(true);
         }
       } else if (url.includes('/shop')) {
