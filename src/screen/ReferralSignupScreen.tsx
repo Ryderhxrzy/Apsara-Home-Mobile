@@ -69,6 +69,7 @@ export default function ReferralSignupScreen({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [termsScrolledToEnd, setTermsScrolledToEnd] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [signupData, setSignupData] = useState({
     firstName: '',
     lastName: '',
@@ -194,31 +195,40 @@ export default function ReferralSignupScreen({
         zip_code: '0000',
       };
       const response = await authService.mobileRegister(payload);
-      const verificationToken = (response?.verification_token || '').trim();
-      if (!verificationToken) {
-        setErrors({
-          form: 'Registration response is missing verification token. Please try again.',
-        });
-        return;
-      }
+      console.log('[ReferralSignup] Registration response - requires_otp:', response.requires_otp);
 
-      // Proceed to OTP only when verification token is present
-      try {
-        // Send SMS OTP to phone number
-        await authService.sendSmsOtp(verificationToken, signupData.mobileNumber);
-        // Clear saved draft after successful registration
+      // If OTP is required, proceed to OTP screen
+      if (response.requires_otp) {
+        const verificationToken = (response?.verification_token || '').trim();
+        if (!verificationToken) {
+          setErrors({
+            form: 'Registration response is missing verification token. Please try again.',
+          });
+          return;
+        }
+
+        try {
+          // Send SMS OTP to phone number
+          await authService.sendSmsOtp(verificationToken, signupData.mobileNumber);
+          // Clear saved draft after successful registration
+          await storageService.setItem('referral_signup_draft', '');
+          Toast.show({
+            type: 'success',
+            text1: response.message || 'Registration successful',
+            text2: 'A 4-digit verification code has been sent to your phone number.',
+          });
+          setTimeout(() => {
+            onContinueToOtp?.(signupData.mobileNumber, verificationToken);
+          }, 900);
+        } catch (smsError: any) {
+          console.error('[SignupError] SMS OTP failed:', smsError);
+          setErrors({ mobileNumber: smsError.message || 'Failed to send SMS OTP' });
+        }
+      } else {
+        // OTP not required, show success modal
+        console.log('[ReferralSignup] OTP not required, showing success modal');
         await storageService.setItem('referral_signup_draft', '');
-        Toast.show({
-          type: 'success',
-          text1: response.message || 'Registration successful',
-          text2: 'A 4-digit verification code has been sent to your phone number.',
-        });
-        setTimeout(() => {
-          onContinueToOtp?.(signupData.mobileNumber, verificationToken);
-        }, 900);
-      } catch (smsError: any) {
-        console.error('[SignupError] SMS OTP failed:', smsError);
-        setErrors({ mobileNumber: smsError.message || 'Failed to send SMS OTP' });
+        setSuccessModalVisible(true);
       }
     } catch (error: any) {
       console.error('[SignupError] Registration failed:', error);
@@ -585,6 +595,32 @@ export default function ReferralSignupScreen({
           </View>
         </View>
       </Modal>
+
+      <Modal visible={successModalVisible} transparent animationType="fade">
+        <View style={[styles.modalOverlay, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.successModalContent, { backgroundColor: colors.containerBg }]}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color={Colors.sky} />
+            </View>
+            <Text style={[styles.successModalTitle, { color: colors.text }]}>Registration Successful!</Text>
+            <Text style={[styles.successModalMessage, { color: colors.textSec }]}>Your account has been created successfully. You can now log in with your credentials.</Text>
+            <View style={styles.successModalFooter}>
+              <TouchableOpacity
+                style={[styles.successCloseBtn, { borderColor: colors.border }]}
+                onPress={() => onBack()}
+              >
+                <Text style={[styles.successCloseBtnText, { color: colors.text }]}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.successLoginBtn}
+                onPress={() => onBack()}
+              >
+                <Text style={styles.successLoginBtnText}>Go to Login</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -856,5 +892,61 @@ const styles = StyleSheet.create({
   },
   bottomFooter: {
     borderTopWidth: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successModalContent: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+  },
+  successIconContainer: {
+    marginBottom: 24,
+  },
+  successModalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successModalMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 20,
+  },
+  successModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  successCloseBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successCloseBtnText: {
+    fontWeight: '700',
+  },
+  successLoginBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.sky,
+  },
+  successLoginBtnText: {
+    color: Colors.white,
+    fontWeight: '800',
   },
 });
