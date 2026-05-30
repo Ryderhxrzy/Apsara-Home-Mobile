@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 
@@ -108,14 +107,6 @@ export default function ItemList({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg, borderBottomColor: colors.border }, isSelected && { backgroundColor: colors.selectedBg }]}>
-      {(discount > 0 || !inStock) && (
-        <LinearGradient
-          colors={['transparent', Colors.sky + '15']}
-          style={styles.containerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-      )}
 
       <TouchableOpacity
         style={styles.checkbox}
@@ -179,39 +170,26 @@ export default function ItemList({
           </View>
 
           <View style={styles.badgeRow}>
-            <LinearGradient
-              colors={[Colors.sky, Colors.skyDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.pvBadge}
-            >
+            <View style={[styles.pvBadge, { backgroundColor: Colors.sky }]}>
               <Ionicons name="trending-up" size={10} color={Colors.white} />
               <Text style={styles.pvText}>{product.prodpv ?? 0} PV</Text>
-            </LinearGradient>
+            </View>
 
             {activeBadges.map(b => (
-              <LinearGradient
+              <View
                 key={b.key}
-                colors={b.bg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.productBadge}
+                style={[styles.productBadge, { backgroundColor: Array.isArray(b.bg) ? b.bg[0] : b.bg }]}
               >
                 <Ionicons name={b.icon} size={10} color={Colors.white} />
                 <Text style={styles.productBadgeText}>{b.label}</Text>
-              </LinearGradient>
+              </View>
             ))}
 
             {product.variants && product.variants.length > 0 && (
-              <LinearGradient
-                colors={['#8b5cf6', '#7c3aed']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.variantBadge}
-              >
+              <View style={[styles.variantBadge, { backgroundColor: '#8b5cf6' }]}>
                 <Ionicons name="layers" size={10} color={Colors.white} />
                 <Text style={styles.variantText}>{product.variants.length} variants</Text>
-              </LinearGradient>
+              </View>
             )}
           </View>
 
@@ -232,13 +210,6 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
     position: 'relative',
-  },
-  containerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   containerSelected: {
     backgroundColor: '#f0f7ff',
