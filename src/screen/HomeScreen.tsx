@@ -33,6 +33,7 @@ interface HomeScreenProps {
   user?: {
     name?: string;
     avatar_url?: string;
+    badge?: number;
     badge_name?: string;
     badge_image?: string | any;
     monthly_activation?: {
@@ -506,66 +507,75 @@ function HomeScreen({
       }
     >
       {/* Ranking Badge */}
-      {user?.badge_name && (
-        <View style={[styles.rankingBadgeSection, { borderBottomColor: colors.border, width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
-          <View style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.rankingBadgeWrapper}>
-              {user.badge_image ? (() => {
+      <View style={[styles.rankingBadgeSection, { borderBottomColor: colors.border, width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
+        <View style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.rankingBadgeWrapper, user?.badge && user.badge === 0 ? { opacity: 0.5 } : {}]}>
+            {user?.badge && user.badge > 0 ? (
+              (() => {
                 const badgeSource = getBadgeImageSource(user.badge_image);
                 return badgeSource ? (
                   <Image
                     source={badgeSource}
                     style={styles.rankingBadgeImage}
+                    resizeMode="contain"
                   />
                 ) : (
-                  <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
+                  <Ionicons name="shield-checkmark" size={60} color={Colors.white} />
                 );
-              })() : (
-                <Ionicons name="shield-checkmark" size={24} color={Colors.white} />
-              )}
-            </View>
-
-            <View style={styles.memberInfo}>
-              <Text style={[styles.memberLabel, { color: colors.textSec }]}>Your Badge Level</Text>
-              <Text style={[styles.rankingBadgeName, { color: colors.text }]}>{user.badge_name}</Text>
-              <Text style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}>Grow your team and earn more per order.</Text>
-            </View>
-
-            <View style={styles.badgeLogoContainer}>
+              })()
+            ) : (
               <Image
                 source={require('../../assets/af_home_logo.png')}
-                style={styles.badgeLogo}
+                style={[styles.rankingBadgeImage, { tintColor: '#9ca3af', opacity: 0.7 }]}
                 resizeMode="contain"
               />
-            </View>
+            )}
           </View>
 
-          <View style={[styles.quickActionRow, { width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
-            <TouchableOpacity
-              style={[styles.quickActionCard, { borderColor: colors.border }]}
-              activeOpacity={0.85}
-              onPress={onReferralPress}
-            >
-              <LinearGradient colors={['#f97316', '#fb923c']} style={styles.quickActionGradient}>
-                <Ionicons name="people" size={16} color={Colors.white} />
-                <Text style={styles.quickActionTitle}>Invite Friends</Text>
-                <Text style={styles.quickActionSubtitle}>Turn Invites and Orders into Earnings</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickActionCard, { borderColor: colors.border }]}
-              activeOpacity={0.85}
-              onPress={onCartPress}
-            >
-              <LinearGradient colors={['#0284c7', '#0ea5e9']} style={styles.quickActionGradient}>
-                <Ionicons name="bag-check" size={16} color={Colors.white} />
-                <Text style={styles.quickActionTitle}>Order Now</Text>
-                <Text style={styles.quickActionSubtitle}>Earn Performance Value (PV) Faster</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+          <View style={styles.memberInfo}>
+            <Text style={[styles.memberLabel, { color: colors.textSec }]}>Your Badge Level</Text>
+            <Text style={[styles.rankingBadgeName, { color: colors.text }]}>
+              {user?.badge && user.badge > 0 ? user.badge_name : 'No Badge Yet'}
+            </Text>
+            <Text style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}>
+              {user?.badge && user.badge > 0 ? 'Grow your team and earn more per order.' : 'Invite at least 2 people to earn your first badge.'}
+            </Text>
+          </View>
+
+          <View style={styles.badgeLogoContainer}>
+            <Image
+              source={require('../../assets/af_home_logo.png')}
+              style={styles.badgeLogo}
+              resizeMode="contain"
+            />
           </View>
         </View>
-      )}
+
+        <View style={[styles.quickActionRow, { width: SCREEN_WIDTH, marginHorizontal: -8 }]}>
+          <TouchableOpacity
+            style={[styles.quickActionCard, { borderColor: colors.border }]}
+            activeOpacity={0.85}
+            onPress={onReferralPress}
+          >
+            <LinearGradient colors={['#f97316', '#fb923c']} style={styles.quickActionGradient}>
+              <Ionicons name="people" size={16} color={Colors.white} />
+              <Text style={styles.quickActionTitle}>Invite Friends</Text>
+              <Text style={styles.quickActionSubtitle}>Turn Invites and Orders into Earnings</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickActionCard, { borderColor: colors.border }]}
+            activeOpacity={0.85}
+            onPress={onCartPress}
+          >
+            <LinearGradient colors={['#0284c7', '#0ea5e9']} style={styles.quickActionGradient}>
+              <Ionicons name="bag-check" size={16} color={Colors.white} />
+              <Text style={styles.quickActionTitle}>Order Now</Text>
+              <Text style={styles.quickActionSubtitle}>Earn Performance Value (PV) Faster</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={[styles.statsBar, { backgroundColor: colors.statsBg, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={[styles.statsItem, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}>
