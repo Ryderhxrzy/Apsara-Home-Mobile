@@ -230,6 +230,24 @@ function ItemCard({
             />
           )}
         </TouchableOpacity>
+
+        {/* Bottom-left: Product badges (Must Have, Bestseller, On Sale) */}
+        {activeBadges.length > 0 && (
+          <View style={styles.imageBottomBadges}>
+            {activeBadges.map(b => (
+              <LinearGradient
+                key={b.key}
+                colors={b.bg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.imageBadge}
+              >
+                <Ionicons name={b.icon} size={9} color={Colors.white} />
+                <Text style={styles.imageBadgeLabel}>{b.label}</Text>
+              </LinearGradient>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Border Below Image */}
@@ -277,33 +295,6 @@ function ItemCard({
             <Text style={styles.badgeLabel}>PV {product.pv}</Text>
           </LinearGradient>
 
-          {/* Save amount badge */}
-          {hasDiscount && (
-            <LinearGradient
-              colors={['#ef4444', '#dc2626']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.badge}
-            >
-              <Ionicons name="pricetag" size={9} color={Colors.white} />
-              <Text style={styles.badgeLabel}>Save ₱{((product.originalPrice || 0) - displayPrice).toLocaleString()}</Text>
-            </LinearGradient>
-          )}
-
-          {/* Product badges */}
-          {activeBadges.map(b => (
-            <LinearGradient
-              key={b.key}
-              colors={b.bg}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.badge}
-            >
-              <Ionicons name={b.icon} size={9} color={Colors.white} />
-              <Text style={styles.badgeLabel}>{b.label}</Text>
-            </LinearGradient>
-          ))}
-
           {/* Variants badge */}
           {product.variantCount > 0 && (
             <LinearGradient
@@ -314,6 +305,19 @@ function ItemCard({
             >
               <Ionicons name="layers" size={9} color={Colors.white} />
               <Text style={styles.badgeLabel}>{product.variantCount} variants</Text>
+            </LinearGradient>
+          )}
+
+          {/* Save amount badge */}
+          {hasDiscount && (
+            <LinearGradient
+              colors={['#ef4444', '#dc2626']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badge}
+            >
+              <Ionicons name="pricetag" size={9} color={Colors.white} />
+              <Text style={styles.badgeLabel}>Save ₱{((product.originalPrice || 0) - displayPrice).toLocaleString()}</Text>
             </LinearGradient>
           )}
         </View>
@@ -466,12 +470,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  imageBottomBadges: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    maxWidth: '80%',
+  },
+  imageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  imageBadgeLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.white,
+    letterSpacing: 0.2,
+  },
   imageBorder: {
     height: 1,
     backgroundColor: '#e5e7eb',
   },
   infoContainer: {
-    padding: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
     gap: 6,
   },
   detailsGradient: {
@@ -519,7 +547,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderRadius: 20,
+    borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
