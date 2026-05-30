@@ -295,7 +295,7 @@ export default function CheckoutScreen({
   };
 
   // Calculate totals - handle both single item and multiple items
-  const checkoutItems = items && items.length > 0 ? items : (item ? [item] : []);
+  const checkoutItems = (items && items.length > 0 ? items : (item ? [item] : [])).filter((i): i is CheckoutItem => i !== null && i !== undefined);
   const groupedItems = groupItemsByBrand(checkoutItems);
   const subtotal = checkoutItems.reduce((sum, i) => {
     const srpPrice = i.product_price_srp || i.product_price_member;
@@ -311,6 +311,7 @@ export default function CheckoutScreen({
 
   const handlePlaceOrder = async () => {
     console.log('[CheckoutScreen] Place order clicked');
+    console.log('[CheckoutScreen] checkoutItems:', JSON.stringify(checkoutItems, null, 2));
 
     if (!selectedPaymentMethod) {
       Toast.show({
@@ -332,6 +333,18 @@ export default function CheckoutScreen({
         type: 'error',
         text1: 'Missing Information',
         text2: 'Please complete all required fields',
+      });
+      return;
+    }
+
+    // Validate all items have required properties
+    const invalidItems = checkoutItems.filter(i => !i.product_id || !i.product_name);
+    if (invalidItems.length > 0) {
+      console.error('[CheckoutScreen] Invalid items found:', invalidItems);
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Items',
+        text2: 'Some items are missing required information',
       });
       return;
     }
@@ -375,11 +388,11 @@ export default function CheckoutScreen({
         // Single item - use old format for backward compatibility
         const singleItem = checkoutItems[0];
         paymentPayload.order = {
-          product_name: singleItem.product_name,
-          product_id: singleItem.product_id,
+          product_name: singleItem.product_name || 'Unknown Product',
+          product_id: singleItem.product_id || 0,
           product_sku: `SKU-${singleItem.product_id}`,
-          product_image: singleItem.variant_image || singleItem.product_image,
-          quantity: singleItem.quantity,
+          product_image: singleItem.variant_image || singleItem.product_image || '',
+          quantity: singleItem.quantity || 1,
           subtotal: Math.round(memberTotal * 100) / 100,
           // handling_fee: Math.round(shippingCost * 100) / 100,
           handling_fee: 0,
@@ -390,13 +403,14 @@ export default function CheckoutScreen({
         // Multiple items
         paymentPayload.order = {
           items: checkoutItems.map(i => ({
-            product_name: i.product_name,
-            product_id: i.product_id,
+            product_name: i.product_name || 'Unknown Product',
+            product_id: i.product_id || 0,
             product_sku: `SKU-${i.product_id}`,
-            product_image: i.variant_image || i.product_image,
-            quantity: i.quantity,
-            variant_color: i.variant_color,
-            variant_size: i.variant_size,
+            product_image: i.variant_image || i.product_image || '',
+            quantity: i.quantity || 1,
+            price: (i.product_price_member || 0) * (i.quantity || 1),
+            variant_color: i.variant_color || undefined,
+            variant_size: i.variant_size || undefined,
           })),
           subtotal: Math.round(memberTotal * 100) / 100,
           // handling_fee: Math.round(shippingCost * 100) / 100,
