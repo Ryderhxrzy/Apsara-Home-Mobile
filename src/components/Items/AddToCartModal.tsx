@@ -251,15 +251,26 @@ export default function AddToCartModal({
 
             {/* Image */}
             <View style={[styles.shopeeProductImage, { backgroundColor: colors.imageBg }]}>
-              <Image
-                source={{
-                  uri: selectedVariant
-                    ? (product.variants?.find(v => v.id === selectedVariant)?.images?.[0] || images[0] || product.image)
-                    : (images[0] || product.image)
-                }}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
-              />
+              {(() => {
+                let imageUrl = product.image || '';
+
+                if (selectedVariant) {
+                  imageUrl = product.variants?.find(v => v.id === selectedVariant)?.images?.[0] || images[0] || product.image || '';
+                } else if (product.variants && product.variants.length > 0 && product.variants[0]?.images?.[0]) {
+                  imageUrl = product.variants[0].images[0];
+                } else {
+                  imageUrl = images[0] || product.image || '';
+                }
+
+                return (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
+                );
+              })()}
+
               {product.priceSrp && product.priceMember &&
                 Math.round(((product.priceSrp - product.priceMember) / product.priceSrp) * 100) > 0 && (
                 <View style={styles.discountBadge}>
@@ -461,7 +472,7 @@ export default function AddToCartModal({
               ) : (
                 <>
                   <Ionicons name="flash" size={20} color={Colors.white} />
-                  <Text style={styles.checkoutBtnText}>Proceed to{'\n'}Checkout</Text>
+                  <Text style={styles.checkoutBtnText}>Buy Now</Text>
                 </>
               )}
             </TouchableOpacity>
