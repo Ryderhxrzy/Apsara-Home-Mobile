@@ -223,6 +223,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [menuVisible, setMenuVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [cartRefreshTrigger, setCartRefreshTrigger] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [showPaymentWebView, setShowPaymentWebView] = useState(false);
@@ -1545,6 +1546,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
             wishlistCount={wishlistCount}
             isDarkMode={isDarkMode}
             brands={homeBrands}
+            refreshTrigger={cartRefreshTrigger}
             onBack={() => setShowCart(false)}
             onProfilePress={() => {
               setShowCart(false);
@@ -1737,10 +1739,19 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
                   setShowPaymentSuccess(true);
                 });
 
-                // Refresh cart
-                axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers }).then(res => {
-                  setCartCount(extractCount(res.data));
-                }).catch(err => console.error('Failed to refresh cart:', err));
+                // Clear cart after successful payment
+                orderService.clearCart(token).then(() => {
+                  setCartCount(0);
+                  setCartRefreshTrigger(prev => prev + 1);
+                  console.log('[AppNavigator] Cart cleared after successful payment');
+                }).catch(err => {
+                  console.error('Failed to clear cart:', err);
+                  // Fallback: refresh cart count from backend
+                  axios.get(`${API_CONFIG.BASE_URL}/cart`, { headers }).then(res => {
+                    setCartCount(extractCount(res.data));
+                    setCartRefreshTrigger(prev => prev + 1);
+                  }).catch(err => console.error('Failed to refresh cart:', err));
+                });
               }
             }}
           />
