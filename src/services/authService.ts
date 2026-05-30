@@ -101,8 +101,9 @@ export interface MobileRegisterPayload {
 export interface MobileRegisterResponse {
   message: string;
   requires_otp: boolean;
-  verification_token: string;
-  email: string;
+  verification_token?: string;
+  email?: string;
+  user?: any;
 }
 
 export interface SendSmsOtpResponse {
