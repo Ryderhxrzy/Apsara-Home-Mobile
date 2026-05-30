@@ -293,6 +293,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
   const [showReferralSignupScreen, setShowReferralSignupScreen] = useState(false);
   const [showReferralOtpScreen, setShowReferralOtpScreen] = useState(false);
   const [referralOtpData, setReferralOtpData] = useState<{ phone: string; verificationToken: string } | null>(null);
+  const [showPVEarnerFromTab, setShowPVEarnerFromTab] = useState(false);
 
   // Home screen data - persists across navigation
   const [homeCategories, setHomeCategories] = useState<CategoryItem[]>([]);
@@ -1161,6 +1162,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
               onShowAFWalletVoucher={() => setShowAFWalletVoucher(true)}
               onShowAFWalletRewards={() => setShowAFWalletRewards(true)}
               onShowAFWalletNetwork={() => setShowAFWalletNetwork(true)}
+              onShowPVEarner={(show) => setShowPVEarnerFromTab(show)}
             />
           ) : activeTab === 'shop' ? (
             selectedBrandId != null && selectedBrand ? (
@@ -1335,7 +1337,7 @@ export default function AppNavigator({ user, token, onLogout }: { user?: User | 
           )}
         </View>
 
-        {!searchQuery && activeTab !== 'settings' && selectedProductId === null && !profileDetailsFromTab && !showSecurity && !referralNetworkFromTab && !(activeTab === 'shop' && selectedBrandId !== null && selectedBrand !== null) && (activeTab !== 'home' || isInitialHomeDataReady) && (
+        {!searchQuery && activeTab !== 'settings' && selectedProductId === null && !profileDetailsFromTab && !showSecurity && !referralNetworkFromTab && !showPVEarnerFromTab && !(activeTab === 'shop' && selectedBrandId !== null && selectedBrand !== null) && (activeTab !== 'home' || isInitialHomeDataReady) && (
           <SafeAreaView edges={['bottom']} style={[styles.navBarContainer, isDarkMode && styles.navBarContainerDark]}>
             <View style={[styles.navBar, isDarkMode && styles.navBarDark]}>
               {TABS.map(key => {
