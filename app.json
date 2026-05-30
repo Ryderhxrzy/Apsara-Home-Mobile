@@ -29,11 +29,6 @@
       "webcredentials:www.afhome.ph",
       "webcredentials:afhome.ph"
     ],
-    "splash": {
-      "image": "./assets/splash-icon1.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.afhome.mobile"
