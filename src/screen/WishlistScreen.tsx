@@ -47,10 +47,11 @@ interface WishlistScreenProps {
   onProductPress?: (id: number) => void;
   onCartUpdate?: () => void;
   onNavigateToCart?: () => void;
+  onCheckout?: () => void;
   isDarkMode?: boolean;
 }
 
-export default function WishlistScreen({ token, wishlistItems, loading, refreshing, onRefresh, onProductPress, onCartUpdate, onNavigateToCart, isDarkMode = false }: WishlistScreenProps) {
+export default function WishlistScreen({ token, wishlistItems, loading, refreshing, onRefresh, onProductPress, onCartUpdate, onNavigateToCart, onCheckout, isDarkMode = false }: WishlistScreenProps) {
   const [wishlist, setWishlist] = useState<WishlistItem[]>(wishlistItems);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [sortOrder, setSortOrder] = useState<'new' | 'old'>('new');
@@ -275,6 +276,11 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
       setShowModal(false);
       setSelectedItems(new Set());
       onCartUpdate?.();
+
+      // Navigate to cart screen after successful bulk-add
+      setTimeout(() => {
+        onNavigateToCart?.();
+      }, 500);
     } catch (error: any) {
       console.error('Error adding to cart:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to add items to cart';
@@ -553,7 +559,11 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
               soldCount: 0,
               variants: (selectedProduct.product as any).variants || [],
             }}
-            images={[selectedProduct.product.image || '']}
+            images={[
+              selectedVariant
+                ? (selectedProduct.product as any).variants?.find((v: any) => v.id === selectedVariant)?.images?.[0] || selectedProduct.product.image || ''
+                : selectedProduct.product.image || ''
+            ]}
             selectedVariant={selectedVariant}
             quantity={quantity}
             isDarkMode={isDarkMode}
@@ -566,6 +576,7 @@ export default function WishlistScreen({ token, wishlistItems, loading, refreshi
             onSelectVariant={setSelectedVariant}
             onQuantityChange={setQuantity}
             onAddToCart={handleAddProductToCart}
+            onCheckout={onCheckout}
             onProductPress={(productId) => {
               setShowAddToCartModal(false);
               setSelectedProduct(null);
