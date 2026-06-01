@@ -67,41 +67,33 @@ export interface BrandResult {
 }
 
 export const meilisearchService = {
-  async liveSearch(query: string, limit: number = 10): Promise<{ products: LiveSearchItem[]; brands: BrandResult[] }> {
+  async liveSearch(query: string, limit: number = 10): Promise<LiveSearchItem[]> {
     try {
       if (!query.trim() || query.trim().length < 2) {
-        return { products: [], brands: [] };
+        return [];
       }
 
-      const { API_CONFIG } = require('../config/api');
-      const response = await axios.get(`${API_CONFIG.BASE_URL}/meilisearch/search`, {
-        params: { q: query.trim(), limit },
+      const response = await client.post('/indexes/products/search', {
+        q: query.trim(),
+        limit,
       });
 
-      const hits = response.data?.results || [];
-      const brandResults = response.data?.brandResults || [];
-
-      const products = hits.map((hit: MeilisearchHit) => {
-        const brandName = hit.brand_name || (hit.brand ? String(hit.brand) : '');
-        return {
-          id: hit.id,
-          name: hit.name,
-          original_price: hit.priceSrp || hit.original_price || 0,
-          discounted_price: hit.price || hit.discounted_price || 0,
-          pv: parseFloat(String(hit.prodpv || hit.pv || 0)),
-          image: hit.image || '',
-          has_discount: (hit.priceSrp || hit.original_price || 0) > (hit.price || hit.discounted_price || 0),
-          discount_percentage: Math.round(
-            (1 - (hit.price || hit.discounted_price || 0) / (hit.priceSrp || hit.original_price || 1)) * 100
-          ),
-          brandName,
-        };
-      });
-
-      return { products, brands: brandResults };
+      const hits = response.data?.results || response.data?.hits || [];
+      return hits.map((hit: MeilisearchHit) => ({
+        id: hit.id,
+        name: hit.name,
+        original_price: hit.priceSrp || hit.original_price || 0,
+        discounted_price: hit.price || hit.discounted_price || 0,
+        pv: parseFloat(String(hit.prodpv || hit.pv || 0)),
+        image: hit.image || '',
+        has_discount: (hit.priceSrp || hit.original_price || 0) > (hit.price || hit.discounted_price || 0),
+        discount_percentage: Math.round(
+          (1 - (hit.price || hit.discounted_price || 0) / (hit.priceSrp || hit.original_price || 1)) * 100
+        ),
+      }));
     } catch (error) {
       console.error('Meilisearch live search error:', error);
-      return { products: [], brands: [] };
+      return [];
     }
   },
 
