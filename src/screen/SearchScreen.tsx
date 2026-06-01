@@ -10,6 +10,7 @@ import { Colors } from '../constants/colors';
 import { authService, SearchHistoryItem } from '../services/authService';
 import { userBehaviorService } from '../services/userBehaviorService';
 import { API_CONFIG } from '../config/api';
+import { meilisearchService } from '../services/meilisearchService';
 import Toast from 'react-native-toast-message';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -99,7 +100,7 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
     if (!token) return;
     let active = true;
     setLoadingRecs(true);
-    axios.get(`${API_CONFIG.BASE_URL}/search/recommendations`, {
+    axios.get(`${API_CONFIG.BASE_URL}/search/recommendations?limit=12`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -111,11 +112,6 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
             seen.add(item.id);
             return true;
           });
-          // shuffle so order differs each load
-          for (let i = unique.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [unique[i], unique[j]] = [unique[j], unique[i]];
-          }
           setRecommendations(unique);
         }
       })
@@ -124,31 +120,29 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
     return () => { active = false; };
   }, [token]);
 
+  const displayedRecommendations = useMemo(() => {
+    const shuffled = [...recommendations];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 6);
+  }, [recommendations]);
+
   const runLiveSearch = useCallback((q: string) => {
     const trimmed = q.trim();
-    if (!token || trimmed.length < 2) {
+    if (trimmed.length < 2) {
       setLiveResults([]);
       setLoadingLive(false);
       return;
     }
     let active = true;
     setLoadingLive(true);
-    axios.get(`${API_CONFIG.BASE_URL}/meilisearch/search`, {
-      params: { q: trimmed, limit: 10 },
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
+    meilisearchService.liveSearch(trimmed, 10)
+      .then(results => {
         if (!active) return;
-        console.log('🔍 Live search response:', res.data);
-        if (res.data?.success && Array.isArray(res.data?.results)) {
-          setLiveResults(res.data.results);
-        } else if (Array.isArray(res.data?.data)) {
-          setLiveResults(res.data.data);
-        } else if (Array.isArray(res.data)) {
-          setLiveResults(res.data);
-        } else {
-          setLiveResults([]);
-        }
+        console.log('🔍 Live search results:', results);
+        setLiveResults(results);
       })
       .catch(err => {
         if (active) {
@@ -158,7 +152,7 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
       })
       .finally(() => { if (active) setLoadingLive(false); });
     return () => { active = false; };
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -370,7 +364,7 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
               {loadingRecs && <ActivityIndicator size="small" color={Colors.sky} />}
             </View>
 
-            {loadingRecs && recommendations.length === 0 ? (
+            {loadingRecs && displayedRecommendations.length === 0 ? (
               <View style={[styles.recsTable, isDarkMode && styles.recsTableDark]}>
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <View key={i} style={[styles.recsTableCell, isDarkMode && styles.recsTableCellDark]}>
@@ -383,7 +377,7 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
               </View>
             ) : (
               <View style={[styles.recsTable, isDarkMode && styles.recsTableDark]}>
-                {recommendations.map((item) => (
+                {displayedRecommendations.map((item) => (
                   <TouchableOpacity
                     key={`rec-${item.id}`}
                     style={[styles.recsTableCell, isDarkMode && styles.recsTableCellDark]}
