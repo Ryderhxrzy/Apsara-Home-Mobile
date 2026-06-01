@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   BackHandler,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +17,7 @@ import { API_CONFIG } from '../config/api';
 import Toast from 'react-native-toast-message';
 
 interface OrderData {
-  item: {
+  item?: {
     product_id: number;
     product_name: string;
     product_image: string;
@@ -30,6 +29,18 @@ interface OrderData {
     variant_size?: string;
     variant_image?: string;
   };
+  items?: Array<{
+    product_id: number;
+    product_name: string;
+    product_image: string;
+    product_price_member: number;
+    product_price_srp?: number;
+    brand_name?: string;
+    quantity: number;
+    variant_color?: string;
+    variant_size?: string;
+    variant_image?: string;
+  }>;
   user: {
     name: string;
     phone?: string;
@@ -49,6 +60,11 @@ interface OrderData {
   shopDiscount: number;
   total: number;
   token?: string;
+  checkoutUrl?: string;
+  orderId?: number;
+  checkoutId?: string;
+  mobileOrderId?: string;
+  paymentIntentId?: string;
 }
 
 interface OrderSuccessScreenProps {
@@ -69,14 +85,28 @@ export default function OrderSuccessScreen({
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
 
-  const colors = {
-    bg: isDarkMode ? '#0f172a' : '#f0f9ff',
-    containerBg: isDarkMode ? '#1f2937' : '#ffffff',
-    text: isDarkMode ? '#f8fafc' : Colors.text,
-    textSec: isDarkMode ? '#94a3b8' : Colors.textSecondary,
-    border: isDarkMode ? '#374151' : '#e5e7eb',
-    borderLight: isDarkMode ? '#475569' : '#f1f5f9',
-  };
+  const renderInfoRow = (label: string, value: string | number, icon?: string) => (
+    <View style={styles.infoRow}>
+      <View style={styles.infoLeft}>
+        {icon && (
+          <View style={styles.iconBox}>
+            <Ionicons name={icon as any} size={16} color={Colors.sky} />
+          </View>
+        )}
+        <Text style={styles.infoLabel}>{label}</Text>
+      </View>
+      <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+
+  const renderSection = (title: string, children: React.ReactNode) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionContent}>
+        {children}
+      </View>
+    </View>
+  );
 
   const handlePayment = async () => {
     console.log('[OrderSuccessScreen] Proceed to payment clicked');
@@ -132,159 +162,151 @@ export default function OrderSuccessScreen({
     }
   };
 
+  React.useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack?.();
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, [onBack]);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={[styles.container, { backgroundColor: Colors.white }]}>
+      {/* Gradient Header */}
       <LinearGradient
-        colors={isDarkMode ? ['rgba(59,130,246,0.15)', 'rgba(31,41,55,0)'] : ['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
+        colors={['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top, backgroundColor: isDarkMode ? '#1f2937' : Colors.white, borderBottomColor: colors.border, borderBottomWidth: 1 }]}
+        style={[styles.headerGradient, { paddingTop: insets.top }]}
       >
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back-outline" size={24} color={isDarkMode ? '#e5e7eb' : Colors.text} />
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={onBack}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back-outline" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerGreeting, { color: isDarkMode ? '#f8fafc' : Colors.text }]}>
-              Order Summary
-            </Text>
-          </View>
-          <View style={{ width: 40 }} />
+          <Text style={styles.headerTitle}>Order Summary</Text>
+          <View style={{ width: 38 }} />
         </View>
       </LinearGradient>
 
+      {/* Content */}
       <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        style={[styles.content, { backgroundColor: colors.bg }]}
-        contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Success Icon Section */}
-        <View style={[styles.successSection, { backgroundColor: colors.containerBg, marginTop: 16, borderColor: colors.border }]}>
-          <View style={[styles.successIconContainer, { backgroundColor: `${Colors.forest}15` }]}>
-            <Ionicons name="checkmark-circle" size={64} color={Colors.forest} />
+        {/* Success Section */}
+        <View style={styles.profileHeaderContainer}>
+          <View style={styles.profileHeader}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={56} color={Colors.forest} />
+            </View>
+
+            <View style={styles.headerInfo}>
+              <Text style={styles.nameText}>Order Confirmed!</Text>
+              <Text style={styles.usernameText}>
+                Order #{orderData.mobileOrderId || orderData.orderId || 'N/A'}
+              </Text>
+              <Text style={styles.statusText}>
+                Review your order details and proceed to payment.
+              </Text>
+            </View>
           </View>
-          <Text style={[styles.successTitle, { color: colors.text }]}>Order Ready</Text>
-          <Text style={[styles.successSubtitle, { color: colors.textSec }]}>
-            Review your order and proceed to payment
-          </Text>
         </View>
 
-        {/* Product Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Product Details</Text>
-
-          <View style={[styles.productCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-            <View style={styles.productContent}>
-              <View>
-                <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
-                  {orderData.item.product_name}
-                </Text>
-                {(orderData.item.variant_color || orderData.item.variant_size) && (
-                  <Text style={[styles.productVariant, { color: colors.textSec }]}>
-                    {orderData.item.variant_color && `${orderData.item.variant_color}`}
-                    {orderData.item.variant_color && orderData.item.variant_size ? ', ' : ''}
-                    {orderData.item.variant_size && `${orderData.item.variant_size}`}
+        {/* Products Section */}
+        {renderSection(
+          `Products (${(orderData.items?.length || 1)})`,
+          <>
+            {orderData.item && !orderData.items && (
+              <View style={styles.productRow}>
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName} numberOfLines={2}>
+                    {orderData.item?.product_name}
                   </Text>
-                )}
-              </View>
-              <View style={styles.priceQtyContainer}>
-                <View>
-                  <Text style={[styles.productPrice, { color: Colors.sky }]}>
-                    ₱{orderData.item.product_price_member.toLocaleString()}
-                  </Text>
-                  {orderData.item.product_price_srp && orderData.item.product_price_srp > orderData.item.product_price_member && (
-                    <Text style={[styles.productPriceSrp, { color: colors.textSec }]}>
-                      ₱{orderData.item.product_price_srp.toLocaleString()}
+                  {(orderData.item?.variant_color || orderData.item?.variant_size) && (
+                    <Text style={styles.productVariant}>
+                      {orderData.item?.variant_color && `${orderData.item.variant_color}`}
+                      {orderData.item?.variant_color && orderData.item?.variant_size ? ', ' : ''}
+                      {orderData.item?.variant_size && `${orderData.item.variant_size}`}
                     </Text>
                   )}
                 </View>
-                <Text style={[styles.productQty, { color: colors.textSec }]}>
-                  x{orderData.item.quantity}
-                </Text>
+                <View style={styles.productPriceContainer}>
+                  <Text style={styles.productPrice}>
+                    ₱{(orderData.item?.product_price_member || 0).toLocaleString()}
+                  </Text>
+                  <Text style={styles.productQty}>x{orderData.item?.quantity}</Text>
+                </View>
               </View>
-            </View>
-          </View>
-        </View>
+            )}
 
-        {/* Shipping Address Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Delivery Address</Text>
-
-          <View style={[styles.addressCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-            <View style={styles.addressRow}>
-              <Ionicons name="location" size={16} color={Colors.sky} />
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={[styles.addressName, { color: colors.text }]}>
-                  {orderData.selectedAddress.full_name}
-                </Text>
-                <Text style={[styles.addressPhone, { color: colors.textSec }]}>
-                  {orderData.selectedAddress.phone}
-                </Text>
-                <Text style={[styles.addressText, { color: colors.textSec }]}>
-                  {orderData.selectedAddress.full_address}
-                </Text>
+            {orderData.items && orderData.items.length > 0 && (
+              <View style={{ gap: 12 }}>
+                {orderData.items.map((item, index) => (
+                  <View key={index} style={styles.productRow}>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {item?.product_name || 'Unknown Product'}
+                      </Text>
+                      {(item?.variant_color || item?.variant_size) && (
+                        <Text style={styles.productVariant}>
+                          {item?.variant_color && `${item.variant_color}`}
+                          {item?.variant_color && item?.variant_size ? ', ' : ''}
+                          {item?.variant_size && `${item.variant_size}`}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.productPriceContainer}>
+                      <Text style={styles.productPrice}>
+                        ₱{(item?.product_price_member || 0).toLocaleString()}
+                      </Text>
+                      <Text style={styles.productQty}>x{item?.quantity}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
-            </View>
-          </View>
-        </View>
+            )}
+          </>
+        )}
+
+        {/* Delivery Address Section */}
+        {renderSection('Delivery Address', (
+          <>
+            {renderInfoRow('Name', orderData.selectedAddress.full_name, 'person')}
+            {renderInfoRow('Phone', orderData.selectedAddress.phone, 'call')}
+            {renderInfoRow('Address', orderData.selectedAddress.full_address, 'location')}
+          </>
+        ))}
 
         {/* Payment Method Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Payment Method</Text>
-
-          <View style={[styles.paymentMethodCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-            <View style={styles.methodRow}>
-              <Ionicons name="card" size={20} color={Colors.sky} />
-              <Text style={[styles.methodName, { color: colors.text, marginLeft: 8 }]}>
-                {orderData.selectedPaymentMethod.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-        </View>
+        {renderSection('Payment Method', (
+          renderInfoRow('Method', orderData.selectedPaymentMethod.toUpperCase(), 'card')
+        ))}
 
         {/* Order Summary Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg, marginTop: 12, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Order Summary</Text>
-
-          <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
-            <Text style={[styles.priceLabel, { color: colors.textSec }]}>Subtotal</Text>
-            <Text style={[styles.priceValue, { color: colors.text }]}>
-              ₱{orderData.subtotal.toLocaleString()}
-            </Text>
-          </View>
-
-          {orderData.shopDiscount > 0 && (
-            <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
-              <Text style={[styles.priceLabel, { color: colors.textSec }]}>Member Discount</Text>
-              <Text style={[styles.priceValue, { color: Colors.sky }]}>
-                -₱{orderData.shopDiscount.toLocaleString()}
-              </Text>
+        {renderSection('Order Summary', (
+          <>
+            {renderInfoRow('Subtotal', `₱${orderData.subtotal.toLocaleString()}`)}
+            {orderData.shopDiscount > 0 && (
+              renderInfoRow('Member Discount', `-₱${orderData.shopDiscount.toLocaleString()}`)
+            )}
+            {orderData.voucherDiscount > 0 && (
+              renderInfoRow('Voucher Discount', `-₱${orderData.voucherDiscount.toLocaleString()}`)
+            )}
+            {orderData.shippingCost > 0 && (
+              renderInfoRow('Shipping', `₱${orderData.shippingCost.toLocaleString()}`)
+            )}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalPrice}>₱{orderData.total.toLocaleString()}</Text>
             </View>
-          )}
-
-          {orderData.voucherDiscount > 0 && (
-            <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
-              <Text style={[styles.priceLabel, { color: colors.textSec }]}>Voucher Discount</Text>
-              <Text style={[styles.priceValue, { color: Colors.sky }]}>
-                -₱{orderData.voucherDiscount.toLocaleString()}
-              </Text>
-            </View>
-          )}
-
-          <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
-            <Text style={[styles.priceLabel, { color: colors.textSec }]}>Shipping</Text>
-            <Text style={[styles.priceValue, { color: colors.text }]}>
-              ₱{orderData.shippingCost.toLocaleString()}
-            </Text>
-          </View>
-
-          <View style={[styles.priceRow, { borderBottomColor: colors.border, borderBottomWidth: 1, paddingVertical: 12 }]}>
-            <Text style={[styles.totalLabel, { color: colors.text }]}>Total Amount</Text>
-            <Text style={[styles.totalPrice, { color: Colors.sky }]}>
-              ₱{orderData.total.toLocaleString()}
-            </Text>
-          </View>
-        </View>
+          </>
+        ))}
       </ScrollView>
 
       {/* Footer */}
@@ -292,37 +314,15 @@ export default function OrderSuccessScreen({
         style={[
           styles.footer,
           {
-            backgroundColor: colors.containerBg,
-            borderTopColor: colors.border,
-            paddingBottom: insets.bottom + 8,
+            paddingBottom: insets.bottom + 12,
           },
         ]}
       >
         <TouchableOpacity
-          style={[
-            styles.payLaterBtn,
-            {
-              backgroundColor: colors.borderLight,
-              borderColor: colors.border,
-            },
-          ]}
-          onPress={onPayLater}
-          disabled={loading}
-        >
-          <Ionicons name="time-outline" size={18} color={Colors.sky} />
-          <Text style={[styles.payLaterBtnText, { color: Colors.sky }]}>Pay Later</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.payBtn,
-            {
-              backgroundColor: Colors.sky,
-              opacity: loading ? 0.6 : 1,
-            },
-          ]}
+          style={[styles.payBtn, loading && { opacity: 0.6 }]}
           onPress={handlePayment}
           disabled={loading}
+          activeOpacity={0.7}
         >
           {loading ? (
             <ActivityIndicator size="small" color={Colors.white} />
@@ -338,11 +338,9 @@ export default function OrderSuccessScreen({
       {/* Loading Overlay */}
       {loading && (
         <View style={styles.loadingOverlay}>
-          <View style={[styles.loadingModalContainer, { backgroundColor: colors.containerBg }]}>
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.sky} />
-            <Text style={[styles.loadingModalText, { color: colors.text, marginTop: 16 }]}>
-              Processing payment...
-            </Text>
+            <Text style={styles.loadingText}>Processing payment...</Text>
           </View>
         </View>
       )}
@@ -353,199 +351,225 @@ export default function OrderSuccessScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.white,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  headerGradient: {
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   header: {
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginLeft: -10,
-    marginRight: 12,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerGreeting: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  content: {
-    flex: 1,
     paddingHorizontal: 8,
   },
-  successSection: {
-    borderRadius: 12,
-    padding: 20,
+  headerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  scrollContent: {
+    padding: 0,
+    paddingBottom: 40,
+  },
+  profileHeaderContainer: {
+    borderRadius: 0,
+    marginBottom: 0,
+    overflow: 'hidden',
+    borderWidth: 0,
+    borderColor: '#e5e7eb',
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  profileHeader: {
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
   },
   successIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    backgroundColor: '#dcfce7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
+  headerInfo: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    width: '100%',
   },
-  successSubtitle: {
-    fontSize: 13,
+  nameText: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  usernameText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.sky,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   section: {
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: Colors.white,
+    borderRadius: 0,
+    overflow: 'hidden',
+    marginBottom: 0,
     marginHorizontal: 0,
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#f9fafb',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  sectionContent: {
+    padding: 16,
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  infoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoLabel: {
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 8,
+    color: Colors.textSecondary,
+    flex: 1,
   },
-  productCard: {
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+    flex: 1,
+    textAlign: 'right',
   },
-  productContent: {
+  productRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  productInfo: {
+    flex: 1,
+    gap: 4,
   },
   productName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 2,
-    flex: 1,
+    color: Colors.text,
   },
   productVariant: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
   },
-  priceQtyContainer: {
+  productPriceContainer: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 2,
   },
   productPrice: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  productPriceSrp: {
-    fontSize: 11,
-    textDecorationLine: 'line-through',
+    color: Colors.sky,
   },
   productQty: {
     fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
   },
-  addressCard: {
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  addressName: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  addressPhone: {
-    fontSize: 11,
-    marginBottom: 4,
-  },
-  addressText: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  paymentMethodCard: {
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-  },
-  methodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  methodName: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  priceRow: {
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-  },
-  priceLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  priceValue: {
-    fontSize: 13,
-    fontWeight: '600',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
   totalLabel: {
     fontSize: 14,
     fontWeight: '700',
+    color: Colors.text,
   },
   totalPrice: {
     fontSize: 16,
     fontWeight: '800',
+    color: Colors.sky,
   },
   footer: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: 12,
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  payLaterBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-  },
-  payLaterBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
+    borderTopColor: '#e5e7eb',
+    gap: 12,
   },
   payBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 10,
     flexDirection: 'row',
+    backgroundColor: Colors.sky,
+    height: 52,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   payBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.white,
   },
@@ -560,16 +584,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-  loadingModalContainer: {
+  loadingContainer: {
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.white,
     minWidth: 200,
   },
-  loadingModalText: {
+  loadingText: {
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+    color: Colors.text,
+    marginTop: 16,
   },
 });
