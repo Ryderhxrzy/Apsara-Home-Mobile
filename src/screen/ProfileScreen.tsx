@@ -504,12 +504,18 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                     style={styles.dailyCheckinIcon}
                     resizeMode="contain"
                   />
-                  {!dailyCheckinClaimed && (
-                    <View style={styles.dailyCheckinBadge} />
-                  )}
                 </View>
                 <Text style={[styles.dailyCheckinBtnText, { color: colors.text }]}>Daily Check-In</Text>
               </View>
+              {!dailyCheckinClaimed && (
+                <View style={styles.dailyCheckinClaimContainer}>
+                  <View style={styles.dailyCheckinDotContainer}>
+                    <View style={styles.dailyCheckinDotGlow} />
+                    <View style={styles.dailyCheckinRedDot} />
+                  </View>
+                  <Text style={[styles.dailyCheckinClaimText, { color: Colors.sky }]}>Claim +20 PV!</Text>
+                </View>
+              )}
               <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
             </TouchableOpacity>
           </View>
@@ -1804,15 +1810,16 @@ const styles = StyleSheet.create({
   dailyCheckinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderTopWidth: 1,
+    gap: 8,
   },
   dailyCheckinBtnLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
   },
   dailyCheckinBtnText: {
     fontSize: 13,
@@ -1842,6 +1849,36 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 8,
+  },
+  dailyCheckinClaimContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dailyCheckinDotContainer: {
+    position: 'relative',
+    width: 12,
+    height: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dailyCheckinDotGlow: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.error + '25',
+  },
+  dailyCheckinRedDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.error,
+  },
+  dailyCheckinClaimText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.sky,
   },
 
 });

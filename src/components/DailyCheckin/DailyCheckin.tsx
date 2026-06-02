@@ -21,11 +21,66 @@ interface DailyCheckinProps {
 const CHECKIN_REWARDS = [20, 25, 30, 35, 40, 45, 50]; // PV for each day
 const DAY_LABELS = ['Today', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
 
+const ConfettiPiece = ({ delay }: { delay: number }) => {
+  const translateY = new Animated.Value(0);
+  const opacity = new Animated.Value(1);
+
+  React.useEffect(() => {
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 500,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 1500,
+          delay: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
+  const confettiEmojis = ['🎉', '🎊', '⭐', '✨', '🎈'];
+  const randomEmoji = confettiEmojis[Math.floor(Math.random() * confettiEmojis.length)];
+  const randomLeft = Math.random() * 300 - 150;
+
+  return (
+    <Animated.Text
+      style={[
+        styles.confettiPiece,
+        {
+          transform: [
+            { translateY },
+            { translateX: randomLeft },
+          ],
+          opacity,
+        },
+      ]}
+    >
+      {randomEmoji}
+    </Animated.Text>
+  );
+};
+
 export default function DailyCheckin({ isDarkMode = false, onCheckin }: DailyCheckinProps) {
   const [checkedInDays, setCheckedInDays] = useState<number[]>([]);
   const [scaleAnims] = useState(DAY_LABELS.map(() => new Animated.Value(1)));
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimedReward, setClaimedReward] = useState(0);
+  const [hasError, setHasError] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      // Component initialization
+    } catch (error) {
+      setHasError(true);
+      console.log('DailyCheckin error:', error);
+    }
+  }, []);
 
   const colors = {
     bg: isDarkMode ? '#0f172a' : '#f5f5f5',
@@ -65,6 +120,14 @@ export default function DailyCheckin({ isDarkMode = false, onCheckin }: DailyChe
 
   const todayReward = CHECKIN_REWARDS[0];
   const totalPV = CHECKIN_REWARDS.reduce((sum, pv) => sum + pv, 0);
+
+  if (hasError) {
+    return (
+      <View style={styles.section}>
+        <Text>Daily Check-In</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.section, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
@@ -167,6 +230,39 @@ export default function DailyCheckin({ isDarkMode = false, onCheckin }: DailyChe
         <Ionicons name="flash" size={16} color={Colors.sky} />
         <Text style={styles.checkinButtonText}>Claim +{todayReward} PV Points</Text>
       </TouchableOpacity>
+
+      {/* Claim Modal */}
+      <Modal
+        visible={showClaimModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowClaimModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          {/* Confetti */}
+          {showClaimModal && Array.from({ length: 12 }).map((_, i) => (
+            <ConfettiPiece key={i} delay={i * 100} />
+          ))}
+
+          <View style={[styles.modalContent, { backgroundColor: colors.containerBg, borderColor: colors.border }]}>
+            <Text style={styles.modalEmoji}>🎉</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Congratulations!</Text>
+
+            <View style={styles.modalRewardContainer}>
+              <Text style={styles.modalRewardText}>+{claimedReward}</Text>
+              <Text style={[styles.modalRewardLabel, { color: colors.textSec }]}>PV Points Earned</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.sky }]}
+              onPress={() => setShowClaimModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Awesome! 🚀</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -279,5 +375,66 @@ const styles = StyleSheet.create({
   checkIconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '85%',
+    maxWidth: 320,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalEmoji: {
+    fontSize: 56,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalRewardContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  modalRewardText: {
+    fontSize: 56,
+    fontWeight: '800',
+    color: Colors.sky,
+  },
+  modalRewardLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  modalButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 20,
+    width: '100%',
+  },
+  modalButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.white,
+    textAlign: 'center',
+  },
+  confettiPiece: {
+    position: 'absolute',
+    fontSize: 28,
+    left: '50%',
   },
 });
