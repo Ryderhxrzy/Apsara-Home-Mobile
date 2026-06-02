@@ -334,7 +334,7 @@ function ShopScreen({
     }
   }, [currentPage]);
 
-  const renderItem = (item: Product) => {
+  const renderItem = useCallback((item: Product) => {
     const wishlistItem = wishlistItems?.find(w => w.product.id === item.id);
     const productCard = {
       id: item.id,
@@ -355,16 +355,6 @@ function ShopScreen({
       },
     };
 
-    // DEBUG: Log product card
-    console.log('📦 ShopScreen renderItem:', {
-      id: item.id,
-      name: item.name,
-      catid: item.catid,
-      brandType: item.brandType,
-      categoryId: productCard.categoryId,
-      brandId: productCard.brandId,
-    });
-
     return (
       <View style={styles.masonryItem}>
         <ItemCard
@@ -378,7 +368,7 @@ function ShopScreen({
         />
       </View>
     );
-  };
+  }, [wishlistItems, token, isDarkMode, onProductPress, onWishlistChange]);
 
   const renderLoadingPlaceholders = () => {
     const dummyProducts = Array.from({ length: 6 }, (_, i) => ({
