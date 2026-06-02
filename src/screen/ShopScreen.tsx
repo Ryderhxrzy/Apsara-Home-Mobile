@@ -10,6 +10,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +76,7 @@ function ShopScreen({
   const flatListRef = useRef<FlatList>(null);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const lastScrollOffsetRef = useRef(0);
+  const [showProfileSection, setShowProfileSection] = useState(true);
 
   // Refs to preserve filter state across navigation
   const filterStateRef = useRef({
@@ -308,7 +312,7 @@ function ShopScreen({
     refetch();
   }, [refetch]);
 
-  const handleScroll = useCallback((event: any) => {
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollY = event.nativeEvent.contentOffset.y;
     lastScrollOffsetRef.current = scrollY;
     setShowScrollToTop(scrollY > 300);
@@ -577,7 +581,7 @@ function ShopScreen({
         }}
       />
 
-      <FlatList
+    <FlatList
         ref={flatListRef}
         style={[styles.flatList, { backgroundColor: colors.bg }]}
         contentContainerStyle={[styles.flatListContent, { backgroundColor: colors.bg }]}
