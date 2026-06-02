@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ImageSourcePropType, Modal, Animated } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ImageSourcePropType, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
@@ -114,19 +114,15 @@ function ItemCard({
       return;
     }
 
+    const previousWishlistState = wishlisted;
+
     try {
-      setIsTogglingWishlist(true);
+      // Optimistic update - immediately update UI
+      setWishlisted(!wishlisted);
+      onWishlistToggle?.(product.id, !wishlisted);
 
-      // DEBUG: Log product data
-      console.log('🎯 ItemCard Wishlist Toggle:', {
-        productId: product.id,
-        productName: product.name,
-        categoryId: product.categoryId,
-        brandId: product.brandId,
-        fullProduct: product,
-      });
-
-      if (wishlisted) {
+      // Make API call in background
+      if (previousWishlistState) {
         // Remove from wishlist - DELETE request using product_id
         await axios.delete(`${API_CONFIG.BASE_URL}/wishlist/${product.id}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -140,9 +136,6 @@ function ItemCard({
         );
       }
 
-      setWishlisted(!wishlisted);
-      onWishlistToggle?.(product.id, !wishlisted);
-
       // Track wishlist behavior
       const behaviorType = !wishlisted ? 'wishlist_add' : 'wishlist_remove';
       console.log('📊 Tracking behavior:', {
@@ -153,12 +146,6 @@ function ItemCard({
       });
       userBehaviorService.trackBehavior(token, behaviorType, product.id, product.categoryId, product.brandId).catch((err) => {
         console.error('❌ Behavior tracking failed:', err);
-      });
-
-      Toast.show({
-        type: 'success',
-        text1: wishlisted ? 'Removed from wishlist' : 'Added to wishlist',
-        text2: wishlisted ? 'Item removed from your wishlist' : 'Item added to your wishlist',
       });
     } catch (error: any) {
       console.error('Error toggling wishlist:', error);
