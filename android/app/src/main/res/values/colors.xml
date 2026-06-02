@@ -3,4 +3,8 @@
   <color name="iconBackground">#13a1d4</color>
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#ffffff</color>
+  <!-- Notification Colors -->
+  <color name="notification_text_primary">#1e293b</color>
+  <color name="notification_text_secondary">#64748b</color>
+  <color name="notification_background">#ffffff</color>
 </resources>
