@@ -1,1 +1,10 @@
-<resources/>
+<resources>
+  <color name="splashscreen_background">#0f172a</color>
+  <color name="iconBackground">#13a1d4</color>
+  <color name="colorPrimary">#1e293b</color>
+  <color name="colorPrimaryDark">#1e293b</color>
+  <!-- Notification Colors for Dark Mode -->
+  <color name="notification_text_primary">#f8fafc</color>
+  <color name="notification_text_secondary">#cbd5e1</color>
+  <color name="notification_background">#1e293b</color>
+</resources>
