@@ -173,7 +173,7 @@ interface BrandItem {
 interface RoomType {
   room_id: number;
   room_name: string;
-  images: string[];
+  image: string;
   count: number;
 }
 
@@ -709,7 +709,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
       // STEP 1: Fetch only categories first (fast, ~200ms)
       console.log('⏱️  STEP 1: Fetching categories...');
       const categoryStart = performance.now();
-      const categoryData = await authService.getCategories(token);
+      const categoryData = await productService.getShopByCategories(token);
       const sortedCategories = categoryData.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
       const categoryTime = performance.now() - categoryStart;
       console.log(`✅ Categories fetched: ${Math.round(categoryTime)}ms (${sortedCategories.length} items)`);
@@ -727,10 +727,8 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
       console.log('⏱️  STEP 2: Lazy loading brands, rooms, products...');
       const lazyStart = performance.now();
       const [brandData, roomData, productData] = await Promise.all([
-        authService.getBrandsWithProducts(token, 50),
-        axios.get(`${API_CONFIG.BASE_URL}/room-types`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then(res => res.data?.data || []).catch(() => []),
+        productService.getShopByBrands(token),
+        productService.getShopByRooms(token),
         productService.getProductCards(token).catch(() => []),
       ]);
       const lazyTime = performance.now() - lazyStart;
