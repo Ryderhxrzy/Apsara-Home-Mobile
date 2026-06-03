@@ -94,6 +94,12 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
     loadIconState();
   }, []);
 
+  // Sync with AppContext chatbotHidden state
+  useEffect(() => {
+    setIsIconHidden(chatbotHidden);
+    hideSlideAnim.setValue(chatbotHidden ? 100 : 0);
+  }, [chatbotHidden, hideSlideAnim]);
+
   // Save icon hidden state whenever it changes
   useEffect(() => {
     const saveIconState = async () => {

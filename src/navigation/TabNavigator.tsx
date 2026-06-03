@@ -491,8 +491,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 4,
-    paddingBottom: 4,
+    gap: 0,
+    paddingBottom: 0,
+    paddingTop: -8,
   },
   shopSlot: {
     height: 37,
@@ -500,7 +501,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     overflow: 'visible',
-    marginBottom: -6,
   },
   shopDiamond: {
     width: 48,

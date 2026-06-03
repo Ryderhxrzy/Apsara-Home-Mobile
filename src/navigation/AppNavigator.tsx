@@ -1119,7 +1119,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 setChatbotHidden,
               }}
             >
-              <TabNavigator hideTabBar={selectedProductId !== null || searchQuery !== null} />
+              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null} />
             </AppContextProvider>
           )}
         </View>
