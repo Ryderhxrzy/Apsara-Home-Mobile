@@ -70,6 +70,7 @@ interface ProfileScreenProps {
   wishlistItems?: any[];
   onWishlistChange?: () => void;
   onProductPress?: (id: number) => void;
+  onShopNavigate?: () => void;
 }
 
 const REFERRAL_STATS = [
@@ -104,7 +105,7 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress, onShowAFWalletOverview, onShowAFWalletVoucher, onShowAFWalletRewards, onShowAFWalletNetwork, onShowPVEarner, showPVEarnerFromTab = false, wishlistItems = [], onWishlistChange = () => {}, onProductPress = () => {} }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress, onShowAFWalletOverview, onShowAFWalletVoucher, onShowAFWalletRewards, onShowAFWalletNetwork, onShowPVEarner, showPVEarnerFromTab = false, wishlistItems = [], onWishlistChange = () => {}, onProductPress = () => {}, onShopNavigate = () => {} }: ProfileScreenProps) {
   console.log('[ProfileScreen] Component mounted/updated', {
     userEmail: user?.email,
     hasToken: !!token,
@@ -1030,6 +1031,10 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             }}
             onProductPress={(id) => {
               onProductPress(id);
+            }}
+            onShopPress={() => {
+              setShowPVEarner(false);
+              onShopNavigate?.();
             }}
           />
         </View>
