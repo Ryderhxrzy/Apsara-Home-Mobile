@@ -151,31 +151,35 @@ function ShopScreen({
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const prefetchedPageRef = useRef(2);
+  const prevPropsRef = useRef({ roomId, categoryId, brandId });
 
-  // Sync incoming props to local state when props change
+  // Sync incoming props to local state when props change (only from parent navigation)
   useEffect(() => {
-    if (roomId !== null && roomId !== undefined && roomId !== selectedRoomId) {
+    if (roomId !== null && roomId !== undefined && roomId !== prevPropsRef.current.roomId) {
       filterStateRef.current.roomId = roomId;
       setSelectedRoomId(roomId);
       setCurrentPage(1);
+      prevPropsRef.current.roomId = roomId;
     }
-  }, [roomId, selectedRoomId]);
+  }, [roomId]);
 
   useEffect(() => {
-    if (categoryId !== null && categoryId !== undefined && categoryId !== selectedCategoryId) {
+    if (categoryId !== null && categoryId !== undefined && categoryId !== prevPropsRef.current.categoryId) {
       filterStateRef.current.categoryId = categoryId;
       setSelectedCategoryId(categoryId);
       setCurrentPage(1);
+      prevPropsRef.current.categoryId = categoryId;
     }
-  }, [categoryId, selectedCategoryId]);
+  }, [categoryId]);
 
   useEffect(() => {
-    if (brandId !== null && brandId !== undefined && brandId !== selectedBrandId) {
+    if (brandId !== null && brandId !== undefined && brandId !== prevPropsRef.current.brandId) {
       filterStateRef.current.brandId = brandId;
       setSelectedBrandId(brandId);
       setCurrentPage(1);
+      prevPropsRef.current.brandId = brandId;
     }
-  }, [brandId, selectedBrandId]);
+  }, [brandId]);
 
   const selectedRoom = useMemo(
     () => selectedRoomId ? ROOMS.find(r => r.room_id === selectedRoomId) : null,
