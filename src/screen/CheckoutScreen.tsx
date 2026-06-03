@@ -11,6 +11,7 @@ import {
   Dimensions,
   Pressable,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -128,6 +129,7 @@ export default function CheckoutScreen({
   const [loadingShippingRates, setLoadingShippingRates] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null);
+  const [voucherCode, setVoucherCode] = useState('');
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
@@ -178,10 +180,7 @@ export default function CheckoutScreen({
     },
   ];
 
-  const vouchers = [
-    { id: 1, code: 'WELCOME20', description: '20% off your first purchase', discount: 0.20 },
-    { id: 2, code: 'FREESHIP', description: 'Free shipping on orders above ₱500', discount: 0 },
-  ];
+  const vouchers: any[] = [];
 
   const voucherDiscount = selectedVoucher ? (vouchers.find(v => v.id === selectedVoucher)?.discount || 0) * subtotal : 0;
 
@@ -220,41 +219,31 @@ export default function CheckoutScreen({
 
     setLoadingShippingRates(true);
     try {
-      const response = await axios.get(`${API_CONFIG.BASE_URL}/shipping-rates`);
-      if (response.data && response.data.rates) {
-        // Normalize city name (remove "City of" prefix for matching)
-        const normalizeCity = (city: string) => {
-          return city.toLowerCase().replace(/^city of\s+/, '').trim();
-        };
+      // Default shipping methods: J&T and XDE with 0 cost
+      const defaultShippingMethods: ShippingMethod[] = [
+        {
+          id: 1,
+          province: targetAddress.province,
+          city: targetAddress.city,
+          fee: 0,
+          status: true,
+        },
+        {
+          id: 2,
+          province: targetAddress.province,
+          city: targetAddress.city,
+          fee: 0,
+          status: true,
+        },
+      ];
 
-        const normalizedTargetCity = normalizeCity(targetAddress.city);
+      setShippingMethods(defaultShippingMethods);
 
-        // Filter rates by CITY ONLY (most important)
-        const filteredRates = response.data.rates.filter(
-          (rate: ShippingMethod) => {
-            const normalizedRateCity = normalizeCity(rate.city);
-            return normalizedRateCity === normalizedTargetCity && rate.status;
-          }
-        );
-
-        setShippingMethods(filteredRates);
-
-        console.log('Shipping rates fetched:', {
-          userCity: targetAddress.city,
-          normalizedCity: normalizedTargetCity,
-          ratesFound: filteredRates.length,
-          rates: filteredRates.map(r => ({ city: r.city, fee: r.fee })),
-        });
-
-        // Show warning if no rates found
-        if (filteredRates.length === 0) {
-          Toast.show({
-            type: 'info',
-            text1: 'No Shipping Available',
-            text2: `We don't have shipping rates for ${targetAddress.city} yet.`,
-          });
-        }
-      }
+      console.log('Shipping methods set:', {
+        userCity: targetAddress.city,
+        methods: ['J&T', 'XDE'],
+        fee: 0,
+      });
     } catch (error) {
       console.error('Failed to fetch shipping rates:', error);
       Toast.show({
@@ -624,34 +613,32 @@ export default function CheckoutScreen({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header with Gradient */}
-      <LinearGradient
-        colors={isDarkMode ? ['rgba(59,130,246,0.15)', 'rgba(31,41,55,0)'] : ['rgba(14,165,233,0.18)', 'rgba(255,255,255,0)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top, backgroundColor: isDarkMode ? '#1f2937' : Colors.white, borderBottomColor: isDarkMode ? '#374151' : '#e5e7eb' }]}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={[styles.backBtn, isDarkMode ? { backgroundColor: '#374151', borderColor: '#4b5563' } : { backgroundColor: '#f1f5f9', borderColor: '#e5e7eb' }]}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back-outline" size={20} color={isDarkMode ? '#e5e7eb' : Colors.text} />
+      {/* Header with Background Image */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Image
+          source={require('../../assets/checkout_bg.png')}
+          style={styles.headerBackgroundImage}
+          resizeMode="cover"
+        />
+        <View style={[styles.headerContent, { paddingTop: insets.top, paddingRight: 12 }]}>
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <Ionicons name="chevron-back-outline" size={24} color={Colors.white} />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
-            <Text style={[styles.headerGreeting, { color: isDarkMode ? '#f8fafc' : Colors.text }]}>
-              Checkout
-            </Text>
-            {user?.name && (
-              <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#9ca3af' : Colors.textSecondary }]} numberOfLines={1}>
-                {user.name}
+            <View>
+              <Text style={[styles.headerGreeting, { color: Colors.white }]}>
+                Checkout
               </Text>
-            )}
+              {user?.name && (
+                <Text style={[styles.headerSubtitle, { color: Colors.white }]} numberOfLines={1}>
+                  {user.name}
+                </Text>
+              )}
+            </View>
           </View>
           <View style={{ width: 40 }} />
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -973,16 +960,20 @@ export default function CheckoutScreen({
                   <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{shippingCost.toLocaleString()}</Text>
                 </TouchableOpacity>
 
-                {/* Other Shipping Partners */}
-                {shippingMethods.slice(0, 2).map((method, index) => (
-                  <TouchableOpacity key={index} style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-                    <View style={styles.optionContent}>
-                      <Text style={[styles.optionName, { color: colors.text }]}>{method.province}</Text>
-                      <Text style={[styles.optionDays, { color: colors.textSec }]}>Delivery</Text>
-                    </View>
-                    <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{method.fee.toLocaleString()}</Text>
-                  </TouchableOpacity>
-                ))}
+                {/* Other Shipping Partners - J&T and XDE */}
+                {shippingMethods.slice(0, 2).map((method, index) => {
+                  const shippingPartners = ['J&T', 'XDE'];
+                  const providerName = shippingPartners[index] || `Partner ${index + 1}`;
+                  return (
+                    <TouchableOpacity key={index} style={[styles.shippingOptionCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
+                      <View style={styles.optionContent}>
+                        <Text style={[styles.optionName, { color: colors.text }]}>{providerName}</Text>
+                        <Text style={[styles.optionDays, { color: colors.textSec }]}>Standard Delivery</Text>
+                      </View>
+                      <Text style={[styles.optionPrice, { color: Colors.sky }]}>₱{method.fee.toLocaleString()}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -991,28 +982,69 @@ export default function CheckoutScreen({
         {/* Voucher Section */}
         <View style={[styles.section, { backgroundColor: colors.containerBg }]}>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Vouchers</Text>
+
+          {/* Voucher Input Field */}
+          <View style={styles.voucherInputContainer}>
+            <TextInput
+              placeholder="Enter voucher code"
+              placeholderTextColor={colors.textSec}
+              value={voucherCode}
+              onChangeText={setVoucherCode}
+              style={[styles.voucherInput, {
+                backgroundColor: colors.borderLight,
+                borderColor: colors.border,
+                color: colors.text
+              }]}
+            />
+            <TouchableOpacity
+              style={[styles.applyVoucherButton, { backgroundColor: Colors.sky }]}
+              onPress={() => {
+                if (voucherCode.trim()) {
+                  Toast.show({
+                    type: 'info',
+                    text1: 'Voucher Code',
+                    text2: `Applied: ${voucherCode}`,
+                  });
+                  setVoucherCode('');
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Please enter a voucher code',
+                  });
+                }
+              }}
+            >
+              <Text style={styles.applyVoucherButtonText}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.voucherList}>
-            {vouchers.map((voucher) => (
-              <TouchableOpacity
-                key={voucher.id}
-                style={[
-                  styles.voucherCard,
-                  {
-                    backgroundColor: selectedVoucher === voucher.id ? `${Colors.sky}15` : colors.borderLight,
-                    borderColor: selectedVoucher === voucher.id ? Colors.sky : colors.border,
-                  },
-                ]}
-                onPress={() => setSelectedVoucher(selectedVoucher === voucher.id ? null : voucher.id)}
-              >
-                <View style={styles.voucherContent}>
-                  <Text style={[styles.voucherCode, { color: Colors.sky }]}>{voucher.code}</Text>
-                  <Text style={[styles.voucherDesc, { color: colors.textSec }]}>{voucher.description}</Text>
-                </View>
-                {selectedVoucher === voucher.id && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.sky} />
-                )}
-              </TouchableOpacity>
-            ))}
+            {vouchers.length === 0 ? (
+              <Text style={[styles.noVouchersText, { color: colors.textSec }]}>No available vouchers</Text>
+            ) : (
+              vouchers.map((voucher) => (
+                <TouchableOpacity
+                  key={voucher.id}
+                  style={[
+                    styles.voucherCard,
+                    {
+                      backgroundColor: selectedVoucher === voucher.id ? `${Colors.sky}15` : colors.borderLight,
+                      borderColor: selectedVoucher === voucher.id ? Colors.sky : colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedVoucher(selectedVoucher === voucher.id ? null : voucher.id)}
+                >
+                  <View style={styles.voucherContent}>
+                    <Text style={[styles.voucherCode, { color: Colors.sky }]}>{voucher.code}</Text>
+                    <Text style={[styles.voucherDesc, { color: colors.textSec }]}>{voucher.description}</Text>
+                  </View>
+                  {selectedVoucher === voucher.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.sky} />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
 
@@ -1039,15 +1071,6 @@ export default function CheckoutScreen({
               <Text style={[styles.priceLabel, { color: colors.textSec }]}>Member Discount</Text>
               <Text style={[styles.priceValue, { color: Colors.sky }]}>
                 -₱{shopDiscount.toLocaleString()}
-              </Text>
-            </View>
-          )}
-
-          {voucherDiscount > 0 && (
-            <View style={[styles.priceRow, { borderBottomColor: colors.borderLight }]}>
-              <Text style={[styles.priceLabel, { color: colors.textSec }]}>Voucher Discount ({selectedVoucher && vouchers.find(v => v.id === selectedVoucher)?.code})</Text>
-              <Text style={[styles.priceValue, { color: Colors.sky }]}>
-                -₱{voucherDiscount.toLocaleString()}
               </Text>
             </View>
           )}
@@ -1139,32 +1162,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 100,
     borderBottomWidth: 1,
   },
+  headerBackgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
   headerContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginLeft: 0,
-    marginRight: 0,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    marginLeft: -12,
   },
   headerInfo: {
     flex: 1,
-    marginLeft: 8,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   headerGreeting: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   headerSubtitle: {
     fontSize: 12,
@@ -1419,6 +1458,31 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 0.5,
   },
+  voucherInputContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  voucherInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  applyVoucherButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  applyVoucherButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.white,
+  },
   voucherList: {
     gap: 10,
   },
@@ -1440,6 +1504,12 @@ const styles = StyleSheet.create({
   },
   voucherDesc: {
     fontSize: 11,
+  },
+  noVouchersText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingVertical: 16,
   },
   priceLabel: {
     fontSize: 12,
@@ -1474,11 +1544,11 @@ const styles = StyleSheet.create({
   footerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: 12,
   },
   footerPrice: {
-    flex: 1,
+    alignItems: 'flex-end',
   },
   footerPriceLabel: {
     fontSize: 11,
