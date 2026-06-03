@@ -1197,9 +1197,11 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
               onShowAFWalletRewards={() => setShowAFWalletRewards(true)}
               onShowAFWalletNetwork={() => setShowAFWalletNetwork(true)}
               onShowPVEarner={(show) => setShowPVEarnerFromTab(show)}
+              showPVEarnerFromTab={showPVEarnerFromTab}
               wishlistItems={wishlistItems}
               onWishlistChange={invalidateWishlist}
               onProductPress={(id) => {
+                setPreviousTab('profile');
                 setPreviousSearchQuery(null);
                 setSelectedProductId(id);
               }}

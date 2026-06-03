@@ -66,6 +66,7 @@ interface ProfileScreenProps {
   onShowAFWalletRewards?: () => void;
   onShowAFWalletNetwork?: () => void;
   onShowPVEarner?: (show: boolean) => void;
+  showPVEarnerFromTab?: boolean;
   wishlistItems?: any[];
   onWishlistChange?: () => void;
   onProductPress?: (id: number) => void;
@@ -103,7 +104,7 @@ const MENU_ITEMS = [
   { icon: 'log-out-outline' as const, label: 'Log Out', chevron: false, danger: true, key: 'logout' },
 ];
 
-export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress, onShowAFWalletOverview, onShowAFWalletVoucher, onShowAFWalletRewards, onShowAFWalletNetwork, onShowPVEarner, wishlistItems = [], onWishlistChange = () => {}, onProductPress = () => {} }: ProfileScreenProps) {
+export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCartPress, cartCount = 0, token, onShowProfileDetails, onShowReferralNetwork, closeReferralNetwork, isDarkMode = false, onPurchaseItemClick, linkedAccountsRefreshTrigger, onSecuritySettingsPress, onShowAFWalletOverview, onShowAFWalletVoucher, onShowAFWalletRewards, onShowAFWalletNetwork, onShowPVEarner, showPVEarnerFromTab = false, wishlistItems = [], onWishlistChange = () => {}, onProductPress = () => {} }: ProfileScreenProps) {
   console.log('[ProfileScreen] Component mounted/updated', {
     userEmail: user?.email,
     hasToken: !!token,
@@ -195,6 +196,11 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       setShowReferralNetwork(false);
     }
   }, [closeReferralNetwork]);
+
+  // Sync with AppNavigator state when ProfileScreen remounts after ProductDetailsScreen
+  useEffect(() => {
+    setShowPVEarner(showPVEarnerFromTab);
+  }, []);
 
   useEffect(() => {
     onShowPVEarner?.(showPVEarner);
@@ -1023,7 +1029,6 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
               setShowPVEarner(false);
             }}
             onProductPress={(id) => {
-              setShowPVEarner(false);
               onProductPress(id);
             }}
           />
