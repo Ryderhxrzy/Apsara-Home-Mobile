@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { storageService } from '../../services/storageService';
+import { useAppContext } from '../../context/AppContext';
 
 interface ChatBotIconProps {
   onPress?: () => void;
@@ -55,8 +56,9 @@ const SUGGESTED_QUESTIONS = [
 
 export default function ChatBotIcon({ onPress, position = 'bottom-right', visible = true, isDarkMode = false }: ChatBotIconProps) {
   const insets = useSafeAreaInsets();
+  const { chatbotHidden, setChatbotHidden } = useAppContext();
   const [chatVisible, setChatVisible] = useState(false);
-  const [isIconHidden, setIsIconHidden] = useState(false);
+  const [isIconHidden, setIsIconHidden] = useState(chatbotHidden);
   const [bubbleMessageIndex, setBubbleMessageIndex] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -97,12 +99,13 @@ export default function ChatBotIcon({ onPress, position = 'bottom-right', visibl
     const saveIconState = async () => {
       try {
         await storageService.setChatbotHidden(isIconHidden);
+        setChatbotHidden(isIconHidden);
       } catch (error) {
         console.error('Error saving chatbot state:', error);
       }
     };
     saveIconState();
-  }, [isIconHidden]);
+  }, [isIconHidden, setChatbotHidden]);
 
   // Vertical Floating Animation
   useEffect(() => {
