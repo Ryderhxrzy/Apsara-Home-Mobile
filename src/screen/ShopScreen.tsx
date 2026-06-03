@@ -122,14 +122,60 @@ function ShopScreen({
     }
   }, [currentPageProducts]);
 
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(() => filterStateRef.current.roomId);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(() => filterStateRef.current.categoryId);
-  const [selectedBrandId, setSelectedBrandId] = useState<number | null>(() => filterStateRef.current.brandId);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(() => {
+    // Initialize with new props if provided, otherwise use stored state
+    if (roomId !== null && roomId !== undefined) {
+      filterStateRef.current.roomId = roomId;
+      return roomId;
+    }
+    return filterStateRef.current.roomId;
+  });
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(() => {
+    // Initialize with new props if provided, otherwise use stored state
+    if (categoryId !== null && categoryId !== undefined) {
+      filterStateRef.current.categoryId = categoryId;
+      return categoryId;
+    }
+    return filterStateRef.current.categoryId;
+  });
+  const [selectedBrandId, setSelectedBrandId] = useState<number | null>(() => {
+    // Initialize with new props if provided, otherwise use stored state
+    if (brandId !== null && brandId !== undefined) {
+      filterStateRef.current.brandId = brandId;
+      return brandId;
+    }
+    return filterStateRef.current.brandId;
+  });
   const [selectedSort, setSelectedSort] = useState(() => filterStateRef.current.sort);
   const [selectedPrice, setSelectedPrice] = useState<any>(() => filterStateRef.current.price);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const prefetchedPageRef = useRef(2);
+
+  // Sync incoming props to local state when props change
+  useEffect(() => {
+    if (roomId !== null && roomId !== undefined && roomId !== selectedRoomId) {
+      filterStateRef.current.roomId = roomId;
+      setSelectedRoomId(roomId);
+      setCurrentPage(1);
+    }
+  }, [roomId, selectedRoomId]);
+
+  useEffect(() => {
+    if (categoryId !== null && categoryId !== undefined && categoryId !== selectedCategoryId) {
+      filterStateRef.current.categoryId = categoryId;
+      setSelectedCategoryId(categoryId);
+      setCurrentPage(1);
+    }
+  }, [categoryId, selectedCategoryId]);
+
+  useEffect(() => {
+    if (brandId !== null && brandId !== undefined && brandId !== selectedBrandId) {
+      filterStateRef.current.brandId = brandId;
+      setSelectedBrandId(brandId);
+      setCurrentPage(1);
+    }
+  }, [brandId, selectedBrandId]);
 
   const selectedRoom = useMemo(
     () => selectedRoomId ? ROOMS.find(r => r.room_id === selectedRoomId) : null,
