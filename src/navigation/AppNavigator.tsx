@@ -1197,6 +1197,8 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
               onShowAFWalletRewards={() => setShowAFWalletRewards(true)}
               onShowAFWalletNetwork={() => setShowAFWalletNetwork(true)}
               onShowPVEarner={(show) => setShowPVEarnerFromTab(show)}
+              wishlistItems={wishlistItems}
+              onWishlistChange={invalidateWishlist}
             />
           ) : activeTab === 'shop' ? (
             selectedBrandId != null && selectedBrand ? (
