@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Animated, Dimensions, ActivityIndicator, Image,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { Audio } from 'expo-av';
 import { Colors } from '../constants/colors';
 import { authService, SearchHistoryItem } from '../services/authService';
 import { userBehaviorService } from '../services/userBehaviorService';
@@ -70,9 +73,12 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
   const [liveResults, setLiveResults] = useState<LiveSearchItem[]>([]);
   const [loadingLive, setLoadingLive] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [voiceText, setVoiceText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -81,6 +87,138 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
       useNativeDriver: true,
     }).start(() => inputRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    initializeAudio();
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  const initializeAudio = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: false,
+        shouldDuckAndroid: true,
+      });
+    } catch (error) {
+      console.error('Audio mode setup failed:', error);
+    }
+  };
+
+  const transcribeAudio = async (uri: string) => {
+    try {
+      const formData = new FormData();
+      const fileBlob = await fetch(`file://${uri}`).then(res => res.blob());
+      formData.append('audio', fileBlob, 'audio.m4a');
+
+      const response = await axios.post(
+        `${API_CONFIG.BASE_URL}/transcribe`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      return response.data?.text || '';
+    } catch (error) {
+      console.error('Transcription error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Transcription Failed',
+        text2: 'Could not process audio. Please try again.',
+      });
+      return '';
+    }
+  };
+
+  const requestMicrophonePermission = async () => {
+    try {
+      const permission = await Audio.getPermissionsAsync();
+      if (permission.status === 'granted') {
+        return true;
+      }
+
+      const newPermission = await Audio.requestPermissionsAsync();
+      return newPermission.status === 'granted';
+    } catch (error) {
+      console.error('Permission error:', error);
+      return false;
+    }
+  };
+
+  const handleMicPress = async () => {
+    try {
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Denied',
+          text2: 'Microphone permission is required for voice search',
+        });
+        return;
+      }
+
+      if (isVoiceRecording) {
+        await stopRecording();
+      } else {
+        await startRecording();
+      }
+    } catch (error: any) {
+      console.error('Voice error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Voice Search Error',
+        text2: error.message || 'An error occurred',
+      });
+      setIsVoiceRecording(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      setIsVoiceRecording(true);
+      setVoiceText('');
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      recordingRef.current = recording;
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      setIsVoiceRecording(false);
+      throw error;
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      setIsVoiceRecording(false);
+
+      if (!recordingRef.current) return;
+
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+
+      if (uri) {
+        const transcript = await transcribeAudio(uri);
+        if (transcript) {
+          setVoiceText(transcript);
+          setQuery(transcript);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -251,8 +389,16 @@ export default function SearchScreen({ onBack, token, onProductPress, onSearchSu
                 <Ionicons name="close-circle" size={16} color={Colors.white} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
-                <Ionicons name="camera-outline" size={18} color={Colors.white} />
+              <TouchableOpacity
+                onPress={handleMicPress}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isVoiceRecording ? 'mic' : 'mic-outline'}
+                  size={18}
+                  color={isVoiceRecording ? Colors.forest : Colors.white}
+                />
               </TouchableOpacity>
             )}
           </View>
