@@ -155,6 +155,9 @@ export interface AppContextType {
   // ChatBot
   chatbotHidden: boolean;
   setChatbotHidden: (hidden: boolean) => void;
+
+  // Optimistic wishlist updates
+  handleOptimisticWishlistToggle?: (productId: number, isWishlisted: boolean, productData?: any) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
