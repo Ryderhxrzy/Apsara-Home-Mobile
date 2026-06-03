@@ -278,6 +278,21 @@ export const productService = {
       throw error;
     }
   },
+
+  async getShopByRooms(token?: string): Promise<any[]> {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+
+    try {
+      const response = await api.get('/shop/rooms', { headers });
+      return response.data?.rooms || [];
+    } catch (error) {
+      console.error('Error fetching shop by rooms:', error);
+      return [];
+    }
+  },
 };
 
 export default productService;

@@ -557,4 +557,36 @@ export const authService = {
       } as AuthError;
     }
   },
+
+  async getShopByCategories(token?: string): Promise<CategoryItem[]> {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await api.get('/shop/categories', { headers });
+      const data = response.data;
+      if (Array.isArray(data?.categories)) return data.categories;
+      return [];
+    } catch (error: any) {
+      throw {
+        message: error.response?.data?.message || 'Failed to load shop categories',
+        details: error.response?.data,
+        status: error.response?.status,
+      } as AuthError;
+    }
+  },
+
+  async getShopByBrands(token?: string): Promise<BrandItem[]> {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await api.get('/shop/brands', { headers });
+      const data = response.data;
+      if (Array.isArray(data?.brands)) return data.brands;
+      return [];
+    } catch (error: any) {
+      throw {
+        message: error.response?.data?.message || 'Failed to load shop brands',
+        details: error.response?.data,
+        status: error.response?.status,
+      } as AuthError;
+    }
+  },
 };
