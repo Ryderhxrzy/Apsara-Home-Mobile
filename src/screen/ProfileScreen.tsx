@@ -510,7 +510,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             <View style={styles.pvStatsRow}>
               <View style={styles.pvStatItem}>
                 <Text style={[styles.pvStatLabel, { color: colors.textSec }]}>Total PV</Text>
-                <Text style={[styles.pvStatValue, { color: Colors.sky }]}>{loyaltyData.personal_pv || 0}</Text>
+                <Text style={[styles.pvStatValue, { color: Colors.sky }]}>{user?.monthly_activation?.remaining_pv ?? 0}</Text>
               </View>
               <View style={[styles.pvStatDivider, { backgroundColor: colors.border }]} />
               <View style={styles.pvStatItem}>
