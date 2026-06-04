@@ -60,6 +60,7 @@ import FAQsScreen from '../screen/FAQsScreen';
 import ShippingInfoScreen from '../screen/ShippingInfoScreen';
 import ReturnsScreen from '../screen/ReturnsScreen';
 import ProfileEditScreen from '../screen/ProfileEditScreen';
+import PVEarnerScreen from '../screen/PVEarnerScreen';
 import { orderService } from '../services/orderService';
 import Toast from 'react-native-toast-message';
 import { useNotifications } from '../hooks/useNotifications';
@@ -1178,7 +1179,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 setChatbotHidden,
               }}
             >
-              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null} />
+              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null || showPVEarnerFromTab} />
             </AppContextProvider>
           )}
         </View>
@@ -1690,6 +1691,29 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
             }}
             onGoogleLinked={() => setLinkedAccountsRefreshTrigger(prev => prev + 1)}
             onOpenHistory={() => setShowHistory(true)}
+          />
+        </View>
+      )}
+
+      {showPVEarnerFromTab && (
+        <View style={styles.cartScreenOverlay}>
+          <PVEarnerScreen
+            isDarkMode={isDarkMode}
+            onBack={() => setShowPVEarnerFromTab(false)}
+            token={token}
+            wishlistItems={wishlistItems}
+            onWishlistChange={() => invalidateWishlist()}
+            onProductPress={(id) => {
+              setShowPVEarnerFromTab(false);
+              setPreviousSearchQuery(null);
+              setPreviousTab(activeTab);
+              setSelectedProductId(id);
+            }}
+            onShopPress={() => {
+              setShowPVEarnerFromTab(false);
+              setPreviousTab(activeTab);
+              setActiveTab('shop');
+            }}
           />
         </View>
       )}
