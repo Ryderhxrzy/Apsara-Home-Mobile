@@ -136,7 +136,6 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [showLevelProgressDetails, setShowLevelProgressDetails] = useState(false);
-  const [showPVEarner, setShowPVEarner] = useState(false);
   const [orderCounts, setOrderCounts] = useState<any>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(true);
   const [walletData, setWalletData] = useState<any>(null);
@@ -197,15 +196,6 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
       setShowReferralNetwork(false);
     }
   }, [closeReferralNetwork]);
-
-  // Sync with AppNavigator state when ProfileScreen remounts after ProductDetailsScreen
-  useEffect(() => {
-    setShowPVEarner(showPVEarnerFromTab);
-  }, []);
-
-  useEffect(() => {
-    onShowPVEarner?.(showPVEarner);
-  }, [showPVEarner, onShowPVEarner]);
 
   useEffect(() => {
     console.log('[ProfileScreen] useEffect token changed:', { token: !!token });
@@ -503,7 +493,7 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             <TouchableOpacity
               style={[styles.dailyCheckinBtn, { borderTopColor: colors.borderLight }]}
               onPress={() => {
-                setShowPVEarner(true);
+                onShowPVEarner?.(true);
               }}
               activeOpacity={0.8}
             >
@@ -1014,28 +1004,6 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
             activeLeaders={loyaltyData.active_leaders_count}
             isDarkMode={isDarkMode}
             onBack={() => setShowLevelProgressDetails(false)}
-          />
-        </View>
-      )}
-
-      {showPVEarner && (
-        <View style={styles.profileDetailsOverlay}>
-          <PVEarnerScreen
-            isDarkMode={isDarkMode}
-            token={token}
-            wishlistItems={wishlistItems}
-            onWishlistChange={onWishlistChange}
-            onBack={() => setShowPVEarner(false)}
-            onDailyCheckin={() => {
-              setShowPVEarner(false);
-            }}
-            onProductPress={(id) => {
-              onProductPress(id);
-            }}
-            onShopPress={() => {
-              setShowPVEarner(false);
-              onShopNavigate?.();
-            }}
           />
         </View>
       )}
