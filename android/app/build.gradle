@@ -89,7 +89,7 @@ android {
 
     namespace 'com.afhome.mobile'
     defaultConfig {
-        applicationId 'com.afhome.mobile7
+        applicationId 'com.afhome.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 7
