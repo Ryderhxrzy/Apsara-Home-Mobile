@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,12 +33,14 @@ export default function ReferralNetworkScreen({ token, onBack, tree, isDarkMode 
   };
 
   useEffect(() => {
-    if (tree) {
-      // Attach children to root user
-      if (!tree.root.children && tree.children) {
-        (tree.root as any).children = tree.children;
-        (tree.root as any).children_count = tree.children.length;
-      }
+    if (tree && tree.root && !tree.root.children && tree.children && tree.children.length > 0) {
+      // Initialize expanded node to show root
+      setExpandedNodes(new Set([tree.root.id]));
+      console.log('[ReferralNetworkScreen] Tree data loaded:', {
+        rootId: tree.root.id,
+        totalNetwork: tree.summary?.total_network,
+        childrenCount: tree.children?.length
+      });
     }
   }, [tree]);
 
@@ -191,10 +194,24 @@ export default function ReferralNetworkScreen({ token, onBack, tree, isDarkMode 
   if (!tree) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
+        <View style={[styles.headerGradient, { paddingTop: insets.top }]}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={onBack}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back-outline" size={20} color={Colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Referral Network</Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </View>
         <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={Colors.sky} style={{ marginBottom: 16 }} />
           <Ionicons name="people-outline" size={40} color={Colors.textSecondary} />
-          <Text style={styles.emptyTitle}>No referral network data</Text>
-          <Text style={styles.emptyText}>Unable to load your referral tree right now.</Text>
+          <Text style={styles.emptyTitle}>Loading your network...</Text>
+          <Text style={styles.emptyText}>Please wait while we fetch your referral data.</Text>
           <TouchableOpacity style={styles.emptyBackBtn} onPress={onBack} activeOpacity={0.7}>
             <Text style={styles.emptyBackBtnText}>Go Back</Text>
           </TouchableOpacity>
@@ -202,6 +219,11 @@ export default function ReferralNetworkScreen({ token, onBack, tree, isDarkMode 
       </View>
     );
   }
+
+  // Prepare root with children for rendering
+  const rootWithChildren = tree.root.children
+    ? tree.root
+    : { ...tree.root, children: tree.children || [] };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -237,15 +259,15 @@ export default function ReferralNetworkScreen({ token, onBack, tree, isDarkMode 
           </View>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{tree.summary.total_network}</Text>
+              <Text style={styles.summaryValue}>{tree.summary?.total_network || 0}</Text>
               <Text style={styles.summaryLabel}>Total Referrals</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{tree.summary.direct_count}</Text>
+              <Text style={styles.summaryValue}>{tree.summary?.direct_count || 0}</Text>
               <Text style={styles.summaryLabel}>Direct</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>₱{tree.root.total_earnings}</Text>
+              <Text style={styles.summaryValue}>₱{tree.root?.total_earnings || 0}</Text>
               <Text style={styles.summaryLabel}>Earned</Text>
             </View>
           </View>
@@ -263,7 +285,7 @@ export default function ReferralNetworkScreen({ token, onBack, tree, isDarkMode 
             style={styles.treeScrollView}
           >
             <View style={styles.treeContainer}>
-              {renderUserCard(tree.root)}
+              {renderUserCard(rootWithChildren)}
             </View>
           </ScrollView>
         </View>

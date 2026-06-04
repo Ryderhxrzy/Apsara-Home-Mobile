@@ -440,7 +440,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
       console.log('[AppNavigator] 🔗 Deep link includes purchases://:', url.includes('purchases://'));
       console.log('[AppNavigator] 🔗 Deep link includes apsarahome://purchases/:', url.includes('apsarahome://purchases/'));
 
-      if (url.includes('payment/success') || url.includes('/app/checkout/success')) {
+      if (url.includes('payment/success') || url.includes('/app/checkout/success') || url.includes('apsarahome://payment/success')) {
         console.log('[AppNavigator] Payment success deep link triggered:', url);
         setShowPaymentWebView(false);
 
@@ -525,7 +525,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
             setShowPaymentSuccess(true);
           }
         }
-      } else if (url.includes('payment/cancel') || url.includes('/app/checkout/cancel')) {
+      } else if (url.includes('payment/cancel') || url.includes('/app/checkout/cancel') || url.includes('apsarahome://payment/cancel')) {
         console.log('[AppNavigator] Payment cancel deep link triggered:', url);
         setShowPaymentCancel(true);
         setShowPaymentWebView(false);
@@ -1181,7 +1181,11 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                   setActiveTab('shop');
                 },
                 onShowProfileDetails: (show: boolean) => setShowProfileDetails(show),
-                onShowReferralNetwork: (show: boolean) => setReferralNetworkFromTab(show),
+                onShowReferralNetwork: (show: boolean, tree?: ReferralTree | null) => {
+                  setReferralNetworkFromTab(show);
+                  if (tree) setReferralTree(tree);
+                  if (!show) setCloseReferralNetwork(true);
+                },
                 onPurchaseItemClick: () => setShowPurchases(true),
                 onSecuritySettingsPress: () => setShowSecurity(true),
                 setShowSettings,
@@ -1195,7 +1199,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 setChatbotHidden,
               }}
             >
-              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null || showPVEarnerFromTab} />
+              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null || showPVEarnerFromTab || showSettings || showSecurity || showProfileDetails || referralNetworkFromTab || showShippingInfo || showReturns} />
             </AppContextProvider>
           )}
         </View>

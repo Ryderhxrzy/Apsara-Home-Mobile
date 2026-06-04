@@ -223,9 +223,16 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     if (!token) return;
     try {
       const data = await referralService.getReferralTree(token);
-      setReferralTree(data);
+      console.log('[ProfileScreen] fetchReferralTree - initial load:', {
+        hasData: !!data,
+        hasRoot: !!data?.root,
+        totalNetwork: data?.summary?.total_network
+      });
+      if (data && data.root) {
+        setReferralTree(data);
+      }
     } catch (error: any) {
-      console.error('Error fetching referral tree:', error);
+      console.error('[ProfileScreen] fetchReferralTree - error:', error?.message || error);
     }
   };
 
@@ -357,9 +364,22 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
     setLoadingReferral(true);
     try {
       const data = await referralService.getReferralTree(token);
+      console.log('[ProfileScreen] handleViewNetwork - data fetched:', {
+        hasData: !!data,
+        hasRoot: !!data?.root,
+        rootId: data?.root?.id,
+        totalNetwork: data?.summary?.total_network
+      });
+
+      if (!data || !data.root) {
+        console.warn('[ProfileScreen] Invalid referral tree data - missing root:', data);
+        throw new Error('Unable to load referral network. Please try again.');
+      }
+
       setReferralTree(data);
       setShowReferralNetwork(true);
     } catch (error: any) {
+      console.error('[ProfileScreen] handleViewNetwork - error:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',
