@@ -452,12 +452,6 @@ export default function ProfileScreen({ user, onLogout, onNavigateSettings, onCa
                 )}
                 <View style={styles.usernameDot} />
                 <Text style={[styles.usernamePvText, { color: Colors.white }]}>{user.monthly_activation?.remaining_pv ?? 0} PV</Text>
-                {user?.rank && (
-                  <>
-                    <View style={styles.usernameDot} />
-                    <Text style={[styles.userRankText, { color: Colors.white }]}>Rank #{user.rank}</Text>
-                  </>
-                )}
               </View>
             )}
           </View>
