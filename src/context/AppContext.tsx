@@ -103,9 +103,12 @@ export interface AppContextType {
   searchSourceProductId: number | null;
   setSearchSourceProductId: (id: number | null) => void;
 
-  // PV Earner & Profiles
+  // PV Earner & Profiles & Settings & Leaderboard
   showPVEarnerFromTab: boolean;
   setShowPVEarnerFromTab: (show: boolean) => void;
+  showLeaderboard: boolean;
+  setShowLeaderboard: (show: boolean) => void;
+  setShowSettings?: (show: boolean) => void;
   profileDetailsFromTab: boolean;
   setProfileDetailsFromTab: (show: boolean) => void;
   currentProfile: any;
