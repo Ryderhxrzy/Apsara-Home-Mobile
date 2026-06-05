@@ -18,6 +18,9 @@ class MainActivity : ReactActivity() {
     private const val TAG = "MainActivity"
   }
 
+  private var lastProcessedDeeplink: String? = null
+  private var isInitialLaunch = true
+
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
@@ -26,7 +29,10 @@ class MainActivity : ReactActivity() {
 
     // Handle deeplink from notification BEFORE React initializes
     // This ensures React's Linking.getInitialURL() picks up the deeplink
-    handleNotificationIntent(intent)
+    if (isInitialLaunch) {
+      handleNotificationIntent(intent)
+      isInitialLaunch = false
+    }
 
     super.onCreate(null)
   }
@@ -54,6 +60,7 @@ class MainActivity : ReactActivity() {
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    setIntent(intent)
     // Handle deeplink when app is already running and user taps notification
     handleNotificationIntent(intent)
   }
@@ -64,10 +71,31 @@ class MainActivity : ReactActivity() {
     Log.d(TAG, "Intent data: ${intent?.data}")
 
     if (intent?.data != null) {
-      Log.d(TAG, "Notification deeplink received: ${intent.data}")
+      val deeplink = intent.data.toString()
+      Log.d(TAG, "Notification deeplink received: $deeplink")
       Log.d(TAG, "URI scheme: ${intent.data?.scheme}, host: ${intent.data?.host}, path: ${intent.data?.path}")
-      setIntent(intent)
-      Log.d(TAG, "Intent updated in MainActivity")
+
+      // Only set intent if this is a NEW deeplink (not already processed)
+      if (deeplink != lastProcessedDeeplink) {
+        lastProcessedDeeplink = deeplink
+        setIntent(intent)
+        Log.d(TAG, "Intent updated in MainActivity with new deeplink")
+
+        // Schedule clearing the intent after a delay to let React Navigation process it
+        // This prevents the same deeplink from being triggered on app reopens
+        window.decorView.postDelayed({
+          val newIntent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            // Explicitly set data to null to clear any deeplink
+            data = null
+          }
+          setIntent(newIntent)
+          Log.d(TAG, "Intent cleared after React Navigation processing")
+        }, 1500)
+      } else {
+        Log.d(TAG, "Ignoring duplicate deeplink: $deeplink")
+      }
     } else {
       Log.d(TAG, "No deeplink found in intent data")
     }
