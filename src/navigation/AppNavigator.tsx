@@ -1188,7 +1188,10 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                   setReferralNetworkFromTab(true);
                   if (tree) setReferralTree(tree);
                 },
-                onPurchaseItemClick: () => setShowPurchases(true),
+                onPurchaseItemClick: (status: string) => {
+                  setPurchasesStatus(normalizePurchaseStatus(status));
+                  setShowPurchases(true);
+                },
                 onSecuritySettingsPress: () => setShowSecurity(true),
                 setShowSettings,
                 onShowAFWalletOverview: () => setShowAFWalletOverview(true),
