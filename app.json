@@ -2,7 +2,7 @@
   "expo": {
     "name": "AF Home",
     "slug": "afhomeph",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "orientation": "portrait",
     "icon": "./assets/icons.png",
     "userInterfaceStyle": "light",
@@ -45,7 +45,7 @@
         "color": "#13a1d4"
       },
       "predictiveBackGestureEnabled": false,
-      "runtimeVersion": "1.3.3"
+      "runtimeVersion": "1.3.4"
     },
     "web": {
       "favicon": "./assets/favicon.png"
