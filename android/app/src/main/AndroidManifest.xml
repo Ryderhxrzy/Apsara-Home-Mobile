@@ -74,5 +74,25 @@
       android:name=".LeaderboardWidgetService"
       android:exported="false"
       android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+    <!-- My Orders Widget Provider -->
+    <receiver
+      android:name=".MyOrdersWidgetProvider"
+      android:exported="true"
+      android:permission="android.permission.BIND_APPWIDGET">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        <action android:name="com.afhome.mobile.UPDATE_MY_ORDERS_WIDGET" />
+        <action android:name="com.afhome.mobile.REFRESH_MY_ORDERS_WIDGET" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widget_my_orders_info" />
+    </receiver>
+
+    <!-- My Orders Widget Background Update Worker -->
+    <service
+      android:name=".MyOrdersWidgetUpdateWorker"
+      android:exported="false" />
   </application>
 </manifest>
