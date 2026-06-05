@@ -57,34 +57,28 @@ function HomeTabScreen() {
   } = useAppContext();
 
   const handleShopByRoom = useCallback((roomId: number) => {
+    setPreviousTab(activeTab);
+    setSelectedRoomId(roomId);
+    setSelectedCategoryId(null as any);
     navigation.navigate('shop' as any);
-    setImmediate(() => {
-      setPreviousTab(activeTab);
-      setSelectedRoomId(roomId);
-      setSelectedCategoryId(null as any);
-    });
-  }, [navigation, activeTab]);
+  }, [navigation, activeTab, setPreviousTab, setSelectedRoomId, setSelectedCategoryId]);
 
   const handleShopByCategory = useCallback((categoryId: number) => {
+    setPreviousTab(activeTab);
+    setSelectedCategoryId(categoryId);
+    setSelectedRoomId(null as any);
     navigation.navigate('shop' as any);
-    setImmediate(() => {
-      setPreviousTab(activeTab);
-      setSelectedCategoryId(categoryId);
-      setSelectedRoomId(null as any);
-    });
-  }, [navigation, activeTab]);
+  }, [navigation, activeTab, setPreviousTab, setSelectedCategoryId, setSelectedRoomId]);
 
   const handleShopByBrand = useCallback((brandId: number) => {
     const brand = homeBrands.find(b => b.id === brandId);
+    setPreviousTab(activeTab);
+    setSelectedBrandId(brandId);
+    setSelectedBrand(brand || null);
+    setSelectedRoomId(null as any);
+    setSelectedCategoryId(null as any);
     navigation.navigate('shop' as any);
-    setImmediate(() => {
-      setPreviousTab(activeTab);
-      setSelectedBrandId(brandId);
-      setSelectedBrand(brand || null);
-      setSelectedRoomId(null as any);
-      setSelectedCategoryId(null as any);
-    });
-  }, [navigation, activeTab, homeBrands]);
+  }, [navigation, activeTab, homeBrands, setPreviousTab, setSelectedBrandId, setSelectedBrand, setSelectedRoomId, setSelectedCategoryId]);
 
   if (!isInitialHomeDataReady) return <LoadingScreen />;
 
@@ -170,6 +164,7 @@ function WishlistTabScreen() {
 
 // Shop Tab Screen Wrapper
 function ShopTabScreen() {
+  const navigation = useNavigation();
   const {
     token,
     enrichedUser,
@@ -198,6 +193,8 @@ function ShopTabScreen() {
     setShopSelectedProductId,
     onCartPress,
     onSearchPress,
+    previousTab,
+    setActiveTab,
   } = useAppContext();
 
   const handleShopProductPress = useCallback((id: number) => {
@@ -219,6 +216,7 @@ function ShopTabScreen() {
           onBack={() => {
             setSelectedBrandId(null);
             setSelectedBrand(null);
+            setActiveTab(previousTab);
             if (shopSourceIsCheckout) {
               setShopSourceIsCheckout(false);
             } else if (shopSourceIsCart) {
