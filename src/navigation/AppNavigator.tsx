@@ -263,6 +263,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
   const [paymentConfirmationData, setPaymentConfirmationData] = useState<any>(null);
   const [showSecurity, setShowSecurity] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [previousScreenFromSecurity, setPreviousScreenFromSecurity] = useState<'settings' | null>(null);
   const [editProfileFromSettings, setEditProfileFromSettings] = useState(false);
@@ -1124,6 +1125,8 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 setSearchSourceProductId,
                 showPVEarnerFromTab,
                 setShowPVEarnerFromTab,
+                showLeaderboard,
+                setShowLeaderboard,
                 profileDetailsFromTab: false,
                 setProfileDetailsFromTab: () => {},
                 currentProfile: null,
@@ -1198,7 +1201,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 setChatbotHidden,
               }}
             >
-              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null || showPVEarnerFromTab || showSettings || showSecurity || showProfileDetails || referralNetworkFromTab || showShippingInfo || showReturns} />
+              <TabNavigator hideTabBar={!isInitialHomeDataReady || selectedProductId !== null || searchQuery !== null || showPVEarnerFromTab || showSettings || showSecurity || showProfileDetails || referralNetworkFromTab || showShippingInfo || showReturns || showLeaderboard} />
             </AppContextProvider>
           )}
         </View>
