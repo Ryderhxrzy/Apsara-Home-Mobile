@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +38,7 @@ export default function IndexScreen({
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const player = useVideoPlayer(require('../../assets/login/afhome.mp4'), p => {
     p.loop = true;
@@ -260,7 +262,7 @@ export default function IndexScreen({
           />
 
           {/* Bottom Content Section */}
-          <SafeAreaView style={styles.contentSection} edges={['bottom']}>
+          <SafeAreaView style={[styles.contentSection, { paddingBottom: Math.max(32, insets.bottom) }]}>
             {/* Logo and Text Section */}
           <View style={styles.textWithLogoSection}>
               <View style={styles.logoWithTextRow}>
@@ -408,7 +410,6 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
     gap: 24,
     zIndex: 2,
   },
