@@ -27,4 +27,9 @@
     native <methods>;
 }
 
+# Expo modules
+-keep class expo.modules.kotlin.** { *; }
+-keep class expo.modules.camera.** { *; }
+-keep interface expo.modules.kotlin.** { *; }
+
 # Add any project specific keep options here:
