@@ -12,10 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
-import axios from 'axios';
-import { API_CONFIG } from '../config/api';
 import ItemCard from '../components/Items/ItemCard';
 import Toast from 'react-native-toast-message';
+import { meilisearchService } from '../services/meilisearchService';
 import type { ProductCard } from '../services/productService';
 
 const { width } = Dimensions.get('window');
@@ -40,7 +39,7 @@ export default function SearchResultScreen({
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchResults = useCallback(async () => {
-    if (!token || !query.trim()) {
+    if (!query.trim()) {
       setProducts([]);
       setLoading(false);
       setRefreshing(false);
@@ -48,47 +47,25 @@ export default function SearchResultScreen({
     }
     try {
       setLoading(true);
-      const res = await axios.get(`${API_CONFIG.BASE_URL}/meilisearch/search`, {
-        params: { q: query.trim() },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const results = await meilisearchService.searchProducts(query.trim(), 50);
 
-      if (res.data?.success && Array.isArray(res.data?.results)) {
-        const mapped: ProductCard[] = res.data.results.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          image: item.image || '',
-          soldCount: 0,
-          originalPrice: item.original_price,
-          memberPrice: item.discounted_price,
-          pv: item.pv,
-          brandName: item.brand_name || '',
-          variantCount: item.badges?.variant_count ?? 0,
-          badges: {
-            musthave: item.badges?.musthave ?? false,
-            bestseller: item.badges?.bestseller ?? false,
-            salespromo: item.has_discount ?? false,
-          },
-        }));
-        console.log('🔍 Search Results:', {
-          count: mapped.length,
-          firstItem: mapped[0] && { id: mapped[0].id, name: mapped[0].name, hasImage: !!mapped[0].image, imageLength: mapped[0].image?.length },
-        });
-        setProducts(mapped);
-      } else {
-        setProducts([]);
-      }
+      console.log('🔍 Search Results:', {
+        count: results.length,
+        firstItem: results[0] && { id: results[0].id, name: results[0].name, hasImage: !!results[0].image },
+      });
+      setProducts(results);
     } catch (error: any) {
       Toast.show({
         type: 'error',
         text1: 'Search Failed',
         text2: error.message || 'Unable to load search results',
       });
+      setProducts([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, query]);
+  }, [query]);
 
   useEffect(() => {
     fetchResults();
