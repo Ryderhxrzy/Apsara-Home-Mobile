@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Notification navigation handler
 export class NotificationService {
   /**

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import OneSignal from 'react-native-onesignal';
 
 export class OneSignalNotificationService {

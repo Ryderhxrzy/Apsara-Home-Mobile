@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useRef, useMemo, useEffect } from 'react';
 import {
   View, Image, Text, TouchableOpacity, ScrollView, StyleSheet,

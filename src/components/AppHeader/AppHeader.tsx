@@ -40,6 +40,9 @@ interface AppHeaderProps {
   showCategoryFilter?: boolean;
   selectedCategory?: string;
   categories?: any[];
+  showBrandFilter?: boolean;
+  selectedBrand?: string;
+  brands?: any[];
   isDarkMode?: boolean;
   showScrollToTop?: boolean;
   onScrollToTop?: () => void;

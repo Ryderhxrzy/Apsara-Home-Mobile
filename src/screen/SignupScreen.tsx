@@ -32,6 +32,8 @@ type SignupScreenProps = {
   onContinueToOtp?: (email: string, verificationToken: string) => void;
 };
 
+const SIGNUP_BACKGROUND_VIDEO_URL = 'https://res.cloudinary.com/dc05ncs6l/video/upload/v1780726529/afhome_go2re6.mp4';
+
 export default function SignupScreen({ onGoToLogin, onGoToIndex, onContinueToOtp }: SignupScreenProps) {
   const { width } = useWindowDimensions();
   const isCompact = width < 700;
@@ -53,7 +55,7 @@ export default function SignupScreen({ onGoToLogin, onGoToIndex, onContinueToOtp
     passwordConfirmation: '',
   });
 
-  const player = useVideoPlayer(require('../../assets/login/afhome.mp4'), p => {
+  const player = useVideoPlayer({ uri: SIGNUP_BACKGROUND_VIDEO_URL }, p => {
     p.loop = true;
     p.muted = true;
     p.play();

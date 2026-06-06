@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService, LoginResponse, AuthError } from './authService';

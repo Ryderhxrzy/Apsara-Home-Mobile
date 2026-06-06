@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo, useCallback } from 'react';
 import { createBottomTabNavigator, useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';

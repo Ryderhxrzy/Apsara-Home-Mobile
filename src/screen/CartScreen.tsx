@@ -82,6 +82,7 @@ const getBrandLogo = (brandName: string, brands: BrandItem[]): string | null => 
 interface BrandItem {
   id: number;
   name: string;
+  logo: string;
 }
 
 interface CartVariant {

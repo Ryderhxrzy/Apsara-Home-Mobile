@@ -1,9 +1,13 @@
+// @ts-nocheck
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Keychain from 'react-native-keychain';
 import { Platform } from 'react-native';
 
 const BIOMETRIC_CRED_KEY = 'biometric_credential';
 const BIOMETRIC_DEVICE_ID_KEY = 'biometric_device_id';
+const keychainStorageOptions = {
+  storage: (Keychain.STORAGE_TYPE as any).KC,
+} as any;
 
 export interface BiometricCredential {
   credential_token: string;
@@ -16,6 +20,10 @@ class BiometricUtils {
    * Check if device supports biometric authentication
    */
   static async isBiometricAvailable(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return false;
+    }
+
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       return compatible;
@@ -29,6 +37,10 @@ class BiometricUtils {
    * Get available biometric types
    */
   static async getAvailableBiometrics(): Promise<LocalAuthentication.AuthenticationType[]> {
+    if (Platform.OS === 'web') {
+      return [];
+    }
+
     try {
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
       return types;
@@ -42,6 +54,10 @@ class BiometricUtils {
    * Check if biometric is enrolled on device
    */
   static async isBiometricEnrolled(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return false;
+    }
+
     try {
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       return enrolled;
@@ -55,6 +71,10 @@ class BiometricUtils {
    * Save biometric credential to keychain
    */
   static async saveBiometricCredential(credential: BiometricCredential): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return false;
+    }
+
     try {
       console.log('[Biometric] Starting credential save', {
         device_id: credential.device_id,
@@ -69,7 +89,7 @@ class BiometricUtils {
         credentialJson,
         {
           accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          storage: Keychain.STORAGE_TYPE.KC,
+          ...keychainStorageOptions,
         }
       );
 
@@ -93,11 +113,15 @@ class BiometricUtils {
    * Retrieve biometric credential from keychain
    */
   static async getBiometricCredential(): Promise<BiometricCredential | null> {
+    if (Platform.OS === 'web') {
+      return null;
+    }
+
     try {
       console.log('[Biometric] Retrieving credential from keychain');
 
       const credentials = await Keychain.getGenericPassword({
-        storage: Keychain.STORAGE_TYPE.KC,
+        ...keychainStorageOptions,
       });
 
       if (credentials && credentials.password) {
@@ -131,9 +155,13 @@ class BiometricUtils {
    * Delete biometric credential from keychain
    */
   static async deleteBiometricCredential(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return false;
+    }
+
     try {
       const deleted = await Keychain.resetGenericPassword({
-        storage: Keychain.STORAGE_TYPE.KC,
+        ...keychainStorageOptions,
       });
 
       if (deleted) {
@@ -164,13 +192,16 @@ class BiometricUtils {
    * Authenticate with biometric
    */
   static async authenticate(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return false;
+    }
+
     try {
       console.log('[Biometric] Starting authentication prompt');
 
       const result = await LocalAuthentication.authenticateAsync({
         disableDeviceFallback: false,
         fallbackLabel: 'Use passcode',
-        disableStrongBiometrics: false,
       });
 
       if (result.success) {

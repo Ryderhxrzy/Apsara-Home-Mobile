@@ -105,25 +105,6 @@ function ShopScreen({
     console.log('🛍️ ShopScreen MOUNTED');
   }, []);
 
-  // Restore scroll position when products are available
-  useEffect(() => {
-    if (!currentPageProducts || currentPageProducts.length === 0) return;
-
-    if (lastScrollOffsetRef.current > 0) {
-      const restoreTimeout = setTimeout(() => {
-        try {
-          flatListRef.current?.scrollToOffset({
-            offset: lastScrollOffsetRef.current,
-            animated: false,
-          });
-        } catch (error) {
-          console.log('Scroll restore error:', error);
-        }
-      }, 100);
-      return () => clearTimeout(restoreTimeout);
-    }
-  }, [currentPageProducts]);
-
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(() => {
     // Initialize with new props if provided, otherwise use stored state
     if (roomId !== null && roomId !== undefined) {
@@ -295,7 +276,7 @@ function ShopScreen({
     // Apply price filter
     if (selectedPrice && selectedPrice !== 'All') {
       products = products.filter((product: Product) => {
-        const price = product.price || 0;
+        const price = product.priceMember ?? product.priceDp ?? product.priceSrp ?? 0;
         switch (selectedPrice) {
           case 'Under ₱5k':
             return price < 5000;
@@ -324,6 +305,25 @@ function ShopScreen({
     }
     return products;
   }, [data?.pages, currentPage, selectedSort, selectedPrice]);
+
+  // Restore scroll position when products are available
+  useEffect(() => {
+    if (currentPageProducts.length === 0) return;
+
+    if (lastScrollOffsetRef.current > 0) {
+      const restoreTimeout = setTimeout(() => {
+        try {
+          flatListRef.current?.scrollToOffset({
+            offset: lastScrollOffsetRef.current,
+            animated: false,
+          });
+        } catch (error) {
+          console.log('Scroll restore error:', error);
+        }
+      }, 100);
+      return () => clearTimeout(restoreTimeout);
+    }
+  }, [currentPageProducts]);
 
   // Get pagination info
   const paginationInfo = useMemo(() => {

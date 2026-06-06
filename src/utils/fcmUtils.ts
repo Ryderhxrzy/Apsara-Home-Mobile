@@ -1,12 +1,16 @@
-import { getMessaging, getToken } from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
+import { getToken } from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFirebaseMessagingAsync } from './firebaseMessaging';
 
 const FCM_TOKEN_KEY = 'fcm_token';
 
 export const getFCMToken = async (): Promise<string | null> => {
   try {
-    const messaging = getMessaging();
+    const messaging = await getFirebaseMessagingAsync();
+    if (!messaging) {
+      return null;
+    }
+
     const currentToken = await getToken(messaging);
 
     if (!currentToken) {

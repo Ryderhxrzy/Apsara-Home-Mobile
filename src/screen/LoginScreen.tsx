@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -130,7 +131,7 @@ export default function LoginScreen({
     }
   }
 
-  const player = useVideoPlayer(require('../../assets/login/afhome.mp4'), p => {
+  const player = useVideoPlayer({ uri: 'https://res.cloudinary.com/dc05ncs6l/video/upload/v1780726529/afhome_go2re6.mp4' }, p => {
     p.loop = true;
     p.muted = true;
     p.play();

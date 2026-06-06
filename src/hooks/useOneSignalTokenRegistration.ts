@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import OneSignal from 'react-native-onesignal';

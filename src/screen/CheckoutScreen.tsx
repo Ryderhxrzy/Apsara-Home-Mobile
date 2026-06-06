@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Device from 'expo-device';
+import * as Application from 'expo-application';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/colors';
@@ -23,6 +23,18 @@ import { API_CONFIG } from '../config/api';
 import Toast from 'react-native-toast-message';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+async function getCheckoutDeviceId() {
+  if (Platform.OS === 'android') {
+    return Application.getAndroidId();
+  }
+
+  if (Platform.OS === 'ios') {
+    return (await Application.getIosIdForVendorAsync()) || 'unknown';
+  }
+
+  return Application.applicationId || 'unknown';
+}
 
 const getBrandLogo = (brandName: string, brands: BrandItem[]): string | null => {
   const brand = brands.find(b => b.name === brandName);
@@ -80,6 +92,9 @@ interface UserAddress {
 interface BrandItem {
   id: number;
   name: string;
+  logo?: string;
+  brand_image?: string;
+  image?: string;
 }
 
 interface CheckoutScreenProps {
@@ -181,8 +196,6 @@ export default function CheckoutScreen({
   ];
 
   const vouchers: any[] = [];
-
-  const voucherDiscount = selectedVoucher ? (vouchers.find(v => v.id === selectedVoucher)?.discount || 0) * subtotal : 0;
 
   // Fetch user addresses
   const fetchAddresses = async () => {
@@ -307,6 +320,7 @@ export default function CheckoutScreen({
     const srpPrice = i.product_price_srp || i.product_price_member;
     return sum + (srpPrice * (i.quantity || 1));
   }, 0);
+  const voucherDiscount = selectedVoucher ? (vouchers.find(v => v.id === selectedVoucher)?.discount || 0) * subtotal : 0;
   const memberTotal = checkoutItems.reduce((sum, i) => sum + (i.product_price_member * (i.quantity || 1)), 0);
   // const shippingCost = shippingMethods.length > 0 ? shippingMethods[0].fee : 0;
   const shippingCost = 0; // Testing: disabled shipping fees
@@ -393,8 +407,8 @@ export default function CheckoutScreen({
     const startTime = Date.now();
 
     try {
-      const deviceId = Device.deviceId || 'unknown';
-      const appVersion = '1.0.0';
+      const deviceId = await getCheckoutDeviceId();
+      const appVersion = Application.nativeApplicationVersion || '1.0.0';
       const platformName = Platform.OS === 'ios' ? 'ios' : 'android';
 
       // REQUIRED FIELDS
@@ -1146,9 +1160,9 @@ export default function CheckoutScreen({
       {/* Loading Overlay */}
       {loading && (
         <View style={styles.loadingOverlay}>
-          <View style={[styles.loadingContainer, { backgroundColor: colors.containerBg }]}>
+          <View style={[styles.overlayLoadingContainer, { backgroundColor: colors.containerBg }]}>
             <ActivityIndicator size="large" color={Colors.sky} />
-            <Text style={[styles.loadingText, { color: colors.text, marginTop: 16 }]}>
+            <Text style={[styles.overlayLoadingText, { color: colors.text, marginTop: 16 }]}>
               Processing your order...
             </Text>
           </View>
@@ -1835,14 +1849,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-  loadingContainer: {
+  overlayLoadingContainer: {
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 200,
   },
-  loadingText: {
+  overlayLoadingText: {
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

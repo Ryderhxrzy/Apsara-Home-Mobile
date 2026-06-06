@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { getMessaging, getToken, onTokenRefresh } from '@react-native-firebase/messaging';
+import { getToken, onTokenRefresh } from '@react-native-firebase/messaging';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import { getFirebaseMessagingAsync } from '../utils/firebaseMessaging';
 
 // Notification display is now handled by Kotlin (MyFirebaseMessagingService)
 // This hook only handles token registration and deeplink navigation
@@ -19,11 +20,18 @@ export const useFirebaseMessaging = (
       return;
     }
 
+    let unsubscribeTokenRefresh: (() => void) | undefined;
+    let cancelled = false;
+
     const setupTokenRegistration = async () => {
       try {
         console.log('[useFirebaseMessaging] Setting up token registration...');
 
-        const messaging_ = getMessaging();
+        const messaging_ = await getFirebaseMessagingAsync();
+        if (!messaging_) {
+          return;
+        }
+
         let permissionEnabled = true;
         if (Platform.OS === 'android' && Platform.Version >= 33) {
           const permissionResult = await PermissionsAndroid.request(
@@ -65,7 +73,11 @@ export const useFirebaseMessaging = (
 
         await registerFcmToken(fcmToken);
 
-        const unsubscribeTokenRefresh = onTokenRefresh(messaging_, async (newToken) => {
+        if (cancelled) {
+          return;
+        }
+
+        unsubscribeTokenRefresh = onTokenRefresh(messaging_, async (newToken) => {
           try {
             console.log('[useFirebaseMessaging] FCM token refreshed');
             await registerFcmToken(newToken);
@@ -73,16 +85,17 @@ export const useFirebaseMessaging = (
             console.error('[useFirebaseMessaging] Failed to register refreshed token:', error);
           }
         });
-
-        return () => {
-          unsubscribeTokenRefresh();
-        };
       } catch (error) {
         console.error('[useFirebaseMessaging] Error setting up token registration:', error);
       }
     };
 
     setupTokenRegistration();
+
+    return () => {
+      cancelled = true;
+      unsubscribeTokenRefresh?.();
+    };
   }, [token, userId]);
 
   return null;

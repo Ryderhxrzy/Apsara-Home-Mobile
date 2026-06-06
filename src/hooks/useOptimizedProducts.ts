@@ -8,7 +8,7 @@ interface ProductsParams {
   roomId?: number | null;
   categoryId?: number | null;
   brandId?: number | null;
-  sortBy?: 'popular' | 'best_selling' | 'lowest_price' | 'newest' | null;
+  sortBy?: 'popular' | 'best_selling' | 'lowest_price' | 'newest' | 'random' | 'price_asc' | 'price_desc' | null;
   perPage?: number;
   enabled?: boolean;
 }
@@ -85,8 +85,10 @@ export const useOptimizedProducts = ({
         url.searchParams.set('sort', 'random');
       } else if (sortBy === 'best_selling') {
         url.searchParams.set('sort', 'bestseller');
-      } else if (sortBy === 'lowest_price') {
+      } else if (sortBy === 'lowest_price' || sortBy === 'price_asc') {
         url.searchParams.set('sort', 'price_asc');
+      } else if (sortBy === 'price_desc') {
+        url.searchParams.set('sort', 'price_desc');
       } else if (sortBy === 'newest') {
         url.searchParams.set('sort', 'newest');
       }
@@ -142,7 +144,8 @@ export const useOptimizedProducts = ({
             if (presetFilter.brandId) url.searchParams.set('brand_type', presetFilter.brandId.toString());
             if (presetFilter.sortBy === 'random') url.searchParams.set('sort', 'random');
             else if (presetFilter.sortBy === 'best_selling') url.searchParams.set('sort', 'bestseller');
-            else if (presetFilter.sortBy === 'lowest_price') url.searchParams.set('sort', 'price_asc');
+            else if (presetFilter.sortBy === 'lowest_price' || presetFilter.sortBy === 'price_asc') url.searchParams.set('sort', 'price_asc');
+            else if (presetFilter.sortBy === 'price_desc') url.searchParams.set('sort', 'price_desc');
             else if (presetFilter.sortBy === 'newest') url.searchParams.set('sort', 'newest');
 
             const response = await axios.get(url.toString(), { headers });

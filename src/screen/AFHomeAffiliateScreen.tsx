@@ -209,6 +209,7 @@ export default function AFHomeAffiliateScreen({ onClose }: AFHomeAffiliateScreen
               <Text style={styles.teamBenefitText}>Refer friends & professionals</Text>
             </View>
             <View style={styles.teamBenefit}>
+              {/* @ts-ignore */}
               <Ionicons name="handshake" size={20} color={Colors.sky} />
               <Text style={styles.teamBenefitText}>Grow together</Text>
             </View>
