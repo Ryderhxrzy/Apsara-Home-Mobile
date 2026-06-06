@@ -140,6 +140,7 @@ export default function ProductDetailScreen({
   const [showAddToCartModal, setShowAddToCartModal] = useState(false);
   const [youMayAlsoLike, setYouMayAlsoLike] = useState<ProductCard[]>([]);
   const [visibleYouMayAlsoLikeCount, setVisibleYouMayAlsoLikeCount] = useState(8);
+  const [wishlistCount, setWishlistCount] = useState<number | null>(null);
 
   useEffect(() => {
     console.log(`🎯 ProductDetailScreen mounted for product ID: ${productId}`);
@@ -169,6 +170,26 @@ export default function ProductDetailScreen({
       setIsWishlisted(isProductWishlisted);
     }
   }, [wishlistItems, product?.id]);
+
+  // Fetch wishlist count for the product
+  useEffect(() => {
+    if (!token || !productId) return;
+
+    const fetchWishlistCount = async () => {
+      try {
+        const response = await axios.get(`${API_CONFIG.BASE_URL}/wishlist/count/${productId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data?.wishlist_count !== undefined) {
+          setWishlistCount(response.data.wishlist_count);
+        }
+      } catch (error) {
+        console.error('Failed to fetch wishlist count:', error);
+      }
+    };
+
+    fetchWishlistCount();
+  }, [token, productId]);
 
   useEffect(() => {
     setLoading(true);
@@ -503,10 +524,19 @@ export default function ProductDetailScreen({
       return;
     }
 
-    try {
-      setWishlistLoading(true);
+    // Optimistic update - immediately update UI without showing toast
+    const previousWishlistState = isWishlisted;
+    const newWishlistState = !isWishlisted;
+    const previousWishlistCount = wishlistCount ?? 0;
 
-      if (isWishlisted) {
+    setIsWishlisted(newWishlistState);
+    // Update wishlist count optimistically
+    setWishlistCount(newWishlistState ? previousWishlistCount + 1 : Math.max(0, previousWishlistCount - 1));
+    setWishlistLoading(true);
+
+    // Process API call in background without blocking UI
+    try {
+      if (previousWishlistState) {
         // Remove from wishlist - DELETE request
         await axios.delete(`${API_CONFIG.BASE_URL}/wishlist/${product.id}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -520,27 +550,26 @@ export default function ProductDetailScreen({
         );
       }
 
-      const newWishlistState = !isWishlisted;
-      setIsWishlisted(newWishlistState);
+      // API succeeded - notify parent
       onWishlistToggle?.(product.id, newWishlistState);
 
-      // Track wishlist behavior
+      // Track wishlist behavior in background
       const behaviorType = newWishlistState ? 'wishlist_add' : 'wishlist_remove';
       if (product?.id && product?.catid && product?.brandType) {
         userBehaviorService.trackBehavior(token, behaviorType, product.id, product.catid, product.brandType).catch(() => {});
       }
-
-      Toast.show({
-        type: 'success',
-        text1: isWishlisted ? 'Removed from wishlist' : 'Added to wishlist',
-        text2: isWishlisted ? 'Item removed from your wishlist' : 'Item added to your wishlist',
-      });
     } catch (error: any) {
       console.error('Failed to update wishlist:', error);
+
+      // Revert optimistic updates on error
+      setIsWishlisted(previousWishlistState);
+      setWishlistCount(previousWishlistCount);
+
+      // Only show error toast
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: isWishlisted ? 'Failed to remove from wishlist' : 'Failed to add to wishlist',
+        text2: previousWishlistState ? 'Failed to remove from wishlist' : 'Failed to add to wishlist',
       });
     } finally {
       setWishlistLoading(false);
@@ -609,16 +638,6 @@ export default function ProductDetailScreen({
                 {product?.name || ''}
               </Text>
               <View style={styles.scrollHeaderActions}>
-                <TouchableOpacity
-                  onPress={toggleWishlist}
-                  disabled={wishlistLoading}
-                >
-                  <Ionicons
-                    name={isWishlisted ? 'heart' : 'heart-outline'}
-                    size={20}
-                    color={isWishlisted ? '#ef4444' : colors.text}
-                  />
-                </TouchableOpacity>
                 <TouchableOpacity onPress={handleShareProduct}>
                   <Ionicons name="share-social-outline" size={20} color={colors.text} />
                 </TouchableOpacity>
@@ -710,22 +729,32 @@ export default function ProductDetailScreen({
 
             {/* Top Right Icons */}
             <View style={[styles.galleryTopRightIcons, { paddingTop: insets.top + 10 }]}>
-              {/* Heart/Wishlist Icon */}
+              {/* Add to Cart Icon */}
               <TouchableOpacity
-                onPress={toggleWishlist}
+                onPress={() => setShowAddToCartModal(true)}
                 style={styles.galleryIconBtn}
                 activeOpacity={0.7}
-                disabled={wishlistLoading}
               >
-                <View style={styles.galleryIconBtnInner}>
-                  {wishlistLoading ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
-                  ) : (
-                    <Ionicons
-                      name={isWishlisted ? 'heart' : 'heart-outline'}
-                      size={22}
-                      color={isWishlisted ? '#ef4444' : Colors.white}
-                    />
+                <View style={[styles.galleryIconBtnInner, { position: 'relative' }]}>
+                  <Ionicons name="cart" size={22} color={Colors.white} />
+                  {cartCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -8,
+                      right: -8,
+                      backgroundColor: '#ef4444',
+                      borderRadius: 12,
+                      minWidth: 24,
+                      height: 24,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: Colors.white,
+                    }}>
+                      <Text style={{ color: Colors.white, fontSize: 11, fontWeight: '700' }}>
+                        {cartCount}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </TouchableOpacity>
@@ -853,9 +882,28 @@ export default function ProductDetailScreen({
               return (
                 <>
                   {variantDiscount > 0 && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="checkmark-circle" size={14} color={Colors.sky} />
-                      <Text style={[styles.priceLabel, { color: colors.textSec }]}>Member Price Applied</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="checkmark-circle" size={14} color={Colors.sky} />
+                        <Text style={[styles.priceLabel, { color: colors.textSec }]}>Member Price Applied</Text>
+                      </View>
+                      {wishlistCount !== null && (
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          onPress={toggleWishlist}
+                          disabled={wishlistLoading}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={isWishlisted ? 'heart' : 'heart-outline'}
+                            size={14}
+                            color={isWishlisted ? '#ef4444' : colors.textSec}
+                          />
+                          <Text style={[styles.priceLabel, { color: isWishlisted ? '#ef4444' : colors.textSec }]}>
+                            {wishlistCount} {wishlistCount === 1 ? 'Saved' : 'Saved'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                   {/* Big Price Row */}
