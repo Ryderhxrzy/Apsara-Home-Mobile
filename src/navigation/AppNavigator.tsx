@@ -1043,6 +1043,9 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                   console.error('Failed to update cart count:', error);
                 }
               }}
+              onNavigateToCart={() => {
+                setShowCart(true);
+              }}
               onWishlistToggle={(productId, isWishlisted) => {
                 invalidateWishlist();
               }}
@@ -1315,6 +1318,9 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
               } catch (error) {
                 console.error('Failed to update cart count:', error);
               }
+            }}
+            onNavigateToCart={() => {
+              setShowCart(true);
             }}
             onWishlistToggle={(productId, isWishlisted) => {
               invalidateWishlist();
