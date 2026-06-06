@@ -996,7 +996,6 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
                 query={searchQuery}
                 isDarkMode={isDarkMode}
                 onBack={() => {
-                  setSearchQuery(null);
                   setSearchVisible(true);
                 }}
                 onProductPress={(product) => {
@@ -1256,23 +1255,34 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
       </SafeAreaView>
 
       {searchVisible && (
-        <SearchScreen
-          token={token}
-          isDarkMode={isDarkMode}
-          onBack={() => {
-            setSearchVisible(false);
-            setActiveTab(previousTab);
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: selectedProductId !== null ? -1 : 10,
+            pointerEvents: selectedProductId !== null ? 'none' : 'auto',
           }}
-          onProductPress={(productId) => {
-            setProductDetailSource('search');
-            setSelectedProductId(productId);
-            setSearchVisible(false);
-          }}
-          onSearchSubmit={(query) => {
-            setSearchQuery(query);
-            setSearchVisible(false);
-          }}
-        />
+        >
+          <SearchScreen
+            token={token}
+            isDarkMode={isDarkMode}
+            onBack={() => {
+              setSearchVisible(false);
+              setActiveTab(previousTab);
+            }}
+            onProductPress={(productId) => {
+              setProductDetailSource('search');
+              setSelectedProductId(productId);
+            }}
+            onSearchSubmit={(query) => {
+              setSearchQuery(query);
+              setSearchVisible(false);
+            }}
+          />
+        </View>
       )}
 
       {showShopProductDetail && shopSelectedProductId !== null && (
