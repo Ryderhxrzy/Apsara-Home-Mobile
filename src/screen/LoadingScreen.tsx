@@ -1,6 +1,7 @@
 import React from "react"
-import { View, Text, Image, ActivityIndicator, StyleSheet } from "react-native"
+import { View, Text, Image, ActivityIndicator,  } from "react-native"
 import { Colors } from "../constants/colors"
+import styles from "../styles/LoadingScreen.styles"
 
 export default function LoadingScreen() {
   return (
@@ -21,30 +22,3 @@ export default function LoadingScreen() {
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  logo: {
-    width: 140,
-    height: 140,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: Colors.text,
-  },
-  loader: {
-    position: "absolute",
-    bottom: 80,
-  },
-})

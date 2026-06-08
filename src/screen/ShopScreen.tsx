@@ -9,29 +9,22 @@ import React, {
 import {
   View,
   Text,
-  FlatList,
   RefreshControl,
-  StyleSheet,
-  Dimensions,
-  Pressable,
-  TouchableOpacity,
   ActivityIndicator,
   Image,
-  Animated,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from "react-native"
+import { FlashList, FlashListRef } from "@shopify/flash-list"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
-import { productService, Product } from "../services/productService"
+import { Product } from "../services/productService"
 import ItemCard from "../components/Items/ItemCard"
 import AppHeader from "../components/AppHeader/AppHeader"
-import Toast from "react-native-toast-message"
 import { useOptimizedProducts } from "../hooks/useOptimizedProducts"
 import { ChatBotIcon } from "../components/ChatBot"
-
-const { width } = Dimensions.get("window")
+import styles from "../styles/ShopScreen.styles"
 
 const ROOMS = [
   { room_id: 1, slug: "bedroom", room_name: "Bedroom" },
@@ -76,7 +69,6 @@ function ShopScreen({
   brandId = null,
   categories = [],
   brands = [],
-  onBack = () => {},
   onProductPress = () => {},
   onCartPress = () => {},
   onOpenSearch = () => {},
@@ -86,10 +78,9 @@ function ShopScreen({
   isDarkMode = false,
 }: ShopScreenProps) {
   const shopScreenLoadStartRef = useRef(Date.now())
-  const flatListRef = useRef<FlatList>(null)
+  const flashListRef = useRef<FlashListRef<Product>>(null)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
   const lastScrollOffsetRef = useRef(0)
-  const [showProfileSection, setShowProfileSection] = useState(true)
 
   // Refs to preserve filter state across navigation
   const filterStateRef = useRef({
@@ -106,18 +97,9 @@ function ShopScreen({
     textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
     border: isDarkMode ? "#334155" : "#e5e7eb",
     card: isDarkMode ? "#1e293b" : Colors.white,
-    buttonBg: isDarkMode ? "#1e293b" : "transparent",
-    paginationBg: isDarkMode ? "#1e293b" : "#f0f9ff",
-    paginationBgDisabled: isDarkMode ? "#0f172a" : "#f3f4f6",
-    paginationBorder: isDarkMode ? "#334155" : Colors.sky,
   }
 
-  useEffect(() => {
-    console.log("🛍️ ShopScreen MOUNTED")
-  }, [])
-
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(() => {
-    // Initialize with new props if provided, otherwise use stored state
     if (roomId !== null && roomId !== undefined) {
       filterStateRef.current.roomId = roomId
       return roomId
@@ -126,7 +108,6 @@ function ShopScreen({
   })
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
     () => {
-      // Initialize with new props if provided, otherwise use stored state
       if (categoryId !== null && categoryId !== undefined) {
         filterStateRef.current.categoryId = categoryId
         return categoryId
@@ -135,7 +116,6 @@ function ShopScreen({
     }
   )
   const [selectedBrandId, setSelectedBrandId] = useState<number | null>(() => {
-    // Initialize with new props if provided, otherwise use stored state
     if (brandId !== null && brandId !== undefined) {
       filterStateRef.current.brandId = brandId
       return brandId
@@ -148,9 +128,6 @@ function ShopScreen({
   const [selectedPrice, setSelectedPrice] = useState<any>(
     () => filterStateRef.current.price
   )
-  const [viewType, setViewType] = useState<"grid" | "list">("grid")
-  const [currentPage, setCurrentPage] = useState(1)
-  const prefetchedPageRef = useRef(2)
   const prevPropsRef = useRef({ roomId, categoryId, brandId })
 
   // Sync incoming props to local state when props change (only from parent navigation)
@@ -162,7 +139,6 @@ function ShopScreen({
     ) {
       filterStateRef.current.roomId = roomId
       setSelectedRoomId(roomId)
-      setCurrentPage(1)
       prevPropsRef.current.roomId = roomId
     }
   }, [roomId])
@@ -175,7 +151,6 @@ function ShopScreen({
     ) {
       filterStateRef.current.categoryId = categoryId
       setSelectedCategoryId(categoryId)
-      setCurrentPage(1)
       prevPropsRef.current.categoryId = categoryId
     }
   }, [categoryId])
@@ -188,7 +163,6 @@ function ShopScreen({
     ) {
       filterStateRef.current.brandId = brandId
       setSelectedBrandId(brandId)
-      setCurrentPage(1)
       prevPropsRef.current.brandId = brandId
     }
   }, [brandId])
@@ -213,14 +187,11 @@ function ShopScreen({
   const {
     data,
     isLoading,
-    isError,
-    error,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
     refetch,
     isRefetching,
-    isTransitioning,
   } = useOptimizedProducts({
     token,
     roomId: selectedRoomId,
@@ -229,83 +200,50 @@ function ShopScreen({
     sortBy: backendSort,
   })
 
-  // Scroll to top only when filters change (not when page changes for infinite scroll)
+  // Scroll to top when filters change (not when paginating)
   useEffect(() => {
     const scrollTimeout = setTimeout(() => {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: true })
     }, 50)
     return () => clearTimeout(scrollTimeout)
   }, [selectedRoomId, selectedCategoryId, selectedBrandId])
 
-  // Background prefetch ONLY the next page (not multiple pages)
-  useEffect(() => {
-    if (!data?.pages) return
-
-    const lastPage = data.pages[data.pages.length - 1]
-    const totalPages = lastPage?.totalPages || 0
-
-    // Only prefetch if the next page hasn't been fetched yet AND it exists
-    if (currentPage + 1 <= totalPages && data.pages.length <= currentPage) {
-      console.log(`🔮 Prefetching page ${currentPage + 1}...`)
-      prefetchedPageRef.current = currentPage + 1
-      fetchNextPage()
-    }
-  }, [currentPage, data, fetchNextPage])
-
   const handleRoomSelect = useCallback((roomId: number | null) => {
     filterStateRef.current.roomId = roomId
     setSelectedRoomId(roomId)
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     console.log(`🏠 Room filter changed to: ${roomId}`)
   }, [])
 
   const handleCategorySelect = useCallback((categoryId: number | null) => {
     filterStateRef.current.categoryId = categoryId
     setSelectedCategoryId(categoryId)
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     console.log(`📂 Category filter changed to: ${categoryId}`)
   }, [])
 
   const handleBrandSelect = useCallback((brandId: number | null) => {
     filterStateRef.current.brandId = brandId
     setSelectedBrandId(brandId)
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     console.log(`🏷️ Brand filter changed to: ${brandId}`)
   }, [])
 
   const handleSortSelect = useCallback((sort: string) => {
     filterStateRef.current.sort = sort
     setSelectedSort(sort)
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     console.log(`Sort filter changed to: ${sort}`)
   }, [])
 
   const handlePriceSelect = useCallback((price: any) => {
     filterStateRef.current.price = price
     setSelectedPrice(price)
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     console.log(`Price filter changed to:`, price)
   }, [])
 
-  // Get all products accumulated from all loaded pages
-  const currentPageProducts = useMemo(() => {
-    let products: Product[] = []
+  // Flatten every loaded page into a single list, then apply the price filter
+  const products = useMemo(() => {
+    let list: Product[] = data?.pages?.flatMap((p) => p.products ?? []) ?? []
 
-    // Accumulate products from all loaded pages
-    if (data?.pages) {
-      for (let i = 0; i < currentPage && i < data.pages.length; i++) {
-        products = [...products, ...(data.pages[i]?.products || [])]
-      }
-    }
-
-    // Apply price filter
     if (selectedPrice && selectedPrice !== "All") {
-      products = products.filter((product: Product) => {
+      list = list.filter((product: Product) => {
         const price =
           product.priceMember ?? product.priceDp ?? product.priceSrp ?? 0
         switch (selectedPrice) {
@@ -331,25 +269,22 @@ function ShopScreen({
       })
     }
 
-    // Sorting is now handled by backend - don't re-sort on frontend
-
-    if (products.length > 0) {
+    if (list.length > 0) {
       const loadTime = Date.now() - shopScreenLoadStartRef.current
       console.log(
-        `⚡ ShopScreen READY: ${products.length} products (${currentPage} pages) loaded in ${loadTime}ms`
+        `⚡ ShopScreen READY: ${list.length} products (${data?.pages?.length ?? 0} pages) loaded in ${loadTime}ms`
       )
     }
-    return products
-  }, [data?.pages, currentPage, selectedSort, selectedPrice])
+    return list
+  }, [data?.pages, selectedPrice])
 
   // Restore scroll position when products are available
   useEffect(() => {
-    if (currentPageProducts.length === 0) return
-
+    if (products.length === 0) return
     if (lastScrollOffsetRef.current > 0) {
       const restoreTimeout = setTimeout(() => {
         try {
-          flatListRef.current?.scrollToOffset({
+          flashListRef.current?.scrollToOffset({
             offset: lastScrollOffsetRef.current,
             animated: false,
           })
@@ -359,50 +294,14 @@ function ShopScreen({
       }, 100)
       return () => clearTimeout(restoreTimeout)
     }
-  }, [currentPageProducts])
+  }, [products])
 
-  // Get pagination info
-  const paginationInfo = useMemo(() => {
-    if (!data?.pages?.length) {
-      return {
-        currentPage: 0,
-        totalPages: 0,
-        total: 0,
-        startProduct: 0,
-        endProduct: 0,
-      }
-    }
-    const lastPage = data.pages[data.pages.length - 1]
-    const total = lastPage.total
-    const endProduct = Math.min(currentPageProducts.length, total)
-    return {
-      currentPage,
-      totalPages: lastPage.totalPages,
-      total,
-      startProduct: 1,
-      endProduct,
-    }
-  }, [data, currentPageProducts.length, currentPage])
-
-  // Prepare data for masonry layout
-  const masonryData = useMemo(() => {
-    const leftColumn: Product[] = []
-    const rightColumn: Product[] = []
-
-    currentPageProducts.forEach((product, index) => {
-      if (index % 2 === 0) {
-        leftColumn.push(product)
-      } else {
-        rightColumn.push(product)
-      }
-    })
-
-    return { leftColumn, rightColumn }
-  }, [currentPageProducts])
+  const total = useMemo(() => {
+    if (!data?.pages?.length) return 0
+    return data.pages[data.pages.length - 1]?.total ?? 0
+  }, [data])
 
   const handleRefresh = useCallback(() => {
-    setCurrentPage(1)
-    prefetchedPageRef.current = 2
     refetch()
   }, [refetch])
 
@@ -416,23 +315,20 @@ function ShopScreen({
   )
 
   const handleScrollToTop = useCallback(() => {
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: true })
   }, [])
 
-  const handleNextPage = useCallback(() => {
-    if (currentPage < paginationInfo.totalPages) {
-      setCurrentPage((prev) => prev + 1)
+  // The core of "proper" pagination: fetch the next page only when one exists
+  // and we aren't already fetching it.
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      console.log("📥 onEndReached → fetching next page")
+      fetchNextPage()
     }
-  }, [currentPage, paginationInfo.totalPages])
-
-  const handlePreviousPage = useCallback(() => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1)
-    }
-  }, [currentPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const renderItem = useCallback(
-    (item: Product) => {
+    ({ item }: { item: Product }) => {
       const wishlistItem = wishlistItems?.find((w) => w.product.id === item.id)
       const productCard = {
         id: item.id,
@@ -456,7 +352,7 @@ function ShopScreen({
       }
 
       return (
-        <View style={styles.masonryItem}>
+        <View style={styles.gridItem}>
           <ItemCard
             product={productCard}
             token={token}
@@ -479,27 +375,18 @@ function ShopScreen({
     ]
   )
 
-  const renderLoadingPlaceholders = () => {
-    const dummyProducts = Array.from({ length: 6 }, (_, i) => ({
-      id: i,
-      name: "Loading...",
-      image: undefined,
-      soldCount: 0,
-      priceSrp: 0,
-      priceMember: 0,
-      prodpv: 0,
-      brand: "Brand",
-      variants: [],
-      musthave: false,
-      bestseller: false,
-      salespromo: false,
-    }))
+  const keyExtractor = useCallback(
+    (item: Product, index: number) => `${item.id}-${index}`,
+    []
+  )
 
-    const leftColumn = dummyProducts.filter((_, i) => i % 2 === 0)
-    const rightColumn = dummyProducts.filter((_, i) => i % 2 !== 0)
+  const renderLoadingPlaceholders = useCallback(() => {
+    const dummyProducts = Array.from({ length: 6 }, (_, i) => i)
+    const leftColumn = dummyProducts.filter((i) => i % 2 === 0)
+    const rightColumn = dummyProducts.filter((i) => i % 2 !== 0)
 
-    const renderDummyCard = (item: any) => (
-      <View key={`loading-${item.id}`} style={styles.masonryItem}>
+    const renderDummyCard = (id: number) => (
+      <View key={`loading-${id}`} style={styles.gridItem}>
         <View
           style={[
             styles.dummyCard,
@@ -553,76 +440,29 @@ function ShopScreen({
     return (
       <View style={styles.masonryGrid}>
         <View style={styles.masonryColumn}>
-          {leftColumn.map((item) => renderDummyCard(item))}
+          {leftColumn.map((id) => renderDummyCard(id))}
         </View>
         <View style={styles.masonryColumn}>
-          {rightColumn.map((item) => renderDummyCard(item))}
+          {rightColumn.map((id) => renderDummyCard(id))}
         </View>
       </View>
     )
-  }
+  }, [colors.card, colors.border, isDarkMode])
 
-  const renderHeader = () => (
-    <View
-      style={[
-        styles.filterInfoContainer,
-        { backgroundColor: isDarkMode ? "#1e293b" : "transparent" },
-      ]}
-    >
-      <View style={styles.viewToggleWrapper} />
-      <View style={styles.productCountContainer} />
-    </View>
-  )
-
-  const renderContent = () => {
-    if (currentPageProducts.length === 0 && isLoading) {
-      return renderLoadingPlaceholders()
-    }
-
-    if (currentPageProducts.length === 0) {
-      return (
-        <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
-          <Ionicons name="cube-outline" size={48} color={colors.textSec} />
-          <Text style={[styles.emptyText, { color: colors.textSec }]}>
-            No products found
-          </Text>
-        </View>
-      )
-    }
-
+  const renderEmpty = useCallback(() => {
+    if (isLoading) return renderLoadingPlaceholders()
     return (
-      <View style={styles.masonryGrid}>
-        <View style={styles.masonryColumn}>
-          {masonryData.leftColumn.map((product, index) => (
-            <View
-              key={`left-${product.id}-${index}`}
-              style={styles.masonryItem}
-            >
-              {renderItem(product)}
-            </View>
-          ))}
-        </View>
-        <View style={styles.masonryColumn}>
-          {masonryData.rightColumn.map((product, index) => (
-            <View
-              key={`right-${product.id}-${index}`}
-              style={styles.masonryItem}
-            >
-              {renderItem(product)}
-            </View>
-          ))}
-        </View>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
+        <Ionicons name="cube-outline" size={48} color={colors.textSec} />
+        <Text style={[styles.emptyText, { color: colors.textSec }]}>
+          No products found
+        </Text>
       </View>
     )
-  }
+  }, [isLoading, renderLoadingPlaceholders, colors.bg, colors.textSec])
 
-  const renderFooter = () => {
-    if (
-      currentPageProducts.length === 0 ||
-      currentPage >= paginationInfo.totalPages
-    )
-      return null
-
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) return null
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
         <ActivityIndicator size="small" color={Colors.sky} />
@@ -631,7 +471,7 @@ function ShopScreen({
         </Text>
       </View>
     )
-  }
+  }, [isFetchingNextPage, colors.bg, colors.text])
 
   return (
     <View style={{ flex: 1, position: "relative" }}>
@@ -688,22 +528,16 @@ function ShopScreen({
           }}
         />
 
-        <FlatList
-          ref={flatListRef}
-          style={[styles.flatList, { backgroundColor: colors.bg }]}
-          contentContainerStyle={[
-            styles.flatListContent,
-            { backgroundColor: colors.bg },
-          ]}
-          data={[{ type: "header" }, { type: "content" }, { type: "footer" }]}
-          renderItem={({ item }) => {
-            if (item.type === "header") return renderHeader()
-            if (item.type === "content") return renderContent()
-            if (item.type === "footer") return renderFooter()
-            return null
-          }}
-          keyExtractor={(item, index) => `${item.type}-${index}`}
-          scrollEnabled={true}
+        <FlashList
+          ref={flashListRef}
+          masonry
+          numColumns={2}
+          data={products}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -714,15 +548,8 @@ function ShopScreen({
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          onEndReached={() => {
-            if (
-              currentPage < paginationInfo.totalPages &&
-              !isFetchingNextPage
-            ) {
-              handleNextPage()
-            }
-          }}
-          onEndReachedThreshold={0.3}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
         />
       </SafeAreaView>
 
@@ -737,170 +564,3 @@ function ShopScreen({
 }
 
 export default memo(ShopScreen)
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white,
-  },
-  flatList: {
-    flex: 1,
-    backgroundColor: Colors.white,
-  },
-  flatListContent: {
-    paddingBottom: 12,
-    backgroundColor: Colors.white,
-  },
-  filterInfoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "transparent",
-    borderBottomWidth: 0,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 8,
-  },
-  viewToggleWrapper: {
-    flexDirection: "row",
-    gap: 0,
-    backgroundColor: "transparent",
-    borderWidth: 0,
-  },
-  viewToggleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRightWidth: 0,
-    backgroundColor: "transparent",
-  },
-  viewToggleButtonActive: {
-    backgroundColor: Colors.sky,
-  },
-  viewToggleButtonLast: {
-    borderRightWidth: 0,
-  },
-  viewToggleText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  viewToggleTextActive: {
-    color: Colors.white,
-  },
-  productCountContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  productCountInfo: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
-  filterLoadingIndicator: {
-    marginLeft: 4,
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: Colors.text,
-  },
-  masonryGrid: {
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingTop: 0,
-    paddingBottom: 16,
-  },
-  masonryColumn: {
-    flex: 1,
-    gap: 8,
-  },
-  masonryItem: {
-    width: "100%",
-  },
-  dummyCard: {
-    borderRadius: 8,
-    borderWidth: 1,
-    overflow: "hidden",
-    width: "100%",
-  },
-  dummyImageContainer: {
-    width: "100%",
-    height: 200,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dummyImage: {
-    width: "60%",
-    height: "60%",
-  },
-  dummyContent: {
-    padding: 12,
-    gap: 6,
-  },
-  dummyLine: {
-    height: 8,
-    borderRadius: 4,
-    width: "100%",
-  },
-  emptyContainer: {
-    minHeight: 300,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 48,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  paginationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
-  },
-  paginationButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#f0f9ff",
-    borderWidth: 1,
-    borderColor: Colors.sky,
-  },
-  paginationButtonDisabled: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
-  },
-  paginationText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.sky,
-  },
-  paginationTextDisabled: {
-    color: Colors.textSecondary,
-  },
-  paginationInfo: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-})

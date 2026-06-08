@@ -652,6 +652,8 @@ function HomeScreen({
     console.log("⚠️  WARNING: Slow render detected!")
   }
 
+  console.log(brands)
+
   return (
     <View style={{ flex: 1, position: "relative" }}>
       <ScrollView

@@ -271,6 +271,7 @@ function ShopTabScreen() {
           cartCount={cartCount}
           brandId={selectedBrandId}
           brand={selectedBrand as any}
+          isZqBrand={(selectedBrand as any)?.isZqBrand === true}
           categories={homeCategories}
           onBack={() => {
             setSelectedBrandId(null)

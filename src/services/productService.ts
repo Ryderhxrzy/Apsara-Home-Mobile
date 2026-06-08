@@ -351,17 +351,32 @@ export const productService = {
 
     try {
       const response = await api.get("/home/shop/brands", { headers })
-      return (response.data?.brands || [])
-        .filter((brand: any) => brand.total_products > 0)
-        .map((brand: any) => ({
-          id: brand.id,
-          name: brand.name,
-          image: brand.image,
-          total_products: brand.total_products,
-        }))
+      // Return all fields so callers can inspect any external-product indicators
+      return (response.data?.brands || []).map((brand: any) => ({ ...brand }))
     } catch (error) {
       console.error("Error fetching shop by brands:", error)
       return []
+    }
+  },
+
+  async getZqBrandNames(token?: string): Promise<Set<string>> {
+    const headers = {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    }
+
+    try {
+      const response = await api.get("/products/zq/cached", { headers })
+      const products: any[] = response.data?.products || []
+      const names = new Set<string>()
+      products.forEach((p) => {
+        const brand: string | undefined =
+          p.displayProduct?.brand || p.brand || p.brandName
+        if (brand) names.add(brand.trim().toLowerCase())
+      })
+      return names
+    } catch {
+      return new Set()
     }
   },
 }

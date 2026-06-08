@@ -1,16 +1,12 @@
-// @ts-nocheck
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import {
   View,
   Text,
   ScrollView,
   RefreshControl,
-  StyleSheet,
-  Dimensions,
   Pressable,
   TouchableOpacity,
   Image,
-  Animated,
   BackHandler,
   TextInput,
   ImageBackground,
@@ -20,17 +16,22 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
-import { productService, Product } from "../services/productService"
+import { CategoryItem } from "../services/authService"
 import ShopByBrandHomeScreen from "./ShopByBrand/ShopByBrandHomeScreen"
 import ShopByBrandProductsScreen from "./ShopByBrand/ShopByBrandProductsScreen"
 import ShopByBrandCategoriesScreen from "./ShopByBrand/ShopByBrandCategoriesScreen"
 import Toast from "react-native-toast-message"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
+import styles from "../styles/ShopByBrandScreen.styles"
 
-const { width } = Dimensions.get("window")
+interface Room {
+  room_id: number
+  slug: string
+  room_name: string
+}
 
-const ROOMS = [
+const ROOMS: Room[] = [
   { room_id: 1, slug: "bedroom", room_name: "Bedroom" },
   { room_id: 2, slug: "kitchen", room_name: "Kitchen" },
   { room_id: 3, slug: "living-room", room_name: "Living Room" },
@@ -50,111 +51,192 @@ interface BrandInfo {
   total_products?: number
   supplier_name?: string
   tagline?: string
+  isZqBrand?: boolean
+}
+
+interface AuthUser {
+  name?: string
+  avatar_url?: string
+  badge?: number
+  badge_name?: string
+  badge_image?: string
+}
+
+interface WishlistItem {
+  id: number
+  product_id: number
+}
+
+/** Unified product shape for both regular API products and ZQ-sourced products. */
+interface BrandProduct {
+  id: number
+  name: string
+  image: string
+  // FeaturedItems fields
+  price?: number
+  priceMember?: number
+  priceDp?: number
+  original_price?: number
+  discounted_price?: number
+  prodpv?: string
+  pv?: string
+  musthave?: boolean
+  bestseller?: boolean
+  salespromo?: boolean
+  // ItemCard fields
+  originalPrice?: number
+  memberPrice?: number
+  priceSrp?: number
+  soldCount?: number
+  brand?: string
+  variants?: unknown[]
+  isZqProduct?: boolean
 }
 
 interface ShopByBrandScreenProps {
   token?: string | null
-  user?: any
+  user?: AuthUser
   cartCount?: number
   brandId?: number
   brand?: BrandInfo
-  categories?: any[]
+  isZqBrand?: boolean
+  categories?: CategoryItem[]
   onBack?: () => void
   onProductPress?: (id: number) => void
   onCartPress?: () => void
-  wishlistItems?: any[]
+  wishlistItems?: WishlistItem[]
   onWishlistChange?: () => void
   isDarkMode?: boolean
 }
 
 export default function ShopByBrandScreen({
   token,
-  user,
-  cartCount = 0,
+  user: _user,
+  cartCount: _cartCount = 0,
   brandId,
   brand,
+  isZqBrand = false,
   categories = [],
   onBack = () => {},
   onProductPress = () => {},
-  onCartPress = () => {},
+  onCartPress: _onCartPress = () => {},
   wishlistItems = [],
   onWishlistChange = () => {},
   isDarkMode = false,
 }: ShopByBrandScreenProps) {
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null
-  )
+  const selectedRoomId: number | null = null
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<BrandProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalProducts, setTotalProducts] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [viewType, setViewType] = useState<"grid" | "list">("grid")
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
-  const [selectedTab, setSelectedTab] = useState<
-    "home" | "products" | "categories"
-  >("home")
+  const [selectedTab, setSelectedTab] = useState<"home" | "products" | "categories">("home")
   const [showMenu, setShowMenu] = useState(false)
+
   const perPage = 20
   const scrollViewRef = useRef<ScrollView>(null)
   const insets = useSafeAreaInsets()
 
-  const selectedRoom = useMemo(
-    () =>
-      selectedRoomId ? ROOMS.find((r) => r.room_id === selectedRoomId) : null,
+  const selectedRoom = useMemo<Room | undefined>(
+    () => (selectedRoomId ? ROOMS.find((r) => r.room_id === selectedRoomId) : undefined),
     [selectedRoomId]
   )
+  void selectedRoom // referenced via filter params
 
   const fetchProducts = useCallback(
     async (page: number = 1) => {
-      if (!token || !brandId) return
+      if (!token) return
 
       try {
         setLoading(page === 1)
         const headers = { Authorization: `Bearer ${token}` }
 
-        let url = `${API_CONFIG.BASE_URL}/products?status=1&page=${page}&per_page=${perPage}&brand_type=${brandId}`
-        if (selectedRoomId) url += `&room_type=${selectedRoomId}`
-        if (selectedCategoryId) url += `&cat_id=${selectedCategoryId}`
-        if (searchQuery.trim())
-          url += `&search=${encodeURIComponent(searchQuery)}`
+        if (isZqBrand) {
+          const response = await axios.get<{ products: unknown[] }>(
+            `${API_CONFIG.BASE_URL}/products/zq/cached`,
+            { headers }
+          )
+          let raw = (response.data?.products ?? []) as Record<string, unknown>[]
 
-        const response = await axios.get(url, { headers })
+          if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase()
+            raw = raw.filter((p) => {
+              const dp = p.displayProduct as Record<string, unknown> | undefined
+              const name = (dp?.name as string | undefined)?.toLowerCase() ?? ""
+              const subject = (p.subject as string | undefined)?.toLowerCase() ?? ""
+              return name.includes(q) || subject.includes(q)
+            })
+          }
 
-        let data = response.data?.data || response.data?.products || []
-        if (!Array.isArray(data)) {
-          data = []
+          // Normalize ZQ shape — both FeaturedItems (snake_case) and ItemCard
+          // (camelCase) need numeric price values with safe fallbacks.
+          const normalized: BrandProduct[] = raw.map((p) => {
+            const dp = p.displayProduct as Record<string, unknown> | undefined
+            const salePrice = (dp?.price as number | undefined) ?? 0
+            const comparePrice = (dp?.compareAtPrice as number | undefined) ?? salePrice
+            return {
+              id: p.id as number,
+              name: (dp?.name as string | undefined) || (p.subject as string | undefined) || "",
+              image: (dp?.image as string | undefined) || (p.primaryImage as string | undefined) || "",
+              price: salePrice,
+              priceMember: salePrice,
+              original_price: comparePrice,
+              memberPrice: salePrice,
+              originalPrice: comparePrice,
+              brand: (dp?.brand as string | undefined) || "",
+              isZqProduct: true,
+            }
+          })
+
+          setProducts(normalized)
+          setTotalPages(1)
+          setCurrentPage(1)
+        } else {
+          if (!brandId) return
+
+          let url = `${API_CONFIG.BASE_URL}/products?status=1&page=${page}&per_page=${perPage}&brand_type=${brandId}`
+          if (selectedRoomId) url += `&room_type=${selectedRoomId}`
+          if (selectedCategoryId) url += `&cat_id=${selectedCategoryId}`
+          if (searchQuery.trim()) url += `&search=${encodeURIComponent(searchQuery)}`
+
+          const response = await axios.get<{
+            data?: BrandProduct[]
+            products?: BrandProduct[]
+            meta?: { total?: number }
+            total?: number
+            pagination?: { total?: number }
+          }>(url, { headers })
+
+          let data: BrandProduct[] =
+            response.data?.data ?? response.data?.products ?? []
+          if (!Array.isArray(data)) data = []
+
+          const total =
+            response.data?.meta?.total ??
+            response.data?.total ??
+            response.data?.pagination?.total ??
+            data.length
+          const pages = Math.ceil(total / perPage)
+
+          setProducts(data)
+          setTotalPages(pages)
+          setCurrentPage(page)
         }
-
-        const total =
-          response.data?.meta?.total ||
-          response.data?.total ||
-          response.data?.pagination?.total ||
-          data.length
-        const pages = Math.ceil(total / perPage)
-
-        setProducts(data)
-        setTotalProducts(total)
-        setTotalPages(pages)
-        setCurrentPage(page)
-      } catch (error: any) {
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Please try again"
         console.error("Error fetching products:", error)
-        Toast.show({
-          type: "error",
-          text1: "Failed to load products",
-          text2: error.message || "Please try again",
-        })
+        Toast.show({ type: "error", text1: "Failed to load products", text2: msg })
         setProducts([])
       } finally {
         setLoading(false)
         setRefreshing(false)
       }
     },
-    [token, brandId, selectedRoomId, selectedCategoryId, searchQuery, perPage]
+    [token, brandId, isZqBrand, selectedRoomId, selectedCategoryId, searchQuery, perPage]
   )
 
   useEffect(() => {
@@ -170,38 +252,27 @@ export default function ShopByBrandScreen({
   const checkFollowingStatus = useCallback(async () => {
     if (!token || !brandId) return
     try {
-      const response = await axios.post(
+      const response = await axios.post<{
+        is_following?: boolean | number
+        data?: { is_following?: boolean | number }
+      }>(
         `${API_CONFIG.BASE_URL}/followers/is-following`,
         { brand_id: brandId },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      console.log(
-        "[ShopByBrandScreen] Follow status response for brandId",
-        brandId,
-        ":",
-        JSON.stringify(response.data)
-      )
 
       let isFollowingStatus = false
-      // Try multiple possible response structures
       if (response.data?.is_following !== undefined) {
         isFollowingStatus =
-          response.data.is_following === true ||
-          response.data.is_following === 1
+          response.data.is_following === true || response.data.is_following === 1
       } else if (response.data?.data?.is_following !== undefined) {
         isFollowingStatus =
           response.data.data.is_following === true ||
           response.data.data.is_following === 1
       } else if (typeof response.data === "boolean") {
-        isFollowingStatus = response.data === true
+        isFollowingStatus = response.data
       }
 
-      console.log(
-        "[ShopByBrandScreen] Setting isFollowing to:",
-        isFollowingStatus,
-        "for brandId:",
-        brandId
-      )
       setIsFollowing(isFollowingStatus)
     } catch (error) {
       console.error("Error checking follow status:", error)
@@ -219,47 +290,27 @@ export default function ShopByBrandScreen({
         { brand_id: brandId },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      setIsFollowing(!isFollowing)
+      setIsFollowing((prev) => !prev)
       Toast.show({
         type: "success",
         text1: isFollowing ? "Unfollowed" : "Followed",
-        text2: `You ${isFollowing ? "unfollowed" : "now follow"} ${brand?.name || "this brand"}`,
+        text2: `You ${isFollowing ? "unfollowed" : "now follow"} ${brand?.name ?? "this brand"}`,
       })
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Failed to update follow status",
-        text2: error.message || "Please try again",
-      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Please try again"
+      Toast.show({ type: "error", text1: "Failed to update follow status", text2: msg })
     } finally {
       setFollowLoading(false)
     }
   }
 
   useEffect(() => {
-    console.log(
-      "[ShopByBrandScreen] useEffect triggered for brandId:",
-      brandId,
-      "token exists:",
-      !!token
-    )
     if (token && brandId) {
-      console.log(
-        "[ShopByBrandScreen] Calling checkFollowingStatus for brandId:",
-        brandId
-      )
       checkFollowingStatus()
     } else {
-      console.log(
-        "[ShopByBrandScreen] Missing token or brandId, not checking follow status"
-      )
       setIsFollowing(false)
     }
-  }, [token, brandId])
-
-  const handleRoomSelect = (roomId: number | null) => {
-    setSelectedRoomId(roomId)
-  }
+  }, [token, brandId, checkFollowingStatus])
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -275,23 +326,23 @@ export default function ShopByBrandScreen({
     }
   }
 
-  const getBrandLogo = () => {
-    if (brand?.logo) return brand.logo
-    if (brand?.brand_image) return brand.brand_image
-    if (brand?.image) return brand.image
-    return null
+  void handleNextPage
+  void handlePreviousPage
+
+  const getBrandLogo = (): string | null => {
+    return brand?.logo ?? brand?.brand_image ?? brand?.image ?? null
   }
 
-  const getBrandInitial = () => {
-    return brand?.name?.trim()?.charAt(0)?.toUpperCase() || "?"
+  const getBrandInitial = (): string => {
+    return brand?.name?.trim()?.charAt(0)?.toUpperCase() ?? "?"
   }
 
   const handleShareBrand = async () => {
     setShowMenu(false)
     try {
       await Share.share({
-        message: `Check out ${brand?.name || "this brand"} on our app!`,
-        title: brand?.name || "Brand",
+        message: `Check out ${brand?.name ?? "this brand"} on our app!`,
+        title: brand?.name ?? "Brand",
       })
     } catch (error) {
       console.error("Share failed:", error)
@@ -312,26 +363,18 @@ export default function ShopByBrandScreen({
       onBack()
       return true
     })
-
     return () => sub.remove()
   }, [onBack])
 
   const themeColors = {
     containerBg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    headerBg: isDarkMode ? "#1e293b" : Colors.white,
-    headerBorder: isDarkMode ? "#334155" : "#e0f2fe",
     text: isDarkMode ? "#f1f5f9" : Colors.text,
     textSecondary: isDarkMode ? "#94a3b8" : Colors.textSecondary,
     cardBg: isDarkMode ? "#1e293b" : Colors.white,
     cardBorder: isDarkMode ? "#334155" : "#e2e8f0",
-    buttonBg: isDarkMode ? "#334155" : "#f1f5f9",
-    buttonBorder: isDarkMode ? "#475569" : "#e5e7eb",
-    searchBg: isDarkMode ? "#1e293b" : Colors.white,
-    searchBorder: isDarkMode ? "#334155" : "#e5e7eb",
-    paginationBg: isDarkMode ? "#0f172a" : "#f8fbff",
-    paginationBorder: isDarkMode ? "#334155" : "#e5e7eb",
-    divider: isDarkMode ? "#334155" : "#eef2f7",
   }
+
+  const brandLogo = getBrandLogo()
 
   return (
     <View
@@ -403,10 +446,7 @@ export default function ShopByBrandScreen({
             onPress={() => setShowMenu(false)}
           >
             <View style={[styles.menuContainer, { top: insets.top + 60 }]}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleShareBrand}
-              >
+              <TouchableOpacity style={styles.menuItem} onPress={handleShareBrand}>
                 <Ionicons
                   name="share-social"
                   size={18}
@@ -416,10 +456,7 @@ export default function ShopByBrandScreen({
                 <Text style={styles.menuText}>Share Brand</Text>
               </TouchableOpacity>
               <View style={styles.menuDivider} />
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleReportBrand}
-              >
+              <TouchableOpacity style={styles.menuItem} onPress={handleReportBrand}>
                 <Ionicons
                   name="flag"
                   size={18}
@@ -438,9 +475,9 @@ export default function ShopByBrandScreen({
         <View style={styles.headerContent}>
           <View style={styles.brandHeaderContent}>
             <View style={[styles.brandLogoHeader, { borderColor: "#cbd5e1" }]}>
-              {getBrandLogo() ? (
+              {brandLogo ? (
                 <Image
-                  source={{ uri: getBrandLogo() }}
+                  source={{ uri: brandLogo }}
                   style={styles.brandLogoImageHeader}
                 />
               ) : (
@@ -460,7 +497,7 @@ export default function ShopByBrandScreen({
                   style={[styles.brandHeaderName, { color: Colors.white }]}
                   numberOfLines={1}
                 >
-                  {brand?.name || "Brand"}
+                  {brand?.name ?? "Brand"}
                 </Text>
                 <Ionicons
                   name="checkmark-circle"
@@ -493,9 +530,7 @@ export default function ShopByBrandScreen({
                 >
                   4.8
                 </Text>
-                <Text style={[styles.brandMetaDot, { color: "#cbd5e1" }]}>
-                  •
-                </Text>
+                <Text style={[styles.brandMetaDot, { color: "#cbd5e1" }]}>•</Text>
                 <Ionicons name="people" size={12} color={Colors.sky} />
                 <Text
                   style={[styles.brandHeaderProducts, { color: Colors.white }]}
@@ -512,10 +547,7 @@ export default function ShopByBrandScreen({
             disabled={followLoading}
             style={[
               styles.topFollowButton,
-              {
-                backgroundColor: isFollowing ? "#0369a1" : Colors.sky,
-                borderWidth: isFollowing ? 0 : 0,
-              },
+              { backgroundColor: isFollowing ? "#0369a1" : Colors.sky },
             ]}
             activeOpacity={0.7}
           >
@@ -533,62 +565,25 @@ export default function ShopByBrandScreen({
 
         {/* Tab Navigation */}
         <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => setSelectedTab("home")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "home" && styles.tabTextActive,
-              ]}
+          {(["home", "products", "categories"] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={styles.tabItem}
+              onPress={() => setSelectedTab(tab)}
             >
-              Home
-            </Text>
-            {selectedTab === "home" && (
-              <View
-                style={[styles.tabIndicator, { backgroundColor: Colors.sky }]}
-              />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => setSelectedTab("products")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "products" && styles.tabTextActive,
-              ]}
-            >
-              Products
-            </Text>
-            {selectedTab === "products" && (
-              <View
-                style={[styles.tabIndicator, { backgroundColor: Colors.sky }]}
-              />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => setSelectedTab("categories")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "categories" && styles.tabTextActive,
-              ]}
-            >
-              Categories
-            </Text>
-            {selectedTab === "categories" && (
-              <View
-                style={[styles.tabIndicator, { backgroundColor: Colors.sky }]}
-              />
-            )}
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.tabText,
+                  selectedTab === tab && styles.tabTextActive,
+                ]}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+              {selectedTab === tab && (
+                <View style={[styles.tabIndicator, { backgroundColor: Colors.sky }]} />
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       </ImageBackground>
 
@@ -596,15 +591,12 @@ export default function ShopByBrandScreen({
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* HOME TAB */}
         {selectedTab === "home" && (
           <ShopByBrandHomeScreen
-            products={products}
+            products={products as any}
             token={token}
             isDarkMode={isDarkMode}
             onProductPress={onProductPress}
@@ -615,12 +607,10 @@ export default function ShopByBrandScreen({
           />
         )}
 
-        {/* PRODUCTS TAB */}
         {selectedTab === "products" && (
           <ShopByBrandProductsScreen isDarkMode={isDarkMode} />
         )}
 
-        {/* CATEGORIES TAB */}
         {selectedTab === "categories" && (
           <ShopByBrandCategoriesScreen
             categories={categories}
@@ -632,250 +622,3 @@ export default function ShopByBrandScreen({
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  customHeader: {
-    paddingTop: 28,
-    paddingBottom: 0,
-    position: "relative",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    overflow: "hidden",
-  },
-  headerOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    marginTop: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 8,
-    marginTop: 8,
-  },
-  searchWrapper: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    height: 40,
-    backgroundColor: "transparent",
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  searchIconLeft: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  clearSearchButton: {
-    marginLeft: 6,
-  },
-  filterIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    backgroundColor: "transparent",
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  backIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    backgroundColor: "transparent",
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  brandHeaderContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  brandLogoHeader: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-  },
-  brandLogoImageHeader: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
-  },
-  brandLogoFallbackHeader: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: Colors.sky,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brandInitialHeader: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.white,
-  },
-  brandHeaderText: {
-    flex: 1,
-  },
-  brandNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  brandHeaderLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: Colors.sky,
-    lineHeight: 13,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  brandHeaderName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-    lineHeight: 18,
-    marginBottom: 6,
-  },
-  brandHeaderSupplier: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 14,
-  },
-  brandHeaderTagline: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    lineHeight: 13,
-    fontStyle: "italic",
-  },
-  brandMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 1,
-  },
-  brandMetaDot: {
-    fontSize: 9,
-    color: Colors.textSecondary,
-  },
-  brandHeaderProducts: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 0,
-    lineHeight: 13,
-  },
-  topFollowButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  topFollowButtonText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 8,
-    gap: 8,
-    paddingBottom: 16,
-  },
-  tabBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 0,
-    paddingBottom: 0,
-    marginHorizontal: 0,
-    marginTop: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-    borderTopWidth: 0,
-  },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#9ca3af",
-  },
-  tabTextActive: {
-    color: Colors.sky,
-  },
-  tabIndicator: {
-    width: "80%",
-    height: 2.5,
-    marginTop: 2,
-    borderRadius: 1.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-  },
-  menuContainer: {
-    position: "absolute",
-    right: 12,
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    minWidth: 180,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  menuIcon: {
-    marginRight: 12,
-  },
-  menuText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: Colors.text,
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: "#e5e7eb",
-  },
-})

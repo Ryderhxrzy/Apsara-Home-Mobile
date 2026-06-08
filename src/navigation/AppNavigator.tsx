@@ -907,15 +907,31 @@ export default function AppNavigator({
       // STEP 2: Lazy load brands, rooms, and featured products in background
       console.log("⏱️  STEP 2: Lazy loading brands, rooms, products...")
       const lazyStart = performance.now()
-      const [brandData, roomData, productData] = await Promise.all([
-        productService.getShopByBrands(token),
-        productService.getShopByRooms(token),
-        productService.getProductCards(token).catch(() => []),
-      ])
+      const [brandData, roomData, productData, zqBrandNames] =
+        await Promise.all([
+          productService.getShopByBrands(token),
+          productService.getShopByRooms(token),
+          productService.getProductCards(token).catch(() => []),
+          productService.getZqBrandNames(token),
+        ])
 
-      console.log(brandData)
       const lazyTime = performance.now() - lazyStart
       console.log(`✅ Lazy load complete: ${Math.round(lazyTime)}ms`)
+
+      // Keep brands that have products in the regular DB OR in external (ZQ) sources
+      const visibleBrands = (brandData || [])
+        .filter(
+          (b: any) =>
+            (b.total_products ?? 0) > 0 ||
+            zqBrandNames.has((b.name ?? "").trim().toLowerCase())
+        )
+        .map((b: any) => ({
+          ...b,
+          isZqBrand: zqBrandNames.has((b.name ?? "").trim().toLowerCase()),
+        }))
+      console.log(
+        `🏷️  Brands: ${(brandData || []).length} total → ${visibleBrands.length} with products`
+      )
 
       // Filter for affordahome brand products
       const affordahomeProducts = Array.isArray(productData)
@@ -927,7 +943,7 @@ export default function AppNavigator({
       console.log("🏠 AFFORDAHOME PRODUCTS:", affordahomeProducts.length)
 
       // Update state with lazy-loaded data
-      setHomeBrands(brandData || [])
+      setHomeBrands(visibleBrands)
       setHomeRoomTypes(roomData || [])
       setHomeFeaturedProducts(affordahomeProducts.slice(0, 10))
 

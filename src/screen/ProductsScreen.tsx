@@ -1,11 +1,9 @@
 // @ts-nocheck
 import React, { useEffect, useState, useCallback } from "react"
-import {
-  View,
+import {  View,
   Text,
   FlatList,
   RefreshControl,
-  StyleSheet,
   Dimensions,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -14,6 +12,7 @@ import { Colors } from "../constants/colors"
 import { productService, Product } from "../services/productService"
 import ItemCard from "../components/Items/ItemCard"
 import Toast from "react-native-toast-message"
+import styles from "../styles/ProductsScreen.styles"
 
 const { width } = Dimensions.get("window")
 const CARD_MARGIN = 8
@@ -149,59 +148,3 @@ export default function ProductsScreen({
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8fbff",
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-  headerCount: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  cardWrapper: {
-    width: CARD_WIDTH,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 48,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-})

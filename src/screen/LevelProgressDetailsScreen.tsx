@@ -1,10 +1,8 @@
 import React from "react"
-import {
-  View,
+import {  View,
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   Image,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -12,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../constants/colors"
 import { TIER_REQUIREMENTS, getTierColor } from "../constants/tierConfig"
+import styles from "../styles/LevelProgressDetailsScreen.styles"
 
 const BADGE_IMAGES: Record<number, any> = {
   1: require("../../assets/Badge/homeStarter.png"),
@@ -164,46 +163,3 @@ export default function LevelProgressDetailsScreen({
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingBottom: 14,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: { fontSize: 17, fontWeight: "800" },
-  content: { padding: 12, gap: 10, paddingBottom: 30 },
-  card: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 6 },
-  cardHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 4,
-  },
-  rankBubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: { color: Colors.white, fontSize: 11, fontWeight: "800" },
-  badgeImage: {
-    width: 44,
-    height: 44,
-  },
-  tierName: { fontSize: 14, fontWeight: "700" },
-  state: { fontSize: 11, fontWeight: "700" },
-  req: { fontSize: 12, fontWeight: "500" },
-})
