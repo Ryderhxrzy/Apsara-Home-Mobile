@@ -438,7 +438,7 @@ export default function LoginScreen({
                 <Button title="Sign in" onPress={handleSignIn} loading={loading} style={styles.signInBtn} />
 
                 <View style={styles.signupLinkSection}>
-                  <Text style={styles.signupText}>Don't have an account?{' '}</Text>
+                  <Text style={styles.signupText}>Don&apos;t have an account?{' '}</Text>
                   <TouchableOpacity onPress={onGoToSignup}>
                     <Text style={styles.signupLink}>Sign up</Text>
                   </TouchableOpacity>

@@ -134,7 +134,7 @@ export default function AboutUsScreen({ onBack, isDarkMode }: AboutUsScreenProps
             </View>
 
             <Text style={[styles.bodyText, { color: colors.textSec, marginTop: 12, fontStyle: 'italic' }]}>
-              Join the AF Home family and transform your house into a place you'll love coming home to.
+              Join the AF Home family and transform your house into a place you&apos;ll love coming home to.
             </Text>
           </View>
 
@@ -197,7 +197,7 @@ export default function AboutUsScreen({ onBack, isDarkMode }: AboutUsScreenProps
               </View>
               <Text style={[styles.valueSubtitle, { color: colors.textSec }]}>People‑first service</Text>
               <Text style={[styles.valueDesc, { color: colors.textSec }]}>
-                From choosing the right piece to post‑delivery support, we're here to help you feel at home.
+                From choosing the right piece to post‑delivery support, we&apos;re here to help you feel at home.
               </Text>
             </View>
           </View>

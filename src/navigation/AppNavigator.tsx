@@ -179,7 +179,6 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
   // Initialize real-time notifications
   const { notifications, unreadCount } = useNotifications(user?.id || '', token || '');
 
-
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -264,6 +263,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
   const [showShopProductDetail, setShowShopProductDetail] = useState(false);
   const [shopSelectedProductId, setShopSelectedProductId] = useState<number | null>(null);
   const [chatbotHidden, setChatbotHidden] = useState(false);
+
 
   // Enrich user object with badge_image if missing
   const enrichedUser = useMemo(() => {
@@ -727,6 +727,8 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
         productService.getShopByRooms(token),
         productService.getProductCards(token).catch(() => []),
       ]);
+
+      console.log(brandData)
       const lazyTime = performance.now() - lazyStart;
       console.log(`✅ Lazy load complete: ${Math.round(lazyTime)}ms`);
 
@@ -775,6 +777,7 @@ export default function AppNavigator({ user, token, onLogout, productSlugFromDee
   const refreshHomeData = useCallback(async () => {
     await fetchHomeData(true);
   }, [fetchHomeData]);
+      console.log(homeBrands)
 
 
   const handleOpenAffiliateReferralModal = async () => {
