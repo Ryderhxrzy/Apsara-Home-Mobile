@@ -4,124 +4,141 @@ import { Colors } from "../constants/colors"
 const SCREEN_HEIGHT = Dimensions.get("window").height
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.6
 
+// Layout-only styles. Theme colors are applied inline from the screen palette.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+
+  /* ---------- Hero header ---------- */
+  hero: {
+    paddingBottom: 16,
+    paddingHorizontal: 12,
   },
-  headerContent: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 6,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
-  headerInfo: {
+  headerTextWrap: {
     flex: 1,
-    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
   },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+
+  /* ---------- Body ---------- */
   keyboardView: {
     flex: 1,
-    flexDirection: "column",
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 24,
+    gap: 12,
   },
-  profilePictureSection: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  profilePictureButton: {
-    position: "relative",
-    marginBottom: 8,
-  },
-  profilePictureContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#f0f0f0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profilePictureDefault: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cameraIcon: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
+
+  /* ---------- Section cards ---------- */
+  card: {
     borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  cardHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
   },
-  profilePictureText: {
-    fontSize: 12,
-    color: "#666",
+  cardAccent: {
+    width: 3,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: Colors.sky,
   },
-  profilePictureHint: {
-    fontSize: 12,
-    fontWeight: "500",
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 12,
-    marginTop: 12,
+  cardBody: {
+    padding: 14,
+    gap: 14,
   },
-  fieldGroup: {
-    marginBottom: 16,
+
+  /* ---------- Fields ---------- */
+  field: {
+    gap: 7,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 8,
+  },
+  required: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.error,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 13,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    minHeight: 48,
   },
   inputText: {
-    fontSize: 13,
+    fontSize: 14,
     flex: 1,
   },
-  dateText: {
-    fontSize: 13,
+  errorText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.error,
   },
+
+  /* ---------- Sticky save ---------- */
+  buttonContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  saveBtn: {
+    marginBottom: 0,
+  },
+
+  /* ---------- Modals (dropdown + date picker) ---------- */
   modalContainer: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   modalOverlay: {
     flex: 1,
@@ -141,7 +158,6 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: "#cbd5e1",
     borderRadius: 2,
   },
   modalHeader: {
@@ -151,15 +167,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: Colors.text,
   },
   modalList: {
-    paddingHorizontal: 0,
     flex: 1,
   },
   modalItem: {
@@ -169,7 +182,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
   },
   modalItemLast: {
     borderBottomWidth: 0,
@@ -180,10 +192,26 @@ const styles = StyleSheet.create({
   modalItemText: {
     fontSize: 15,
     fontWeight: "500",
-    color: Colors.text,
   },
   checkmark: {
     marginLeft: 12,
+  },
+  dropdownLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 40,
+  },
+  dropdownLoadingText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  dropdownEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 40,
   },
   datePickerContent: {
     flex: 1,
@@ -218,15 +246,6 @@ const styles = StyleSheet.create({
   datePickerBtnText: {
     fontSize: 15,
     fontWeight: "600",
-  },
-  buttonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-  saveBtn: {
-    marginBottom: 0,
   },
 })
 

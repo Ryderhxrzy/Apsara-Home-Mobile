@@ -30,7 +30,6 @@ import { accountService } from "../services/accountService"
 import { orderService } from "../services/orderService"
 import LevelProgress from "../components/LevelProgress/LevelProgress"
 // import DailyCheckin from "../components/DailyCheckin/DailyCheckin"
-import ProfileDetailsScreen from "./ProfileDetailsScreen"
 import LevelProgressDetailsScreen from "./LevelProgressDetailsScreen"
 import { ChatBotIcon } from "../components/ChatBot"
 import LeaderboardScreen from "./LeaderboardScreen"
@@ -240,7 +239,6 @@ export default function ProfileScreen({
   const [biometricEnabled, setBiometricEnabled] = useState(false)
   const [loadingLoyalty, setLoadingLoyalty] = useState(false)
   const [loyaltyData, setLoyaltyData] = useState<any>(null)
-  const [showProfileDetails, setShowProfileDetails] = useState(false)
   const [showLevelProgressDetails, setShowLevelProgressDetails] =
     useState(false)
   const [orderCounts, setOrderCounts] = useState<any>(null)
@@ -318,10 +316,6 @@ export default function ProfileScreen({
 
     return 0
   }
-
-  useEffect(() => {
-    onShowProfileDetails?.(showProfileDetails)
-  }, [showProfileDetails, onShowProfileDetails])
 
   useEffect(() => {
     console.log("[ProfileScreen] useEffect token changed:", { token: !!token })
@@ -594,7 +588,7 @@ export default function ProfileScreen({
           <View style={[styles.headerContent, { paddingTop: insets.top }]}>
             <TouchableOpacity
               style={styles.headerLeft}
-              onPress={() => setShowProfileDetails(true)}
+              onPress={() => onShowProfileDetails?.(true)}
               activeOpacity={0.7}
             >
               <View style={styles.headerAvatar}>
@@ -1775,17 +1769,6 @@ export default function ProfileScreen({
           </View>
         </Modal>
 
-        {/* Profile Details Screen */}
-        {showProfileDetails && (
-          <View style={styles.profileDetailsOverlay}>
-            <ProfileDetailsScreen
-              token={token}
-              cartCount={cartCount}
-              onClose={() => setShowProfileDetails(false)}
-              onCartPress={onCartPress}
-            />
-          </View>
-        )}
         {showLevelProgressDetails && loyaltyData && (
           <View style={styles.profileDetailsOverlay}>
             <LevelProgressDetailsScreen

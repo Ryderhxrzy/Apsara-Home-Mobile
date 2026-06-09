@@ -1,47 +1,37 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
 
+// Layout-only styles. Theme colors are applied inline from the screen's `c`
+// palette so the screen fully supports dark mode.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
   },
-  scrollView: {
-    flex: 1,
-    backgroundColor: "#f0f9ff",
+
+  /* ---------- Cover banner ---------- */
+  cover: {
+    paddingBottom: 72,
   },
-  headerGradient: {
-    paddingTop: 12,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  header: {
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
-  headerIcon: {
+  iconBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f5f9",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
   },
-  headerIconCart: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f1f5f9",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    position: "relative",
+  topTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: Colors.white,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   cartBadge: {
     position: "absolute",
@@ -63,43 +53,28 @@ const styles = StyleSheet.create({
     color: Colors.white,
     lineHeight: 11,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-  scrollContent: {
-    padding: 8,
-    paddingBottom: 40,
-  },
-  profileHeaderContainer: {
-    borderRadius: 14,
-    marginBottom: 20,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: Colors.white,
-  },
-  profileHeader: {
+
+  /* ---------- Floating profile sheet ---------- */
+  profileSheet: {
+    marginTop: -24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     alignItems: "center",
-    gap: 16,
-    paddingVertical: 24,
     paddingHorizontal: 16,
+    paddingBottom: 18,
   },
-  avatarContainer: {
+  avatarWrap: {
+    marginTop: -46,
+    marginBottom: 8,
     position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  avatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#e0f2fe",
+  avatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: "#e5e7eb",
     overflow: "hidden",
   },
   avatarImage: {
@@ -107,49 +82,48 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   avatarInitial: {
-    fontSize: 44,
+    fontSize: 38,
     fontWeight: "900",
     color: Colors.sky,
   },
   avatarLoadingOverlay: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 46,
+    backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarEditIcon: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 2,
+    right: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: Colors.sky,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
     borderColor: Colors.white,
   },
-  headerInfo: {
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-    width: "100%",
-  },
-  nameText: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: Colors.text,
-    textAlign: "center",
-  },
-  nameContainer: {
+  nameRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+  },
+  nameText: {
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  usernameText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.sky,
+    marginTop: 2,
   },
   nameEditContainer: {
     width: "100%",
@@ -158,7 +132,6 @@ const styles = StyleSheet.create({
   nameInput: {
     fontSize: 18,
     fontWeight: "700",
-    color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.sky,
     borderRadius: 10,
@@ -171,154 +144,106 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  saveButton: {
+  circleBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#10b981",
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  usernameText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.sky,
-  },
-  badgeRankRow: {
+  chipRow: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
+    flexWrap: "wrap",
+    marginTop: 10,
   },
-  badgeContainer: {
+  chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  chipBadge: {
     backgroundColor: "#f59e0b",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
   },
-  badgeImage: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  chipImage: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
-  badgeText: {
+  chipText: {
     fontSize: 12,
     fontWeight: "700",
     color: Colors.white,
   },
-  rankContainer: {
+
+  /* ---------- Body ---------- */
+  body: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 40,
+  },
+
+  /* ---------- Stat tiles ---------- */
+  statRow: {
     flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+  statTile: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.sky,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 4,
   },
-  rankText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.white,
+  statIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
   },
-  completionContainer: {
+  statValue: {
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+
+  /* ---------- Progress (sheet + monthly activation) ---------- */
+  completion: {
     width: "100%",
     gap: 6,
-    marginTop: 8,
+    marginTop: 14,
   },
-  completionText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  section: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    overflow: "hidden",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Colors.text,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#f9fafb",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  sectionContent: {
-    padding: 16,
-    gap: 12,
-  },
-  infoRow: {
+  completionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
   },
-  infoLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#e0f2fe",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
+  completionLabel: {
+    fontSize: 12,
     fontWeight: "700",
-    color: Colors.text,
-    flex: 1,
-    textAlign: "right",
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: Colors.white,
-  },
-  progressContainer: {
-    marginTop: 10,
-    gap: 10,
-    paddingHorizontal: 4,
+  completionPct: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.sky,
   },
   progressBar: {
     height: 8,
-    backgroundColor: "#e5e7eb",
     borderRadius: 4,
     overflow: "hidden",
   },
@@ -329,57 +254,142 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: Colors.textSecondary,
     fontWeight: "600",
     textAlign: "center",
   },
-  badgeJourneyList: {
-    gap: 10,
-  },
-  badgeJourneyItem: {
+
+  /* ---------- Primary CTA ---------- */
+  ctaButton: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-    gap: 10,
-    backgroundColor: "#f8fafc",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.sky,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 18,
   },
-  badgeJourneyRank: {
+  ctaComplete: {
+    backgroundColor: "#10b981",
+  },
+  ctaText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.white,
+  },
+
+  /* ---------- Grouped list sections ---------- */
+  groupLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginLeft: 6,
+    marginBottom: 8,
+  },
+  group: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 18,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+  },
+  rowIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  rowValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    flexShrink: 1,
+    textAlign: "right",
+  },
+  rowProgress: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 8,
+  },
+
+  /* ---------- Status pills ---------- */
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.white,
+  },
+
+  /* ---------- Badge journey ---------- */
+  tierItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tierRank: {
     width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeJourneyRankText: {
+  tierRankText: {
     fontSize: 11,
     fontWeight: "800",
     color: Colors.white,
   },
-  badgeJourneyInfo: {
+  tierInfo: {
     flex: 1,
     gap: 2,
   },
-  badgeJourneyTitle: {
+  tierTitle: {
     fontSize: 13,
     fontWeight: "700",
-    color: Colors.text,
   },
-  badgeJourneyMeta: {
+  tierMeta: {
     fontSize: 11,
-    color: Colors.textSecondary,
     fontWeight: "500",
   },
-  badgeJourneyState: {
+  tierState: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  badgeJourneyStateText: {
+  tierStateText: {
     fontSize: 10,
     fontWeight: "700",
   },
+
+  /* ---------- States ---------- */
   loadingContainer: {
     flex: 1,
     alignItems: "center",
@@ -388,37 +398,33 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: Colors.textSecondary,
     fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
+    padding: 24,
   },
   emptyText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 15,
     fontWeight: "600",
+    textAlign: "center",
   },
-  editButton: {
+  retryButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 8,
     backgroundColor: Colors.sky,
-    marginHorizontal: 8,
-    marginVertical: 12,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 12,
   },
-  editButtonText: {
+  retryText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.white,
-  },
-  completeProfileButton: {
-    backgroundColor: "#10b981",
   },
 })
 

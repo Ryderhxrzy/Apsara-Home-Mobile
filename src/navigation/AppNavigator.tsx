@@ -1955,6 +1955,7 @@ export default function AppNavigator({
             <ProfileDetailsScreen
               token={token}
               cartCount={cartCount}
+              isDarkMode={isDarkMode}
               onClose={() => setShowProfileDetails(false)}
               onCartPress={() => {
                 setShowProfileDetails(false)
@@ -1991,6 +1992,7 @@ export default function AppNavigator({
                   )
                   const updatePayload = {
                     name: profileData.firstName || "",
+                    last_name: profileData.lastName || "",
                     phone: profileData.phone,
                     middle_name: profileData.middleName,
                     birth_date: profileData.birthDate,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
-import {  View,
+import {
+  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -7,28 +8,22 @@ import {  View,
   KeyboardAvoidingView,
   Platform,
   Modal,
-  FlatList,
   Animated,
   PanResponder,
   Pressable,
   Dimensions,
   BackHandler,
+  ActivityIndicator,
+  KeyboardTypeOptions,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import Toast from "react-native-toast-message"
-import axios from "axios"
 import { Colors } from "../constants/colors"
-import { API_CONFIG } from "../config/api"
+import { addressService, LocationData } from "../services/addressService"
 import Button from "../components/Button/PrimaryButton"
 import styles from "../styles/ProfileEditScreen.styles"
-
-interface LocationData {
-  code: string
-  name: string
-  zipCode?: string
-}
 
 interface ProfileEditScreenProps {
   user: any
@@ -48,21 +43,36 @@ const COUNTRIES = [
   "Other",
 ]
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+]
+
 const SCREEN_HEIGHT = Dimensions.get("window").height
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.6
 
-const getDaysInMonth = (year: number, month: number) => {
-  return new Date(year, month + 1, 0).getDate()
-}
+const getDaysInMonth = (year: number, month: number) =>
+  new Date(year, month + 1, 0).getDate()
 
 const generateYears = () => {
   const currentYear = new Date().getFullYear()
-  const years = []
-  for (let i = currentYear; i >= 1950; i--) {
-    years.push(i)
-  }
+  const years: number[] = []
+  for (let i = currentYear; i >= 1950; i--) years.push(i)
   return years
 }
+
+// Location dropdowns whose options are loaded asynchronously.
+const LOCATION_FIELDS = ["region", "province", "city", "barangay"]
 
 export default function ProfileEditScreen({
   user,
@@ -73,8 +83,12 @@ export default function ProfileEditScreen({
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
   const [loadingLocations, setLoadingLocations] = useState(false)
+  const [errors, setErrors] = useState<Set<string>>(new Set())
+  const [focusedField, setFocusedField] = useState<string | null>(null)
+
   const [profileData, setProfileData] = useState({
     firstName: user?.first_name || user?.name || "",
+    lastName: user?.last_name || "",
     middleName: user?.middle_name || "",
     birthDate: user?.birth_date || "2000-01-01",
     gender: user?.gender
@@ -88,26 +102,20 @@ export default function ProfileEditScreen({
     phone: user?.phone || "",
   })
 
+  const initLocation = (value: any): LocationData | null =>
+    value && value !== "Not specified" ? { code: value, name: value } : null
+
   const [selectedRegion, setSelectedRegion] = useState<LocationData | null>(
-    user?.region && user.region !== "Not specified"
-      ? { code: user.region, name: user.region }
-      : null
+    initLocation(user?.region)
   )
   const [selectedProvince, setSelectedProvince] = useState<LocationData | null>(
-    user?.province && user.province !== "Not specified"
-      ? { code: user.province, name: user.province }
-      : null
+    initLocation(user?.province)
   )
   const [selectedCity, setSelectedCity] = useState<LocationData | null>(
-    user?.city && user.city !== "Not specified"
-      ? { code: user.city, name: user.city }
-      : null
+    initLocation(user?.city)
   )
-  const [selectedBarangay, setSelectedBarangay] = useState<LocationData | null>(
-    user?.barangay && user.barangay !== "Not specified"
-      ? { code: user.barangay, name: user.barangay }
-      : null
-  )
+  const [selectedBarangay, setSelectedBarangay] =
+    useState<LocationData | null>(initLocation(user?.barangay))
 
   const [regions, setRegions] = useState<LocationData[]>([])
   const [provinces, setProvinces] = useState<LocationData[]>([])
@@ -126,19 +134,30 @@ export default function ProfileEditScreen({
   const [tempDay, setTempDay] = useState(1)
   const [isNCRRegion, setIsNCRRegion] = useState(false)
 
+  const c = {
+    bg: isDarkMode ? "#0b1220" : "#f0f9ff",
+    card: isDarkMode ? "#1e293b" : Colors.white,
+    cardAlt: isDarkMode ? "#0f172a" : "#f9fafb",
+    border: isDarkMode ? "#334155" : "#e5e7eb",
+    inputBg: isDarkMode ? "#0f172a" : Colors.white,
+    text: isDarkMode ? "#f8fafc" : Colors.text,
+    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
+    heroFrom: isDarkMode ? "rgba(2,132,199,0.28)" : "rgba(14,165,233,0.20)",
+    heroTo: isDarkMode ? "rgba(11,18,32,0)" : "rgba(240,249,255,0)",
+    handle: isDarkMode ? "#475569" : "#cbd5e1",
+    selectedBg: isDarkMode ? "#0c4a6e" : "#eff6ff",
+  }
+
   const modalTranslateY = useRef(new Animated.Value(MODAL_HEIGHT)).current
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dy) > 5
+      onMoveShouldSetPanResponder: (_evt, gestureState) =>
+        Math.abs(gestureState.dy) > 5,
+      onPanResponderMove: (_evt, gestureState) => {
+        if (gestureState.dy > 0) modalTranslateY.setValue(gestureState.dy)
       },
-      onPanResponderMove: (evt, gestureState) => {
-        if (gestureState.dy > 0) {
-          modalTranslateY.setValue(gestureState.dy)
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
+      onPanResponderRelease: (_evt, gestureState) => {
         if (gestureState.dy > 100) {
           Animated.timing(modalTranslateY, {
             toValue: MODAL_HEIGHT,
@@ -178,6 +197,7 @@ export default function ProfileEditScreen({
       setTempMonth(parsedDate.getMonth())
       setTempDay(parsedDate.getDate())
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -191,43 +211,15 @@ export default function ProfileEditScreen({
     return () => backHandler.remove()
   }, [onBack])
 
+  const showLocationError = (what: string) =>
+    Toast.show({ type: "error", text1: "Error", text2: `Failed to load ${what}` })
+
   const fetchRegions = async () => {
     try {
       setLoadingLocations(true)
-      try {
-        const url = `${API_CONFIG.BASE_URL}/address/regions`
-        const response = await axios.get(url)
-        if (
-          response.data &&
-          response.data.data &&
-          Array.isArray(response.data.data)
-        ) {
-          const formattedData = response.data.data.map((item: any) => ({
-            code: item.code || item.id,
-            name: item.name,
-          }))
-          setRegions(formattedData)
-          return
-        }
-      } catch (error) {
-        console.log("Backend regions failed, trying PSGC")
-      }
-
-      const psgcUrl = "https://psgc.gitlab.io/api/regions/"
-      const response = await axios.get(psgcUrl)
-      if (response.data && Array.isArray(response.data)) {
-        const formattedData = response.data.map((item: any) => ({
-          code: item.code,
-          name: item.name,
-        }))
-        setRegions(formattedData)
-      }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load regions",
-      })
+      setRegions(await addressService.getRegions())
+    } catch {
+      showLocationError("regions")
     } finally {
       setLoadingLocations(false)
     }
@@ -236,85 +228,20 @@ export default function ProfileEditScreen({
   const fetchProvinces = async (regionCode: string) => {
     try {
       setLoadingLocations(true)
-      try {
-        const url = `${API_CONFIG.BASE_URL}/address/provinces?region_code=${regionCode}`
-        const response = await axios.get(url)
-        if (
-          response.data &&
-          response.data.data &&
-          Array.isArray(response.data.data)
-        ) {
-          const formattedData = response.data.data.map((item: any) => ({
-            code: item.code || item.id,
-            name: item.name,
-          }))
-          setProvinces(formattedData)
-          return
-        }
-      } catch (error) {
-        console.log("Backend provinces failed, trying PSGC")
-      }
-
-      const psgcUrl = `https://psgc.gitlab.io/api/regions/${regionCode}/provinces/`
-      const response = await axios.get(psgcUrl)
-      if (response.data && Array.isArray(response.data)) {
-        const formattedData = response.data.map((item: any) => ({
-          code: item.code,
-          name: item.name,
-        }))
-        setProvinces(formattedData)
-      }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load provinces",
-      })
+      setProvinces(await addressService.getProvinces(regionCode))
+    } catch {
+      showLocationError("provinces")
     } finally {
       setLoadingLocations(false)
     }
   }
 
-  const fetchCities = async (provinceCode: string) => {
+  const fetchCities = async (code: string) => {
     try {
       setLoadingLocations(true)
-      try {
-        const queryParam = isNCRRegion ? "region_code" : "province_code"
-        const url = `${API_CONFIG.BASE_URL}/address/cities?${queryParam}=${provinceCode}`
-        const response = await axios.get(url)
-        if (
-          response.data &&
-          response.data.data &&
-          Array.isArray(response.data.data)
-        ) {
-          const formattedData = response.data.data.map((item: any) => ({
-            code: item.code || item.id,
-            name: item.name,
-          }))
-          setCities(formattedData)
-          return
-        }
-      } catch (error) {
-        console.log("Backend cities failed, trying PSGC")
-      }
-
-      const psgcPath = isNCRRegion
-        ? `https://psgc.gitlab.io/api/regions/${provinceCode}/cities-municipalities/`
-        : `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities-municipalities/`
-      const response = await axios.get(psgcPath)
-      if (response.data && Array.isArray(response.data)) {
-        const formattedData = response.data.map((item: any) => ({
-          code: item.code,
-          name: item.name,
-        }))
-        setCities(formattedData)
-      }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load cities",
-      })
+      setCities(await addressService.getCities(code, isNCRRegion))
+    } catch {
+      showLocationError("cities")
     } finally {
       setLoadingLocations(false)
     }
@@ -323,51 +250,25 @@ export default function ProfileEditScreen({
   const fetchBarangays = async (cityCode: string) => {
     try {
       setLoadingLocations(true)
-      try {
-        const url = `${API_CONFIG.BASE_URL}/address/barangays?city_code=${cityCode}`
-        const response = await axios.get(url)
-        if (
-          response.data &&
-          response.data.data &&
-          Array.isArray(response.data.data)
-        ) {
-          const formattedData = response.data.data.map((item: any) => ({
-            code: item.code || item.id,
-            name: item.name,
-          }))
-          setBarangays(formattedData)
-          return
-        }
-      } catch (error) {
-        console.log("Backend barangays failed, trying PSGC")
-      }
-
-      const psgcUrl = `https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`
-      const response = await axios.get(psgcUrl)
-      if (response.data && Array.isArray(response.data)) {
-        const formattedData = response.data.map((item: any) => ({
-          code: item.code,
-          name: item.name,
-        }))
-        setBarangays(formattedData)
-      }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load barangays",
-      })
+      setBarangays(await addressService.getBarangays(cityCode))
+    } catch {
+      showLocationError("barangays")
     } finally {
       setLoadingLocations(false)
     }
   }
 
-  const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f8fbff",
-    containerBg: isDarkMode ? "#1f2937" : Colors.white,
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#374151" : "#e5e7eb",
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!prev.has(key)) return prev
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+
+  const updateField = (key: keyof typeof profileData, value: string) => {
+    setProfileData((prev) => ({ ...prev, [key]: value }))
+    clearError(key)
   }
 
   const openDropdown = (
@@ -376,42 +277,40 @@ export default function ProfileEditScreen({
     title: string
   ) => {
     setSelectedDropdown(field)
-    const formattedOptions =
+    const formatted =
       Array.isArray(options) && typeof options[0] === "string"
         ? (options as string[]).map((opt) => ({ code: opt, name: opt }))
         : (options as LocationData[])
-    setDropdownOptions(formattedOptions)
+    setDropdownOptions(formatted)
     setDropdownTitle(title)
   }
 
-  const formatDate = (year: number, month: number, day: number) => {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-  }
+  const formatDate = (year: number, month: number, day: number) =>
+    `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 
   const handleDatePickerNext = () => {
-    if (datePickerMode === "year") {
-      setDatePickerMode("month")
-    } else if (datePickerMode === "month") {
-      setDatePickerMode("day")
-    }
+    if (datePickerMode === "year") setDatePickerMode("month")
+    else if (datePickerMode === "month") setDatePickerMode("day")
   }
 
   const handleDatePickerPrev = () => {
-    if (datePickerMode === "month") {
-      setDatePickerMode("year")
-    } else if (datePickerMode === "day") {
-      setDatePickerMode("month")
-    }
+    if (datePickerMode === "month") setDatePickerMode("year")
+    else if (datePickerMode === "day") setDatePickerMode("month")
   }
 
   const handleDatePickerConfirm = () => {
-    const formattedDate = formatDate(tempYear, tempMonth, tempDay)
-    setProfileData((prev) => ({ ...prev, birthDate: formattedDate }))
+    setProfileData((prev) => ({
+      ...prev,
+      birthDate: formatDate(tempYear, tempMonth, tempDay),
+    }))
+    clearError("birthDate")
     setShowDatePicker(false)
     setDatePickerMode("year")
   }
 
   const selectDropdownOption = (value: LocationData | string) => {
+    if (selectedDropdown) clearError(selectedDropdown)
+
     if (selectedDropdown === "gender") {
       setProfileData((prev) => ({
         ...prev,
@@ -427,92 +326,89 @@ export default function ProfileEditScreen({
         ...prev,
         country: typeof value === "string" ? value : value.name,
       }))
-    } else if (selectedDropdown === "region") {
-      const region = value
-      setSelectedRegion(typeof region === "string" ? null : region)
-      if (typeof region !== "string") {
-        if (
-          region.name.toUpperCase().includes("NATIONAL CAPITAL") ||
-          region.name.toUpperCase() === "NCR"
-        ) {
-          setIsNCRRegion(true)
-          setProvinces([{ code: "NCR", name: "National Capital Region" }])
-          setSelectedProvince(null)
-          setCities([])
-          setBarangays([])
-          setSelectedCity(null)
-          setSelectedBarangay(null)
-        } else {
-          setIsNCRRegion(false)
-          fetchProvinces(region.code)
-          setSelectedProvince(null)
-          setSelectedCity(null)
-          setSelectedBarangay(null)
-          setCities([])
-          setBarangays([])
-        }
+    } else if (selectedDropdown === "region" && typeof value !== "string") {
+      setSelectedRegion(value)
+      setSelectedProvince(null)
+      setSelectedCity(null)
+      setSelectedBarangay(null)
+      setProvinces([])
+      setCities([])
+      setBarangays([])
+      const isNCR =
+        value.name.toUpperCase().includes("NATIONAL CAPITAL") ||
+        value.name.toUpperCase() === "NCR"
+      setIsNCRRegion(isNCR)
+      if (isNCR) {
+        setProvinces([{ code: "NCR", name: "National Capital Region" }])
       } else {
-        setIsNCRRegion(false)
-        setSelectedProvince(null)
-        setSelectedCity(null)
-        setSelectedBarangay(null)
-        setProvinces([])
-        setCities([])
-        setBarangays([])
+        fetchProvinces(value.code)
       }
-    } else if (selectedDropdown === "province") {
-      const province = value
-      setSelectedProvince(typeof province === "string" ? null : province)
-      if (typeof province !== "string") {
-        if (isNCRRegion && selectedRegion) {
-          fetchCities(selectedRegion.code)
-        } else {
-          fetchCities(province.code)
-        }
-      }
+    } else if (selectedDropdown === "province" && typeof value !== "string") {
+      setSelectedProvince(value)
       setSelectedCity(null)
       setSelectedBarangay(null)
       setCities([])
       setBarangays([])
-    } else if (selectedDropdown === "city") {
-      const city = value
-      setSelectedCity(typeof city === "string" ? null : city)
-      if (typeof city !== "string") {
-        fetchBarangays(city.code)
-      }
+      fetchCities(isNCRRegion && selectedRegion ? selectedRegion.code : value.code)
+    } else if (selectedDropdown === "city" && typeof value !== "string") {
+      setSelectedCity(value)
       setSelectedBarangay(null)
       setBarangays([])
-    } else if (selectedDropdown === "barangay") {
-      const barangay = value
-      setSelectedBarangay(typeof barangay === "string" ? null : barangay)
+      fetchBarangays(value.code)
+    } else if (selectedDropdown === "barangay" && typeof value !== "string") {
+      setSelectedBarangay(value)
     }
     setSelectedDropdown(null)
   }
 
+  const validate = (): Set<string> => {
+    const missing = new Set<string>()
+    if (!profileData.firstName.trim()) missing.add("firstName")
+    if (!profileData.occupation.trim()) missing.add("occupation")
+    if (!profileData.streetAddress.trim()) missing.add("streetAddress")
+    if (!profileData.zipCode.trim()) missing.add("zipCode")
+    if (!profileData.birthDate) missing.add("birthDate")
+    if (!profileData.gender) missing.add("gender")
+    if (!profileData.workLocation) missing.add("workLocation")
+    if (!profileData.country) missing.add("country")
+    if (!selectedRegion) missing.add("region")
+    if (!selectedProvince) missing.add("province")
+    if (!selectedCity) missing.add("city")
+    if (!selectedBarangay) missing.add("barangay")
+    return missing
+  }
+
   const handleSave = async () => {
+    const missing = validate()
+    if (missing.size > 0) {
+      setErrors(missing)
+      Toast.show({
+        type: "error",
+        text1: "Missing information",
+        text2: "Please complete all required fields.",
+      })
+      return
+    }
+
+    if (!onSave) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Cannot save profile - no callback provided",
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      if (onSave) {
-        const completeData = {
-          ...profileData,
-          region: selectedRegion?.name || "",
-          province: selectedProvince?.name || "",
-          city: selectedCity?.name || "",
-          barangay: selectedBarangay?.name || "",
-        }
-        console.log("[ProfileEdit] Calling onSave with data:", completeData)
-        await onSave(completeData)
-        console.log("[ProfileEdit] onSave completed successfully")
-      } else {
-        console.log("[ProfileEdit] No onSave callback provided")
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Cannot save profile - no callback provided",
-        })
-      }
+      await onSave({
+        ...profileData,
+        region: selectedRegion?.name || "",
+        province: selectedProvince?.name || "",
+        city: selectedCity?.name || "",
+        barangay: selectedBarangay?.name || "",
+      })
     } catch (error: any) {
-      console.log("[ProfileEdit] Error in handleSave:", error)
       Toast.show({
         type: "error",
         text1: "Error",
@@ -523,31 +419,127 @@ export default function ProfileEditScreen({
     }
   }
 
+  /* ---------- Field renderers ---------- */
+  const renderLabel = (label: string, required?: boolean) => (
+    <View style={styles.labelRow}>
+      <Text style={[styles.label, { color: c.text }]}>{label}</Text>
+      {required ? <Text style={styles.required}>*</Text> : null}
+    </View>
+  )
+
+  const renderTextField = (
+    key: keyof typeof profileData,
+    label: string,
+    opts: {
+      required?: boolean
+      placeholder?: string
+      keyboardType?: KeyboardTypeOptions
+    } = {}
+  ) => {
+    const hasError = errors.has(key)
+    const focused = focusedField === key
+    return (
+      <View style={styles.field}>
+        {renderLabel(label, opts.required)}
+        <TextInput
+          style={[
+            styles.input,
+            {
+              color: c.text,
+              backgroundColor: c.inputBg,
+              borderColor: hasError
+                ? Colors.error
+                : focused
+                  ? Colors.sky
+                  : c.border,
+            },
+          ]}
+          value={profileData[key]}
+          onChangeText={(t) => updateField(key, t)}
+          onFocus={() => setFocusedField(key)}
+          onBlur={() => setFocusedField(null)}
+          placeholder={opts.placeholder}
+          placeholderTextColor={c.textSec}
+          keyboardType={opts.keyboardType}
+        />
+        {hasError ? (
+          <Text style={styles.errorText}>This field is required</Text>
+        ) : null}
+      </View>
+    )
+  }
+
+  const renderSelectField = (
+    key: string,
+    label: string,
+    value: string,
+    placeholder: string,
+    onPress: () => void,
+    required?: boolean
+  ) => {
+    const hasError = errors.has(key)
+    return (
+      <View style={styles.field}>
+        {renderLabel(label, required)}
+        <TouchableOpacity
+          style={[
+            styles.input,
+            {
+              backgroundColor: c.inputBg,
+              borderColor: hasError ? Colors.error : c.border,
+            },
+          ]}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[styles.inputText, { color: value ? c.text : c.textSec }]}
+            numberOfLines={1}
+          >
+            {value || placeholder}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color={c.textSec} />
+        </TouchableOpacity>
+        {hasError ? (
+          <Text style={styles.errorText}>This field is required</Text>
+        ) : null}
+      </View>
+    )
+  }
+
+  const isLocationDropdown =
+    selectedDropdown !== null && LOCATION_FIELDS.includes(selectedDropdown)
+  const showDropdownLoading =
+    isLocationDropdown && loadingLocations && dropdownOptions.length === 0
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      {/* Hero header */}
       <LinearGradient
-        colors={
-          isDarkMode
-            ? ["rgba(59,130,246,0.15)", "rgba(31,41,55,0)"]
-            : ["rgba(14,165,233,0.18)", "rgba(255,255,255,0)"]
-        }
+        colors={[c.heroFrom, c.heroTo]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[
-          styles.header,
-          { paddingTop: insets.top, backgroundColor: colors.containerBg },
-        ]}
+        style={[styles.hero, { paddingTop: insets.top + 6 }]}
       >
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={[
+              styles.backButton,
+              { backgroundColor: c.card, borderColor: c.border },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={22} color={c.text} />
           </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.headerTitle, { color: c.text }]}>
               Edit Profile
             </Text>
+            <Text style={[styles.headerSubtitle, { color: c.textSec }]}>
+              Keep your information up to date
+            </Text>
           </View>
-          <View style={{ width: 40 }} />
         </View>
       </LinearGradient>
 
@@ -560,270 +552,153 @@ export default function ProfileEditScreen({
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={true}
         >
-          {/* Profile Picture */}
-          {/* Complete Information Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Complete Information
-          </Text>
-
-          {/* Middle Name */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Middle Name
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: "transparent",
-                },
-              ]}
-              value={profileData.middleName}
-              onChangeText={(text) =>
-                setProfileData((prev) => ({ ...prev, middleName: text }))
-              }
-              placeholderTextColor={colors.textSec}
-              placeholder="Middle name"
-            />
-          </View>
-
-          {/* Birth Date */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Birth Date *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {profileData.birthDate}
+          {/* Personal Information */}
+          <View
+            style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
+          >
+            <View style={[styles.cardHeader, { borderBottomColor: c.border }]}>
+              <View style={styles.cardAccent} />
+              <Ionicons name="person-circle" size={16} color={Colors.sky} />
+              <Text style={[styles.cardTitle, { color: c.text }]}>
+                Personal Information
               </Text>
-              <Ionicons name="calendar" size={20} color={colors.textSec} />
-            </TouchableOpacity>
+            </View>
+            <View style={styles.cardBody}>
+              {renderTextField("firstName", "First Name", {
+                required: true,
+                placeholder: "First name",
+              })}
+              {renderTextField("lastName", "Last Name", {
+                placeholder: "Last name",
+              })}
+              {renderTextField("middleName", "Middle Name", {
+                placeholder: "Middle name",
+              })}
+              {renderTextField("phone", "Phone", {
+                placeholder: "09xx xxx xxxx",
+                keyboardType: "phone-pad",
+              })}
+
+              {/* Birth Date */}
+              <View style={styles.field}>
+                {renderLabel("Birth Date", true)}
+                <TouchableOpacity
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: c.inputBg,
+                      borderColor: errors.has("birthDate")
+                        ? Colors.error
+                        : c.border,
+                    },
+                  ]}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.inputText, { color: c.text }]}>
+                    {profileData.birthDate}
+                  </Text>
+                  <Ionicons name="calendar" size={18} color={c.textSec} />
+                </TouchableOpacity>
+              </View>
+
+              {renderSelectField(
+                "gender",
+                "Gender",
+                profileData.gender,
+                "Select gender",
+                () => openDropdown("gender", GENDERS, "Gender"),
+                true
+              )}
+              {renderTextField("occupation", "Occupation", {
+                required: true,
+                placeholder: "Occupation",
+              })}
+              {renderSelectField(
+                "workLocation",
+                "Work Location",
+                profileData.workLocation,
+                "Select work location",
+                () =>
+                  openDropdown("workLocation", WORK_LOCATIONS, "Work Location"),
+                true
+              )}
+              {renderSelectField(
+                "country",
+                "Country",
+                profileData.country,
+                "Select country",
+                () => openDropdown("country", COUNTRIES, "Country"),
+                true
+              )}
+            </View>
           </View>
 
-          {/* Gender */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Gender *</Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => openDropdown("gender", GENDERS, "Gender")}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {profileData.gender}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Occupation */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Occupation *
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: "transparent",
-                },
-              ]}
-              value={profileData.occupation}
-              onChangeText={(text) =>
-                setProfileData((prev) => ({ ...prev, occupation: text }))
-              }
-              placeholderTextColor={colors.textSec}
-              placeholder="Occupation"
-            />
-          </View>
-
-          {/* Work Location */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Work Location *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() =>
-                openDropdown("workLocation", WORK_LOCATIONS, "Work Location")
-              }
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {profileData.workLocation}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Country */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Country *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => openDropdown("country", COUNTRIES, "Country")}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {profileData.country}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Address Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Address
-          </Text>
-
-          {/* Street / House No */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Street / House No. *
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: "transparent",
-                },
-              ]}
-              value={profileData.streetAddress}
-              onChangeText={(text) =>
-                setProfileData((prev) => ({ ...prev, streetAddress: text }))
-              }
-              placeholderTextColor={colors.textSec}
-              placeholder="Street / House No."
-            />
-          </View>
-
-          {/* Region */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Region *</Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => openDropdown("region", regions, "Region")}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {selectedRegion?.name || "Select Region"}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Province */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Province *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => openDropdown("province", provinces, "Province")}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {selectedProvince?.name || "Select Province"}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* City / Municipality */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              City / Municipality *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() =>
-                openDropdown("city", cities, "City / Municipality")
-              }
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {selectedCity?.name || "Select City / Municipality"}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Barangay */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Barangay *
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                { borderColor: colors.border, backgroundColor: "transparent" },
-              ]}
-              onPress={() => openDropdown("barangay", barangays, "Barangay")}
-            >
-              <Text style={[styles.inputText, { color: colors.text }]}>
-                {selectedBarangay?.name || "Select Barangay"}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={colors.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {/* ZIP Code */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              ZIP Code *
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: "transparent",
-                },
-              ]}
-              value={profileData.zipCode}
-              onChangeText={(text) =>
-                setProfileData((prev) => ({ ...prev, zipCode: text }))
-              }
-              placeholderTextColor={colors.textSec}
-              placeholder="0000"
-              keyboardType="number-pad"
-            />
+          {/* Address */}
+          <View
+            style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
+          >
+            <View style={[styles.cardHeader, { borderBottomColor: c.border }]}>
+              <View style={styles.cardAccent} />
+              <Ionicons name="map" size={16} color={Colors.sky} />
+              <Text style={[styles.cardTitle, { color: c.text }]}>Address</Text>
+            </View>
+            <View style={styles.cardBody}>
+              {renderTextField("streetAddress", "Street / House No.", {
+                required: true,
+                placeholder: "Street / House No.",
+              })}
+              {renderSelectField(
+                "region",
+                "Region",
+                selectedRegion?.name || "",
+                "Select region",
+                () => openDropdown("region", regions, "Region"),
+                true
+              )}
+              {renderSelectField(
+                "province",
+                "Province",
+                selectedProvince?.name || "",
+                "Select province",
+                () => openDropdown("province", provinces, "Province"),
+                true
+              )}
+              {renderSelectField(
+                "city",
+                "City / Municipality",
+                selectedCity?.name || "",
+                "Select city / municipality",
+                () => openDropdown("city", cities, "City / Municipality"),
+                true
+              )}
+              {renderSelectField(
+                "barangay",
+                "Barangay",
+                selectedBarangay?.name || "",
+                "Select barangay",
+                () => openDropdown("barangay", barangays, "Barangay"),
+                true
+              )}
+              {renderTextField("zipCode", "ZIP Code", {
+                required: true,
+                placeholder: "0000",
+                keyboardType: "number-pad",
+              })}
+            </View>
           </View>
         </ScrollView>
 
-        {/* Save Button - Fixed at Bottom */}
+        {/* Save Button */}
         <View
           style={[
             styles.buttonContainer,
-            { backgroundColor: colors.bg, paddingBottom: insets.bottom },
+            {
+              backgroundColor: c.card,
+              borderTopColor: c.border,
+              paddingBottom: insets.bottom + 10,
+            },
           ]}
         >
           <Button
@@ -838,7 +713,7 @@ export default function ProfileEditScreen({
       {/* Dropdown Modal */}
       <Modal
         visible={selectedDropdown !== null}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setSelectedDropdown(null)}
       >
@@ -850,92 +725,98 @@ export default function ProfileEditScreen({
           <Animated.View
             style={[
               styles.dropdownModal,
-              { backgroundColor: colors.containerBg },
               {
+                backgroundColor: c.card,
                 transform: [{ translateY: modalTranslateY }],
               },
             ]}
             {...panResponder.panHandlers}
           >
-            {/* Handle Bar */}
             <View style={styles.handleContainer}>
-              <View
-                style={[styles.handle, { backgroundColor: colors.border }]}
-              />
+              <View style={[styles.handle, { backgroundColor: c.handle }]} />
             </View>
-
-            {/* Header */}
-            <View
-              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
+              <Text style={[styles.modalTitle, { color: c.text }]}>
                 {dropdownTitle}
               </Text>
             </View>
 
-            {/* List */}
-            <ScrollView
-              style={styles.modalList}
-              showsVerticalScrollIndicator={false}
-            >
-              {dropdownOptions.map((item, index) => {
-                const isSelected =
-                  (selectedDropdown === "gender" &&
-                    item.name === profileData.gender) ||
-                  (selectedDropdown === "workLocation" &&
-                    item.name === profileData.workLocation) ||
-                  (selectedDropdown === "region" &&
-                    item.name === selectedRegion?.name) ||
-                  (selectedDropdown === "province" &&
-                    item.name === selectedProvince?.name) ||
-                  (selectedDropdown === "city" &&
-                    item.name === selectedCity?.name) ||
-                  (selectedDropdown === "barangay" &&
-                    item.name === selectedBarangay?.name)
+            {showDropdownLoading ? (
+              <View style={styles.dropdownLoading}>
+                <ActivityIndicator size="large" color={Colors.sky} />
+                <Text style={[styles.dropdownLoadingText, { color: c.textSec }]}>
+                  Loading {dropdownTitle.toLowerCase()}...
+                </Text>
+              </View>
+            ) : dropdownOptions.length === 0 ? (
+              <View style={styles.dropdownEmpty}>
+                <Ionicons name="list" size={28} color={c.textSec} />
+                <Text style={[styles.dropdownLoadingText, { color: c.textSec }]}>
+                  No options available
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.modalList}
+                showsVerticalScrollIndicator={false}
+              >
+                {dropdownOptions.map((item, index) => {
+                  const isSelected =
+                    (selectedDropdown === "gender" &&
+                      item.name === profileData.gender) ||
+                    (selectedDropdown === "workLocation" &&
+                      item.name === profileData.workLocation) ||
+                    (selectedDropdown === "country" &&
+                      item.name === profileData.country) ||
+                    (selectedDropdown === "region" &&
+                      item.name === selectedRegion?.name) ||
+                    (selectedDropdown === "province" &&
+                      item.name === selectedProvince?.name) ||
+                    (selectedDropdown === "city" &&
+                      item.name === selectedCity?.name) ||
+                    (selectedDropdown === "barangay" &&
+                      item.name === selectedBarangay?.name)
 
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.modalItem,
-                      { borderBottomColor: colors.border },
-                      index === dropdownOptions.length - 1 &&
-                        styles.modalItemLast,
-                      isSelected && {
-                        backgroundColor: isDarkMode ? "#1f2937" : "#eff6ff",
-                      },
-                    ]}
-                    onPress={() => {
-                      selectDropdownOption(item)
-                    }}
-                  >
-                    <View style={styles.modalItemContent}>
-                      <Text
-                        style={[
-                          styles.modalItemText,
-                          { color: colors.text },
-                          isSelected && {
-                            fontWeight: "700",
-                            color: Colors.sky,
-                          },
-                        ]}
-                      >
-                        {item.name}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <View style={styles.checkmark}>
-                        <Ionicons
-                          name="checkmark"
-                          size={20}
-                          color={Colors.sky}
-                        />
+                  return (
+                    <TouchableOpacity
+                      key={`${item.code}-${index}`}
+                      style={[
+                        styles.modalItem,
+                        { borderBottomColor: c.border },
+                        index === dropdownOptions.length - 1 &&
+                          styles.modalItemLast,
+                        isSelected && { backgroundColor: c.selectedBg },
+                      ]}
+                      onPress={() => selectDropdownOption(item)}
+                    >
+                      <View style={styles.modalItemContent}>
+                        <Text
+                          style={[
+                            styles.modalItemText,
+                            { color: c.text },
+                            isSelected && {
+                              fontWeight: "700",
+                              color: Colors.sky,
+                            },
+                          ]}
+                        >
+                          {item.name}
+                        </Text>
                       </View>
-                    )}
-                  </TouchableOpacity>
-                )
-              })}
-            </ScrollView>
+                      {isSelected ? (
+                        <View style={styles.checkmark}>
+                          <Ionicons
+                            name="checkmark"
+                            size={20}
+                            color={Colors.sky}
+                          />
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            )}
           </Animated.View>
         </View>
       </Modal>
@@ -943,7 +824,7 @@ export default function ProfileEditScreen({
       {/* Date Picker Modal */}
       <Modal
         visible={showDatePicker}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setShowDatePicker(false)}
       >
@@ -952,24 +833,12 @@ export default function ProfileEditScreen({
             style={styles.modalOverlay}
             onPress={() => setShowDatePicker(false)}
           />
-          <View
-            style={[
-              styles.dropdownModal,
-              { backgroundColor: colors.containerBg },
-            ]}
-          >
-            {/* Handle Bar */}
+          <View style={[styles.dropdownModal, { backgroundColor: c.card }]}>
             <View style={styles.handleContainer}>
-              <View
-                style={[styles.handle, { backgroundColor: colors.border }]}
-              />
+              <View style={[styles.handle, { backgroundColor: c.handle }]} />
             </View>
-
-            {/* Header */}
-            <View
-              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
+              <Text style={[styles.modalTitle, { color: c.text }]}>
                 {datePickerMode === "year"
                   ? "Select Year"
                   : datePickerMode === "month"
@@ -978,166 +847,118 @@ export default function ProfileEditScreen({
               </Text>
             </View>
 
-            {/* Date Picker Content */}
             <View style={styles.datePickerContent}>
               <ScrollView
                 style={styles.datePickerList}
                 showsVerticalScrollIndicator={false}
-                scrollEventThrottle={16}
               >
-                {datePickerMode === "year" && (
-                  <>
-                    {generateYears().map((year) => (
-                      <TouchableOpacity
-                        key={year}
+                {datePickerMode === "year" &&
+                  generateYears().map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[
+                        styles.datePickerItem,
+                        { borderBottomColor: c.border },
+                        tempYear === year && { backgroundColor: c.selectedBg },
+                      ]}
+                      onPress={() => {
+                        setTempYear(year)
+                        handleDatePickerNext()
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.datePickerItem,
-                          { borderBottomColor: colors.border },
+                          styles.datePickerItemText,
+                          { color: c.text },
                           tempYear === year && {
-                            backgroundColor: isDarkMode ? "#1f2937" : "#eff6ff",
+                            fontWeight: "700",
+                            color: Colors.sky,
                           },
                         ]}
-                        onPress={() => {
-                          setTempYear(year)
-                          handleDatePickerNext()
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.datePickerItemText,
-                            { color: colors.text },
-                            tempYear === year && {
-                              fontWeight: "700",
-                              color: Colors.sky,
-                            },
-                          ]}
-                        >
-                          {year}
-                        </Text>
-                        {tempYear === year && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color={Colors.sky}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                        {year}
+                      </Text>
+                      {tempYear === year && (
+                        <Ionicons name="checkmark" size={20} color={Colors.sky} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
 
-                {datePickerMode === "month" && (
-                  <>
-                    {[
-                      "January",
-                      "February",
-                      "March",
-                      "April",
-                      "May",
-                      "June",
-                      "July",
-                      "August",
-                      "September",
-                      "October",
-                      "November",
-                      "December",
-                    ].map((month, idx) => (
-                      <TouchableOpacity
-                        key={month}
+                {datePickerMode === "month" &&
+                  MONTHS.map((month, idx) => (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.datePickerItem,
+                        { borderBottomColor: c.border },
+                        tempMonth === idx && { backgroundColor: c.selectedBg },
+                      ]}
+                      onPress={() => {
+                        setTempMonth(idx)
+                        handleDatePickerNext()
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.datePickerItem,
-                          { borderBottomColor: colors.border },
+                          styles.datePickerItemText,
+                          { color: c.text },
                           tempMonth === idx && {
-                            backgroundColor: isDarkMode ? "#1f2937" : "#eff6ff",
+                            fontWeight: "700",
+                            color: Colors.sky,
                           },
                         ]}
-                        onPress={() => {
-                          setTempMonth(idx)
-                          handleDatePickerNext()
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.datePickerItemText,
-                            { color: colors.text },
-                            tempMonth === idx && {
-                              fontWeight: "700",
-                              color: Colors.sky,
-                            },
-                          ]}
-                        >
-                          {month}
-                        </Text>
-                        {tempMonth === idx && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color={Colors.sky}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                        {month}
+                      </Text>
+                      {tempMonth === idx && (
+                        <Ionicons name="checkmark" size={20} color={Colors.sky} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
 
-                {datePickerMode === "day" && (
-                  <>
-                    {Array.from(
-                      { length: getDaysInMonth(tempYear, tempMonth) },
-                      (_, i) => i + 1
-                    ).map((day) => (
-                      <TouchableOpacity
-                        key={day}
+                {datePickerMode === "day" &&
+                  Array.from(
+                    { length: getDaysInMonth(tempYear, tempMonth) },
+                    (_, i) => i + 1
+                  ).map((day) => (
+                    <TouchableOpacity
+                      key={day}
+                      style={[
+                        styles.datePickerItem,
+                        { borderBottomColor: c.border },
+                        tempDay === day && { backgroundColor: c.selectedBg },
+                      ]}
+                      onPress={() => setTempDay(day)}
+                    >
+                      <Text
                         style={[
-                          styles.datePickerItem,
-                          { borderBottomColor: colors.border },
+                          styles.datePickerItemText,
+                          { color: c.text },
                           tempDay === day && {
-                            backgroundColor: isDarkMode ? "#1f2937" : "#eff6ff",
+                            fontWeight: "700",
+                            color: Colors.sky,
                           },
                         ]}
-                        onPress={() => setTempDay(day)}
                       >
-                        <Text
-                          style={[
-                            styles.datePickerItemText,
-                            { color: colors.text },
-                            tempDay === day && {
-                              fontWeight: "700",
-                              color: Colors.sky,
-                            },
-                          ]}
-                        >
-                          {day}
-                        </Text>
-                        {tempDay === day && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color={Colors.sky}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                        {day}
+                      </Text>
+                      {tempDay === day && (
+                        <Ionicons name="checkmark" size={20} color={Colors.sky} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
               </ScrollView>
             </View>
 
-            {/* Action Buttons */}
             <View
-              style={[
-                styles.datePickerActions,
-                { borderTopColor: colors.border },
-              ]}
+              style={[styles.datePickerActions, { borderTopColor: c.border }]}
             >
               {datePickerMode !== "year" && (
                 <TouchableOpacity
                   style={styles.datePickerBtn}
                   onPress={handleDatePickerPrev}
                 >
-                  <Text
-                    style={[styles.datePickerBtnText, { color: Colors.sky }]}
-                  >
+                  <Text style={[styles.datePickerBtnText, { color: Colors.sky }]}>
                     Back
                   </Text>
                 </TouchableOpacity>
@@ -1147,9 +968,7 @@ export default function ProfileEditScreen({
                   style={styles.datePickerBtn}
                   onPress={handleDatePickerNext}
                 >
-                  <Text
-                    style={[styles.datePickerBtnText, { color: Colors.sky }]}
-                  >
+                  <Text style={[styles.datePickerBtnText, { color: Colors.sky }]}>
                     Next
                   </Text>
                 </TouchableOpacity>
@@ -1159,9 +978,7 @@ export default function ProfileEditScreen({
                   style={styles.datePickerBtn}
                   onPress={handleDatePickerConfirm}
                 >
-                  <Text
-                    style={[styles.datePickerBtnText, { color: Colors.sky }]}
-                  >
+                  <Text style={[styles.datePickerBtnText, { color: Colors.sky }]}>
                     Confirm
                   </Text>
                 </TouchableOpacity>
