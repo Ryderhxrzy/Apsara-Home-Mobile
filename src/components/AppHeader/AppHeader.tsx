@@ -81,7 +81,9 @@ function MarqueeItems() {
         <View key={i} style={marqueeStyles.item}>
           <Text style={marqueeStyles.text}>{text}</Text>
           <Image
-            source={require("../../../assets/af_home_logo.png")}
+            source={{
+            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
+          }}
             style={marqueeStyles.logo}
             resizeMode="contain"
           />
@@ -261,7 +263,9 @@ export default function AppHeader({
     <>
       <View style={styles.headerBackground}>
         <Image
-          source={require("../../../assets/header_bg.png")}
+          source={{
+            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/header_bg_jjpkvu.png"
+          }}
           style={styles.headerBackgroundImage}
           resizeMode="cover"
         />
