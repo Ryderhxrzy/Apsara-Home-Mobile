@@ -186,7 +186,9 @@ export default function OrderSuccessScreen({
       {/* Header with Background Image */}
       <View style={styles.headerBackground}>
         <Image
-          source={require("../../assets/purchases_bg.png")}
+          source={{
+          uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969376/purchases_bg_l42llq.png"
+        }}
           style={styles.headerBackgroundImage}
           resizeMode="cover"
         />
