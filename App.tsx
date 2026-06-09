@@ -17,6 +17,7 @@ import OnboardingScreen from "./src/screen/OnboardingScreen"
 import { storageService, StoredUser } from "./src/services/storageService"
 import LoadingScreen from "./src/screen/LoadingScreen"
 import { useFirebaseMessaging } from "./src/hooks/useFirebaseMessaging"
+import { useAppUpdates } from "./src/hooks/useAppUpdates"
 import ReferralScreen from "./src/screen/ReferralScreen"
 import ReferralSignupScreen from "./src/screen/ReferralSignupScreen"
 import ReferralOtpScreen from "./src/screen/ReferralOtpScreen"
@@ -106,6 +107,9 @@ export default function App() {
 
   // Initialize FCM and register device when authenticated
   useFirebaseMessaging(authToken, authUser?.id || null)
+
+  // Check for OTA updates
+  useAppUpdates()
 
   useEffect(() => {
     checkStoredAuth()
