@@ -36,7 +36,7 @@ export default function OtpScreen({
   const [resendSeconds, setResendSeconds] = useState(50)
   const inputRefs = useRef<Array<TextInput | null>>([])
   const player = useVideoPlayer(
-    require("../../assets/login/home-login.mp4"),
+    "https://res.cloudinary.com/dc05ncs6l/video/upload/v1780969092/home-login_dja56x.mp4",
     (p) => {
       p.loop = true
       p.muted = true
