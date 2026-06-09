@@ -144,28 +144,36 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         {/* Top image */}
         {item.key === "1" && (
           <Image
-            source={require("../../assets/on-boarding/earn_from_home.png")}
+            source={{
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968889/earn_from_home_jltluf.png"
+            }}
             style={styles.slideImage}
             resizeMode="contain"
           />
         )}
         {item.key === "2" && (
           <Image
-            source={require("../../assets/on-boarding/how_it_works.png")}
+            source={{
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968889/how_it_works_bbvlxy.png"
+            }}
             style={styles.slideImage}
             resizeMode="contain"
           />
         )}
         {item.key === "3" && (
           <Image
-            source={require("../../assets/on-boarding/one_eco_system.png")}
+            source={{
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968889/one_eco_system_dbcwhw.png"
+            }}
             style={styles.slideImage}
             resizeMode="contain"
           />
         )}
         {item.key === "4" && (
           <Image
-            source={require("../../assets/on-boarding/this_is_for_you_if.png")}
+            source={{
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968889/this_is_for_you_if_gm6nyq.png"
+            }}
             style={styles.slideImage}
             resizeMode="contain"
           />
@@ -256,42 +264,54 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
             <View style={styles.brandsGrid}>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/affordahome.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968888/affordahome_llfmsz.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
               </View>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/airpro.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968888/airpro_j7xfsw.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
               </View>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/furnigo.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968888/furnigo_skd7lq.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
               </View>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/sunnyware.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968888/sunnyware_dwpcnb.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
               </View>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/xiaomi.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968889/xiaomi_ujdytp.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
               </View>
               <View style={styles.brandItem}>
                 <Image
-                  source={require("../../assets/on-boarding/zooey.png")}
+                  source={{
+                    uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780968890/zooey_un55b9.png"
+                  }}
                   style={styles.brandLogo}
                   resizeMode="contain"
                 />
