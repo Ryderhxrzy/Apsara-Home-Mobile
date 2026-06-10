@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from "react-native"
 import { Image } from "expo-image"
+import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../../constants/colors"
