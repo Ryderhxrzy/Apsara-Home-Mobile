@@ -11,9 +11,12 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import LegalWebViewScreen from "./LegalWebViewScreen"
+import { LegalDoc } from "../constants/legal"
 import { useVideoPlayer, VideoView } from "expo-video"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -40,6 +43,7 @@ export default function IndexScreen({
   const [biometricLoading, setBiometricLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null)
   const insets = useSafeAreaInsets()
 
   const player = useVideoPlayer(
@@ -424,14 +428,14 @@ export default function IndexScreen({
               By creating account and signing in you agree to our{" "}
               <Text
                 style={styles.footerLink}
-                onPress={() => handleOpenUrl("https://example.com/terms")}
+                onPress={() => setLegalDoc("terms")}
               >
                 terms & conditions
               </Text>{" "}
               and{" "}
               <Text
                 style={styles.footerLink}
-                onPress={() => handleOpenUrl("https://example.com/privacy")}
+                onPress={() => setLegalDoc("privacy")}
               >
                 privacy policy
               </Text>
@@ -439,6 +443,16 @@ export default function IndexScreen({
           </View>
         </SafeAreaView>
       </View>
+
+      <Modal
+        visible={legalDoc !== null}
+        animationType="slide"
+        onRequestClose={() => setLegalDoc(null)}
+      >
+        {legalDoc ? (
+          <LegalWebViewScreen doc={legalDoc} onClose={() => setLegalDoc(null)} />
+        ) : null}
+      </Modal>
     </View>
   )
 }

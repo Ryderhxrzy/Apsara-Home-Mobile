@@ -436,7 +436,7 @@ export default function ReferralSignupScreen({
         <View
           style={{
             paddingTop: 8,
-            paddingBottom: insets.bottom || 4,
+            paddingBottom: insets.bottom + 12,
             paddingHorizontal: 16,
           }}
         >
@@ -549,15 +549,19 @@ export default function ReferralSignupScreen({
         </View>
       </Modal>
 
-      {legalDoc ? (
-        <View style={StyleSheet.absoluteFill}>
+      <Modal
+        visible={legalDoc !== null}
+        animationType="slide"
+        onRequestClose={() => setLegalDoc(null)}
+      >
+        {legalDoc ? (
           <LegalWebViewScreen
             doc={legalDoc}
             isDarkMode={isDarkMode}
             onClose={() => setLegalDoc(null)}
           />
-        </View>
-      ) : null}
+        ) : null}
+      </Modal>
     </View>
   )
 }

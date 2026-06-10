@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  Modal,
   BackHandler,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -330,11 +331,15 @@ export default function SignupScreen({
         </SafeAreaView>
       </View>
 
-      {legalDoc ? (
-        <View style={StyleSheet.absoluteFill}>
+      <Modal
+        visible={legalDoc !== null}
+        animationType="slide"
+        onRequestClose={() => setLegalDoc(null)}
+      >
+        {legalDoc ? (
           <LegalWebViewScreen doc={legalDoc} onClose={() => setLegalDoc(null)} />
-        </View>
-      ) : null}
+        ) : null}
+      </Modal>
     </View>
   )
 }

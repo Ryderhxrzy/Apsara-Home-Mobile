@@ -1642,6 +1642,7 @@ export default function CartScreen({
               style={[
                 styles.variantModal,
                 { backgroundColor: colors.containerBg },
+                { paddingBottom: insets.bottom + 20 },
                 {
                   transform: [{ translateY: variantModalTranslateY }],
                 },

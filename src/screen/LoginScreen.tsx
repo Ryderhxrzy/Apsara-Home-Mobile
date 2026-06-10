@@ -438,7 +438,7 @@ export default function LoginScreen({
           style={styles.gradient}
           pointerEvents="none"
         />
-        <SafeAreaView style={styles.contentSection} edges={[]}>
+        <SafeAreaView style={styles.contentSection} edges={["bottom"]}>
           <View style={styles.headerRow}>
             <Pressable
               style={styles.backButton}
@@ -690,11 +690,15 @@ export default function LoginScreen({
         </View>
       </Modal>
 
-      {legalDoc ? (
-        <View style={StyleSheet.absoluteFill}>
+      <Modal
+        visible={legalDoc !== null}
+        animationType="slide"
+        onRequestClose={() => setLegalDoc(null)}
+      >
+        {legalDoc ? (
           <LegalWebViewScreen doc={legalDoc} onClose={() => setLegalDoc(null)} />
-        </View>
-      ) : null}
+        ) : null}
+      </Modal>
     </View>
   )
 }
