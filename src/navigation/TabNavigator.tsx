@@ -247,6 +247,7 @@ function ShopTabScreen() {
     setShopSourceProductId,
     setShowShopProductDetail,
     setShopSelectedProductId,
+    setShopSelectedProductIsZq,
     onCartPress,
     onSearchPress,
     previousTab,
@@ -255,10 +256,19 @@ function ShopTabScreen() {
 
   const handleShopProductPress = useCallback(
     (id: number) => {
+      // Products inside a ZQ brand come from the separate ZQ backend; flag it so
+      // ProductDetailScreen fetches /products/zq/cached/{id} instead of /products/{id}.
+      const isZq = (selectedBrand as any)?.isZqBrand === true
       setShopSelectedProductId(id)
+      setShopSelectedProductIsZq?.(isZq)
       setShowShopProductDetail(true)
     },
-    [setShopSelectedProductId, setShowShopProductDetail]
+    [
+      selectedBrand,
+      setShopSelectedProductId,
+      setShopSelectedProductIsZq,
+      setShowShopProductDetail,
+    ]
   )
 
   return (

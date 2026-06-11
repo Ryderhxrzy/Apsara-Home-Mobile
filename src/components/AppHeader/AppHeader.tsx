@@ -99,6 +99,7 @@ function MarqueeBanner({ isDarkMode }: { isDarkMode?: boolean }) {
   const pos2 = useRef(0)
   const contentWidthRef = useRef(0)
   const isScrollingRef = useRef(false)
+  const marqueeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const startScrolling = (cw: number) => {
     if (isScrollingRef.current) return // Already scrolling
@@ -120,13 +121,22 @@ function MarqueeBanner({ isDarkMode }: { isDarkMode?: boolean }) {
       tx2.setValue(pos2.current)
     }
 
-    const interval = setInterval(tick, 16)
-    return () => clearInterval(interval)
+    // Clear any prior interval before starting a new one so layout changes
+    // can't accumulate multiple concurrent loops.
+    if (marqueeIntervalRef.current) clearInterval(marqueeIntervalRef.current)
+    marqueeIntervalRef.current = setInterval(tick, 16)
   }
 
   useEffect(() => {
     if (contentWidthRef.current > 0) {
       startScrolling(contentWidthRef.current)
+    }
+    return () => {
+      if (marqueeIntervalRef.current) {
+        clearInterval(marqueeIntervalRef.current)
+        marqueeIntervalRef.current = null
+      }
+      isScrollingRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; startScrolling is recreated each render and is guarded by isScrollingRef
   }, [])

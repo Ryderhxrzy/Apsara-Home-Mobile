@@ -96,6 +96,26 @@ export default function LoginScreen({
   const [otpError, setOtpError] = useState("")
   const [mfaPolling, setMfaPolling] = useState(false)
   const otpInputRef = useRef<TextInput | null>(null)
+  const mfaIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Stop MFA polling and reset the flag; safe to call from anywhere.
+  const stopMfaPolling = () => {
+    if (mfaIntervalRef.current) {
+      clearInterval(mfaIntervalRef.current)
+      mfaIntervalRef.current = null
+    }
+    setMfaPolling(false)
+  }
+
+  // Ensure the MFA poll never leaks if the screen unmounts mid-polling.
+  useEffect(() => {
+    return () => {
+      if (mfaIntervalRef.current) {
+        clearInterval(mfaIntervalRef.current)
+        mfaIntervalRef.current = null
+      }
+    }
+  }, [])
   const [rememberMe, setRememberMe] = useState(false)
   const [savedUser, setSavedUser] = useState<{
     id: string
@@ -375,13 +395,14 @@ export default function LoginScreen({
   }
 
   function startMfaPolling() {
+    // Clear any existing poll before starting a new one (e.g. on resend).
+    if (mfaIntervalRef.current) clearInterval(mfaIntervalRef.current)
     setMfaPolling(true)
-    const interval = setInterval(async () => {
+    mfaIntervalRef.current = setInterval(async () => {
       try {
         const status = await authService.checkMFAStatus(authToken!)
         if (status.approved) {
-          clearInterval(interval)
-          setMfaPolling(false)
+          stopMfaPolling()
           Toast.show({
             type: "success",
             text1: "MFA approved!",
@@ -394,8 +415,7 @@ export default function LoginScreen({
           }, 700)
         }
       } catch (error: any) {
-        clearInterval(interval)
-        setMfaPolling(false)
+        stopMfaPolling()
         Toast.show({
           type: "error",
           text1: "MFA check failed",
@@ -680,7 +700,7 @@ export default function LoginScreen({
               onPress={() => {
                 setAuthStep("login")
                 setAuthToken(null)
-                setMfaPolling(false)
+                stopMfaPolling()
                 setOtpError("")
               }}
             >

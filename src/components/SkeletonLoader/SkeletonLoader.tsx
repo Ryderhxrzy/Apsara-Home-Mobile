@@ -1,6 +1,8 @@
-import React from "react"
-import { View, StyleSheet } from "react-native"
+import React, { useState, useEffect } from "react"
+import { View, StyleSheet, Dimensions, Animated, Easing } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
+
+const SCREEN_WIDTH = Dimensions.get("window").width
 
 interface SkeletonProps {
   width?: string | number
@@ -15,21 +17,49 @@ export function Skeleton({
   style,
   borderRadius = 4,
 }: SkeletonProps) {
+  // Animated shimmer: a highlight band sweeps across the base block on the UI
+  // thread (transform-only, useNativeDriver) and loops while mounted.
+  const shimmer = useState(() => new Animated.Value(0))[0]
+  const [layoutWidth, setLayoutWidth] = useState(0)
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [shimmer])
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-layoutWidth, layoutWidth],
+  })
+
   return (
-    <LinearGradient
-      colors={["#e5e7eb", "#f3f4f6", "#e5e7eb"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
+    <View
+      onLayout={(e) => setLayoutWidth(e.nativeEvent.layout.width)}
       style={[
-        {
-          width,
-          height,
-          borderRadius,
-        },
+        { width, height, borderRadius, backgroundColor: "#e5e7eb" },
         styles.skeleton,
         style,
       ]}
-    />
+    >
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}
+      >
+        <LinearGradient
+          colors={["#e5e7eb", "#f5f7fa", "#e5e7eb"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.shimmerFill}
+        />
+      </Animated.View>
+    </View>
   )
 }
 
@@ -118,6 +148,50 @@ export function FeaturedProductsSkeleton() {
   )
 }
 
+/**
+ * Mirrors ProductDetailScreen's actual above-the-fold order: full-width image →
+ * variant thumbnail strip (Shopee-style, right under the image) → large price →
+ * social-proof line → product name. The description is below the fold (collapsed)
+ * so it's intentionally omitted, keeping the skeleton lean and aligned.
+ */
+export function ProductDetailSkeleton({
+  isDarkMode = false,
+}: {
+  isDarkMode?: boolean
+}) {
+  const bg = isDarkMode ? "#1f2937" : "#ffffff"
+  const galleryBg = isDarkMode ? "#0f172a" : "#f5f5f5"
+  return (
+    <View style={[styles.pdContainer, { backgroundColor: bg }]}>
+      {/* Full-width product image (matches the gallery's ~0.85 aspect) */}
+      <View style={[styles.pdImage, { backgroundColor: galleryBg }]}>
+        <Skeleton width="62%" height="62%" borderRadius={12} />
+      </View>
+
+      {/* Variant / thumbnail strip — sits right under the image (matches 60x60) */}
+      <View style={styles.pdVariantRow}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton
+            key={i}
+            width={60}
+            height={60}
+            borderRadius={8}
+            style={{ marginRight: 10 }}
+          />
+        ))}
+      </View>
+
+      {/* Price (large, first) → social proof → product name */}
+      <View style={styles.pdInfo}>
+        <Skeleton width={150} height={30} borderRadius={6} />
+        <Skeleton width={120} height={12} style={{ marginTop: 12 }} />
+        <Skeleton width="88%" height={16} style={{ marginTop: 18 }} />
+        <Skeleton width="60%" height={16} style={{ marginTop: 8 }} />
+      </View>
+    </View>
+  )
+}
+
 export function HomeScreenSkeleton() {
   return (
     <View style={styles.container}>
@@ -160,6 +234,9 @@ const styles = StyleSheet.create({
   },
   skeleton: {
     overflow: "hidden",
+  },
+  shimmerFill: {
+    flex: 1,
   },
   bannerSkeleton: {
     marginBottom: 10,
@@ -213,5 +290,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     paddingRight: 4,
+  },
+  // Product detail skeleton
+  pdContainer: {
+    flex: 1,
+  },
+  pdImage: {
+    width: "100%",
+    height: SCREEN_WIDTH * 0.85,
+    minHeight: 300,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pdInfo: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  pdVariantRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
 })

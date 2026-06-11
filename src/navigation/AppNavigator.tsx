@@ -19,32 +19,23 @@ import {
   NavigationProvider,
   NavigationContextType,
 } from "../context/NavigationContext"
-import { AppContextProvider, useAppContext } from "../context/AppContext"
+import { AppContextProvider } from "../context/AppContext"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Colors } from "../constants/colors"
-import { getBadgeImage, getBadgeImageSource } from "../constants/tierConfig"
+import { getBadgeImage } from "../constants/tierConfig"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
-import type { ProductCard } from "../services/productService"
-import AppHeader from "../components/AppHeader/AppHeader"
+import { productService, type ProductCard } from "../services/productService"
+import { referralService } from "../services/referralService"
 import TabNavigator from "./TabNavigator"
-import HomeScreen from "../screen/HomeScreen"
-import ProfileScreen from "../screen/ProfileScreen"
 import SearchScreen from "../screen/SearchScreen"
-import ProductsScreen from "../screen/ProductsScreen"
 import SearchResultScreen from "../screen/SearchResultScreen"
 import SettingsScreen from "../screen/SettingsScreen"
 import SecurityScreen from "../screen/SecurityScreen"
-import HistoryScreen from "../screen/HistoryScreen"
 import ProductDetailScreen from "../screen/ProductDetailScreen"
-import WishlistScreen from "../screen/WishlistScreen"
 import CartScreen from "../screen/CartScreen"
 import ProfileDetailsScreen from "../screen/ProfileDetailsScreen"
 import AffiliateReferralModal from "../components/Referral/AffiliateReferralModal"
-import ShopScreen from "../screen/ShopScreen"
-import ShopByBrandScreen from "../screen/ShopByBrandScreen"
-import NotificationsScreen from "../screen/NotificationsScreen"
-import LoadingScreen from "../screen/LoadingScreen"
 import ReferralNetworkScreen from "../screen/ReferralNetworkScreen"
 import ReferralScreen from "../screen/ReferralScreen"
 import ReferralSignupScreen from "../screen/ReferralSignupScreen"
@@ -55,29 +46,15 @@ import PaymentWebViewScreen from "../screen/PaymentWebViewScreen"
 import PurchasesScreen from "../screen/PurchasesScreen"
 import PaymentSuccessScreen from "../screen/PaymentSuccessScreen"
 import PaymentCancelScreen from "../screen/PaymentCancelScreen"
-import AFWalletOverviewScreen from "../screen/AFWalletOverviewScreen"
-import AFWalletVoucherScreen from "../screen/AFWalletVoucherScreen"
-import AFWalletRewardsScreen from "../screen/AFWalletRewardsScreen"
-import AFWalletNetworkScreen from "../screen/AFWalletNetworkScreen"
 import ShippingAddressSelectionScreen from "../screen/ShippingAddressSelectionScreen"
-import AboutUsScreen from "../screen/AboutUsScreen"
-import PrivacyPolicyScreen from "../screen/PrivacyPolicyScreen"
-import TermsAndConditionsScreen from "../screen/TermsAndConditionsScreen"
-import IncomeDisclaimerScreen from "../screen/IncomeDisclaimerScreen"
-import CookiePolicyScreen from "../screen/CookiePolicyScreen"
-import RewardsAndCommissionsScreen from "../screen/RewardsAndCommissionsScreen"
-import ContactUsScreen from "../screen/ContactUsScreen"
-import OurBranchesScreen from "../screen/OurBranchesScreen"
-import FAQsScreen from "../screen/FAQsScreen"
-import ShippingInfoScreen from "../screen/ShippingInfoScreen"
-import ReturnsScreen from "../screen/ReturnsScreen"
+import ModalHost from "../components/ModalHost/ModalHost"
+import { useModalStore } from "../store/modalStore"
 import ProfileEditScreen from "../screen/ProfileEditScreen"
 import PVEarnerScreen from "../screen/PVEarnerScreen"
 import { orderService } from "../services/orderService"
 import Toast from "react-native-toast-message"
 import { useNotifications } from "../hooks/useNotifications"
 import { useFirebaseMessaging } from "../hooks/useFirebaseMessaging"
-import { NotificationService } from "../services/notificationService"
 import { useWishlist } from "../hooks/useWishlist"
 
 type TabKey =
@@ -177,6 +154,30 @@ interface RoomType {
   count: number
 }
 
+// Pure helper — normalizes an arbitrary status string to a known purchase status.
+// Module-level so it is stable and usable by callbacks defined early in the component.
+const normalizePurchaseStatus = (status?: string) => {
+  const s = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_")
+  if (s === "to_ship") return "shipped" as const
+  if (s === "out_for_delivery") return "to_receive" as const
+  if (s === "to_receive" || s === "toreceive") return "to_receive" as const
+  if (
+    s === "pending" ||
+    s === "paid" ||
+    s === "processing" ||
+    s === "shipped" ||
+    s === "delivered" ||
+    s === "cancelled" ||
+    s === "return"
+  )
+    return s
+  return "pending" as const
+}
+
 export default function AppNavigator({
   user,
   token,
@@ -198,6 +199,23 @@ export default function AppNavigator({
     fullUser: user,
   })
 
+  // Purchases overlay state — declared before handleNotificationPressed (which
+  // sets it when a push notification is tapped).
+  const [showPurchases, setShowPurchases] = useState(false)
+  const [purchasesStatus, setPurchasesStatus] = useState<
+    | "pending"
+    | "paid"
+    | "processing"
+    | "shipped"
+    | "to_receive"
+    | "delivered"
+    | "cancelled"
+    | "return"
+  >("pending")
+  const [purchasesInitialOrderId, setPurchasesInitialOrderId] = useState<
+    string | undefined
+  >(undefined)
+
   // Callback when notification is clicked
   const handleNotificationPressed = useCallback(
     (checkoutId: string, status: string) => {
@@ -216,14 +234,16 @@ export default function AppNavigator({
   useFirebaseMessaging(token || "", user?.id || "", handleNotificationPressed)
 
   // Initialize real-time notifications
-  const { notifications, unreadCount } = useNotifications(
-    user?.id || "",
-    token || ""
-  )
+  // Side effects only (Pusher subscription); returned values are unused here.
+  useNotifications(user?.id || "", token || "")
+
+  // Opens info-page / AF Wallet overlays via the Zustand modal store.
+  const openInfoPage = useModalStore((s) => s.openInfoPage)
+  const openWalletPage = useModalStore((s) => s.openWalletPage)
+  const openHistory = useModalStore((s) => s.openHistory)
 
   const [activeTab, setActiveTab] = useState<TabKey>("home")
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const [menuVisible, setMenuVisible] = useState(false)
   const [searchVisible, setSearchVisible] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [cartRefreshTrigger, setCartRefreshTrigger] = useState(0)
@@ -237,15 +257,14 @@ export default function AppNavigator({
   const [showProfileDetails, setShowProfileDetails] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [currentProfile, setCurrentProfile] = useState<any>(null)
-  const [profileDetailsFromTab, setProfileDetailsFromTab] = useState(false)
   const [referralNetworkFromTab, setReferralNetworkFromTab] = useState(false)
   const [referralTree, setReferralTree] = useState<any>(null)
-  const [closeReferralNetwork, setCloseReferralNetwork] = useState(false)
+  const [closeReferralNetwork] = useState(false)
   const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<
     string | null
   >(null)
   const [referrerProfileData, setReferrerProfileData] = useState<any>(null)
-  const [referrerProfileLoading, setReferrerProfileLoading] = useState(false)
+  const [, setReferrerProfileLoading] = useState(false)
   const [cartCount, setCartCount] = useState(0)
   const [previousTab, setPreviousTab] = useState<TabKey>("home")
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
@@ -271,23 +290,11 @@ export default function AppNavigator({
   const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null)
   const [selectedBrand, setSelectedBrand] = useState<BrandItem | null>(null)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
-  const [notificationTotalCount, setNotificationTotalCount] = useState(0)
-  const [deviceToken, setDeviceToken] = useState<string | null>(null)
+  const [, setNotificationTotalCount] = useState(0)
+  const [deviceToken] = useState<string | null>(null)
   const [showTokenModal, setShowTokenModal] = useState(false)
-  const [showPurchases, setShowPurchases] = useState(false)
-  const [purchasesStatus, setPurchasesStatus] = useState<
-    | "pending"
-    | "paid"
-    | "processing"
-    | "shipped"
-    | "to_receive"
-    | "delivered"
-    | "cancelled"
-    | "return"
-  >("pending")
-  const [purchasesInitialOrderId, setPurchasesInitialOrderId] = useState<
-    string | undefined
-  >(undefined)
+  // showPurchases / purchasesStatus / purchasesInitialOrderId are declared
+  // earlier (above handleNotificationPressed, which uses them).
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const [showPaymentCancel, setShowPaymentCancel] = useState(false)
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false)
@@ -296,25 +303,15 @@ export default function AppNavigator({
   const [showSecurity, setShowSecurity] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+  // History overlay migrated to the Zustand modal store (useModalStore).
   const [previousScreenFromSecurity, setPreviousScreenFromSecurity] = useState<
     "settings" | null
   >(null)
   const [editProfileFromSettings, setEditProfileFromSettings] = useState(false)
   const [linkedAccountsRefreshTrigger, setLinkedAccountsRefreshTrigger] =
     useState(0)
-  const [showAboutUs, setShowAboutUs] = useState(false)
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false)
-  const [showTermsAndConditions, setShowTermsAndConditions] = useState(false)
-  const [showIncomeDisclaimer, setShowIncomeDisclaimer] = useState(false)
-  const [showCookiePolicy, setShowCookiePolicy] = useState(false)
-  const [showRewardsAndCommissions, setShowRewardsAndCommissions] =
-    useState(false)
-  const [showContactUs, setShowContactUs] = useState(false)
-  const [showOurBranches, setShowOurBranches] = useState(false)
-  const [showFAQs, setShowFAQs] = useState(false)
-  const [showShippingInfo, setShowShippingInfo] = useState(false)
-  const [showReturns, setShowReturns] = useState(false)
+  // Info-page overlays (About Us, Privacy Policy, etc.) migrated to the Zustand
+  // modal store (src/store/modalStore.ts) and rendered by <ModalHost />.
   const [paymentSourceScreen, setPaymentSourceScreen] = useState<
     "checkout" | "purchases"
   >("checkout")
@@ -330,10 +327,8 @@ export default function AppNavigator({
   const [checkoutSource, setCheckoutSource] = useState<"product" | "cart">(
     "cart"
   )
-  const [showAFWalletOverview, setShowAFWalletOverview] = useState(false)
-  const [showAFWalletVoucher, setShowAFWalletVoucher] = useState(false)
-  const [showAFWalletRewards, setShowAFWalletRewards] = useState(false)
-  const [showAFWalletNetwork, setShowAFWalletNetwork] = useState(false)
+  // AF Wallet overlays migrated to the Zustand modal store (useModalStore) and
+  // rendered by <ModalHost />.
   const [showReferralScreen, setShowReferralScreen] = useState(false)
   const [showReferralSignupScreen, setShowReferralSignupScreen] =
     useState(false)
@@ -347,7 +342,10 @@ export default function AppNavigator({
   const [shopSelectedProductId, setShopSelectedProductId] = useState<
     number | null
   >(null)
-  const [chatbotHidden, setChatbotHidden] = useState(false)
+  // Whether the open shop product detail is a ZQ (separate-backend) product, so
+  // ProductDetailScreen fetches from the right endpoint.
+  const [shopSelectedProductIsZq, setShopSelectedProductIsZq] = useState(false)
+  // chatbotHidden migrated to src/store/uiStore.ts (consumed only by ChatBotIcon)
 
   // Enrich user object with badge_image if missing
   const enrichedUser = useMemo(() => {
@@ -381,6 +379,7 @@ export default function AppNavigator({
 
       // TODO: Implement slug parsing to extract product ID if needed
       // For MVP, we're passing the entire slug to ProductDetailScreen
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- responding to an external deep-link navigation event (productSlugFromDeepLink)
       setSelectedProductId(0) // Temporary: will be handled by ProductDetailScreen
 
       if (onProductDeepLinkHandled) {
@@ -431,10 +430,7 @@ export default function AppNavigator({
 
   // Navigation ref for notification handling
   const navigationRef = useRef<any>(null)
-  const initialNotificationHandledRef = useRef(false)
 
-  const { authService } = require("../services/authService")
-  const { productService } = require("../services/productService")
 
   // Create navigation handler for notifications
   const handleNotificationNavigation = (screen: string, params?: any) => {
@@ -799,8 +795,12 @@ export default function AppNavigator({
     saveDarkMode()
   }, [isDarkMode])
 
-  // Double-check dark mode from cache periodically (helps with hot reload issues)
+  // Double-check dark mode from cache periodically (helps with hot reload issues).
+  // This only matters during development hot reloads, so skip the 2s poll entirely
+  // in production builds — saving constant AsyncStorage reads / JS wakeups.
   useEffect(() => {
+    if (!__DEV__) return
+
     const checkDarkModeCache = async () => {
       try {
         await cacheUtils.init()
@@ -827,26 +827,6 @@ export default function AppNavigator({
     return () => clearInterval(interval)
   }, [isDarkMode])
 
-  useEffect(() => {
-    if (!token) return
-
-    // Fetch cart count
-    const headers = { Authorization: `Bearer ${token}` }
-    axios
-      .get(`${API_CONFIG.BASE_URL}/cart`, { headers })
-      .then((cartRes) => setCartCount(extractCount(cartRes.data)))
-      .catch(() => {})
-
-    // Initial notification fetch only - real-time updates come from push notifications
-    refreshNotificationCount()
-
-    // Fetch home screen data ONCE when token becomes available
-    if (!homeInitialFetchRef.current) {
-      homeInitialFetchRef.current = true
-      fetchHomeData()
-    }
-  }, [token, refreshNotificationCount])
-
   const fetchHomeData = async (forceRefresh = false) => {
     if (!token) return
 
@@ -867,6 +847,7 @@ export default function AppNavigator({
           homeRoomTypes.length,
           homeFeaturedProducts.length
         )
+
         console.log(
           "═══════════════════════════════════════════════════════════"
         )
@@ -979,6 +960,32 @@ export default function AppNavigator({
     }
   }
 
+  // Fetch cart count, notification count, and home data once the auth token is
+  // available. Declared after fetchHomeData so it can call it directly. This is a
+  // legitimate on-token data-fetch effect (pre-React-Query migration); the home
+  // fetch runs a single time, guarded by homeInitialFetchRef.
+  useEffect(() => {
+    if (!token) return
+
+    // Fetch cart count
+    const headers = { Authorization: `Bearer ${token}` }
+    axios
+      .get(`${API_CONFIG.BASE_URL}/cart`, { headers })
+      .then((cartRes) => setCartCount(extractCount(cartRes.data)))
+      .catch(() => {})
+
+    // Initial notification fetch only — real-time updates come from push notifications
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on token change; to be migrated to React Query
+    refreshNotificationCount()
+
+    // Fetch home screen data ONCE when token becomes available
+    if (!homeInitialFetchRef.current) {
+      homeInitialFetchRef.current = true
+      fetchHomeData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs intentionally on token change only; home fetch is guarded by homeInitialFetchRef
+  }, [token, refreshNotificationCount])
+
   const refreshHomeData = useCallback(async () => {
     await fetchHomeData(true)
   }, [fetchHomeData])
@@ -1000,7 +1007,6 @@ export default function AppNavigator({
     if (!referralTree) {
       try {
         setAffiliateLoading(true)
-        const { referralService } = require("../services/referralService")
         const data = await referralService.getReferralTree(token)
         setReferralTree(data)
       } catch (error: any) {
@@ -1144,7 +1150,6 @@ export default function AppNavigator({
     const fetchReferrerProfile = async () => {
       try {
         setReferrerProfileLoading(true)
-        const { referralService } = require("../services/referralService")
         const profile = await referralService.getPublicProfile(
           referralCodeFromDeepLink
         )
@@ -1160,27 +1165,6 @@ export default function AppNavigator({
     fetchReferrerProfile()
   }, [referralCodeFromDeepLink])
 
-  const normalizePurchaseStatus = (status?: string) => {
-    const s = String(status || "")
-      .trim()
-      .toLowerCase()
-      .replace(/-/g, "_")
-      .replace(/\s+/g, "_")
-    if (s === "to_ship") return "shipped" as const
-    if (s === "out_for_delivery") return "to_receive" as const
-    if (s === "to_receive" || s === "toreceive") return "to_receive" as const
-    if (
-      s === "pending" ||
-      s === "paid" ||
-      s === "processing" ||
-      s === "shipped" ||
-      s === "delivered" ||
-      s === "cancelled" ||
-      s === "return"
-    )
-      return s
-    return "pending" as const
-  }
 
   // Navigation context value for notifications to use
   const navigationValue: NavigationContextType = {
@@ -1392,6 +1376,8 @@ export default function AppNavigator({
                   setShowShopProductDetail,
                   shopSelectedProductId,
                   setShopSelectedProductId,
+                  shopSelectedProductIsZq,
+                  setShopSelectedProductIsZq,
                   onProductPress: (id: number) => {
                     setPreviousSearchQuery(null)
                     setPreviousTab(activeTab)
@@ -1444,14 +1430,12 @@ export default function AppNavigator({
                   },
                   onSecuritySettingsPress: () => setShowSecurity(true),
                   setShowSettings,
-                  onShowAFWalletOverview: () => setShowAFWalletOverview(true),
-                  onShowAFWalletVoucher: () => setShowAFWalletVoucher(true),
-                  onShowAFWalletRewards: () => setShowAFWalletRewards(true),
-                  onShowAFWalletNetwork: () => setShowAFWalletNetwork(true),
+                  onShowAFWalletOverview: () => openWalletPage("overview"),
+                  onShowAFWalletVoucher: () => openWalletPage("voucher"),
+                  onShowAFWalletRewards: () => openWalletPage("rewards"),
+                  onShowAFWalletNetwork: () => openWalletPage("network"),
                   handleOpenAffiliateReferralModal,
                   onLogout,
-                  chatbotHidden,
-                  setChatbotHidden,
                 }}
               >
                 <TabNavigator
@@ -1464,8 +1448,6 @@ export default function AppNavigator({
                     showSecurity ||
                     showProfileDetails ||
                     referralNetworkFromTab ||
-                    showShippingInfo ||
-                    showReturns ||
                     showLeaderboard ||
                     selectedBrandId !== null
                   }
@@ -1557,6 +1539,7 @@ export default function AppNavigator({
           <View style={styles.cartScreenOverlay}>
             <ProductDetailScreen
               productId={shopSelectedProductId}
+              isZq={shopSelectedProductIsZq}
               token={token}
               user={enrichedUser}
               cartCount={cartCount}
@@ -1564,9 +1547,12 @@ export default function AppNavigator({
               onBack={() => {
                 setShowShopProductDetail(false)
                 setShopSelectedProductId(null)
+                setShopSelectedProductIsZq(false)
               }}
               onProductPress={(id) => {
+                // Related/you-may-also-like products come from the regular API.
                 setShopSelectedProductId(id)
+                setShopSelectedProductIsZq(false)
               }}
               onSearch={() => {
                 setShowShopProductDetail(false)
@@ -2093,7 +2079,7 @@ export default function AppNavigator({
               onGoogleLinked={() =>
                 setLinkedAccountsRefreshTrigger((prev) => prev + 1)
               }
-              onOpenHistory={() => setShowHistory(true)}
+              onOpenHistory={() => openHistory()}
             />
           </View>
         )}
@@ -2140,161 +2126,58 @@ export default function AppNavigator({
               }}
               onNavigateAboutUs={() => {
                 setShowSettings(false)
-                setShowAboutUs(true)
+                openInfoPage("aboutUs")
               }}
               onNavigatePrivacyPolicy={() => {
                 setShowSettings(false)
-                setShowPrivacyPolicy(true)
+                openInfoPage("privacyPolicy")
               }}
               onNavigateTermsAndConditions={() => {
                 setShowSettings(false)
-                setShowTermsAndConditions(true)
+                openInfoPage("termsAndConditions")
               }}
               onNavigateIncomeDisclaimer={() => {
                 setShowSettings(false)
-                setShowIncomeDisclaimer(true)
+                openInfoPage("incomeDisclaimer")
               }}
               onNavigateCookiePolicy={() => {
                 setShowSettings(false)
-                setShowCookiePolicy(true)
+                openInfoPage("cookiePolicy")
               }}
               onNavigateRewardsAndCommissions={() => {
                 setShowSettings(false)
-                setShowRewardsAndCommissions(true)
+                openInfoPage("rewardsAndCommissions")
               }}
               onNavigateContactUs={() => {
                 setShowSettings(false)
-                setShowContactUs(true)
+                openInfoPage("contactUs")
               }}
               onNavigateOurBranches={() => {
                 setShowSettings(false)
-                setShowOurBranches(true)
+                openInfoPage("ourBranches")
               }}
               onNavigateFAQs={() => {
                 setShowSettings(false)
-                setShowFAQs(true)
+                openInfoPage("faqs")
               }}
               onNavigateShippingInfo={() => {
                 setShowSettings(false)
-                setShowShippingInfo(true)
+                openInfoPage("shippingInfo")
               }}
               onNavigateReturns={() => {
                 setShowSettings(false)
-                setShowReturns(true)
+                openInfoPage("returns")
               }}
               onLogout={onLogout}
             />
           </View>
         )}
 
-        {showHistory && (
-          <View style={styles.cartScreenOverlay}>
-            <HistoryScreen
-              isDarkMode={isDarkMode}
-              token={token}
-              onBack={() => setShowHistory(false)}
-            />
-          </View>
-        )}
 
-        {showAboutUs && (
-          <View style={styles.cartScreenOverlay}>
-            <AboutUsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowAboutUs(false)}
-            />
-          </View>
-        )}
-
-        {showPrivacyPolicy && (
-          <View style={styles.cartScreenOverlay}>
-            <PrivacyPolicyScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowPrivacyPolicy(false)}
-            />
-          </View>
-        )}
-
-        {showTermsAndConditions && (
-          <View style={styles.cartScreenOverlay}>
-            <TermsAndConditionsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowTermsAndConditions(false)}
-            />
-          </View>
-        )}
-
-        {showIncomeDisclaimer && (
-          <View style={styles.cartScreenOverlay}>
-            <IncomeDisclaimerScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowIncomeDisclaimer(false)}
-            />
-          </View>
-        )}
-
-        {showCookiePolicy && (
-          <View style={styles.cartScreenOverlay}>
-            <CookiePolicyScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowCookiePolicy(false)}
-            />
-          </View>
-        )}
-
-        {showRewardsAndCommissions && (
-          <View style={styles.cartScreenOverlay}>
-            <RewardsAndCommissionsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowRewardsAndCommissions(false)}
-            />
-          </View>
-        )}
-
-        {showContactUs && (
-          <View style={styles.cartScreenOverlay}>
-            <ContactUsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowContactUs(false)}
-            />
-          </View>
-        )}
-
-        {showOurBranches && (
-          <View style={styles.cartScreenOverlay}>
-            <OurBranchesScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowOurBranches(false)}
-            />
-          </View>
-        )}
-
-        {showFAQs && (
-          <View style={styles.cartScreenOverlay}>
-            <FAQsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowFAQs(false)}
-            />
-          </View>
-        )}
-
-        {showShippingInfo && (
-          <View style={styles.cartScreenOverlay}>
-            <ShippingInfoScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowShippingInfo(false)}
-            />
-          </View>
-        )}
-
-        {showReturns && (
-          <View style={styles.cartScreenOverlay}>
-            <ReturnsScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowReturns(false)}
-            />
-          </View>
-        )}
+        {/* Info-page overlays (About Us, Privacy Policy, FAQs, etc.) — state in
+            the Zustand modal store, rendered here so toggling them no longer
+            re-renders the whole AppNavigator. */}
+        <ModalHost isDarkMode={isDarkMode} token={token} />
 
         {referralNetworkFromTab && (
           <View style={styles.cartScreenOverlay}>
@@ -2367,46 +2250,6 @@ export default function AppNavigator({
                 shippingAddressScreenData.onSelect(address)
                 setShowShippingAddressScreen(false)
               }}
-            />
-          </View>
-        )}
-
-        {showAFWalletOverview && (
-          <View style={styles.cartScreenOverlay}>
-            <AFWalletOverviewScreen
-              isDarkMode={isDarkMode}
-              onClose={() => setShowAFWalletOverview(false)}
-              token={token}
-            />
-          </View>
-        )}
-
-        {showAFWalletVoucher && (
-          <View style={styles.cartScreenOverlay}>
-            <AFWalletVoucherScreen
-              isDarkMode={isDarkMode}
-              onClose={() => setShowAFWalletVoucher(false)}
-              token={token}
-            />
-          </View>
-        )}
-
-        {showAFWalletRewards && (
-          <View style={styles.cartScreenOverlay}>
-            <AFWalletRewardsScreen
-              isDarkMode={isDarkMode}
-              onClose={() => setShowAFWalletRewards(false)}
-              token={token}
-            />
-          </View>
-        )}
-
-        {showAFWalletNetwork && (
-          <View style={styles.cartScreenOverlay}>
-            <AFWalletNetworkScreen
-              isDarkMode={isDarkMode}
-              onClose={() => setShowAFWalletNetwork(false)}
-              token={token}
             />
           </View>
         )}

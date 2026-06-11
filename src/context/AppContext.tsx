@@ -160,6 +160,8 @@ export interface AppContextType {
   showShopProductDetail: boolean
   setShowShopProductDetail: (show: boolean) => void
   shopSelectedProductId: number | null
+  shopSelectedProductIsZq?: boolean
+  setShopSelectedProductIsZq?: (v: boolean) => void
   setShopSelectedProductId: (id: number | null) => void
 
   // Callbacks
@@ -180,9 +182,7 @@ export interface AppContextType {
   onShowAFWalletNetwork: () => void
   handleOpenAffiliateReferralModal: () => void
 
-  // ChatBot
-  chatbotHidden: boolean
-  setChatbotHidden: (hidden: boolean) => void
+  // ChatBot visibility now lives in src/store/uiStore.ts (useUIStore)
 
   // Optimistic wishlist updates
   handleOptimisticWishlistToggle?: (

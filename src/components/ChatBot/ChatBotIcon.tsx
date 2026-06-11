@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../../constants/colors"
 import { storageService } from "../../services/storageService"
-import { useAppContext } from "../../context/AppContext"
+import { useUIStore } from "../../store/uiStore"
 
 interface ChatBotIconProps {
   onPress?: () => void
@@ -57,7 +57,8 @@ export default function ChatBotIcon({
   isDarkMode = false,
 }: ChatBotIconProps) {
   const insets = useSafeAreaInsets()
-  const { chatbotHidden, setChatbotHidden } = useAppContext()
+  const chatbotHidden = useUIStore((s) => s.chatbotHidden)
+  const setChatbotHidden = useUIStore((s) => s.setChatbotHidden)
   const [chatVisible, setChatVisible] = useState(false)
   const [isIconHidden, setIsIconHidden] = useState(chatbotHidden)
   const [bubbleMessageIndex, setBubbleMessageIndex] = useState(0)

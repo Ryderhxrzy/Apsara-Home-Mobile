@@ -1,5 +1,11 @@
 import axios from "axios"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import { API_CONFIG } from "../config/api"
+import { normalizeZqProduct, type ZqProduct } from "./adapters/zqAdapter"
+
+// Last-known ZQ brand names, cached so a transient failure of the ZQ endpoint
+// doesn't hide ZQ brands (which usually have 0 regular products) from the UI.
+const ZQ_BRAND_NAMES_CACHE_KEY = "apsara_cache:zq_brand_names"
 
 const api = axios.create({
   baseURL: API_CONFIG.BASE_URL,
@@ -366,10 +372,9 @@ export const productService = {
     const headers = { Authorization: `Bearer ${token}` }
 
     try {
-      const response = await api.get(
-        `/search/recommendations?limit=${limit}`,
-        { headers }
-      )
+      const response = await api.get(`/search/recommendations?limit=${limit}`, {
+        headers,
+      })
       if (response.data?.success && Array.isArray(response.data?.data)) {
         const seen = new Set<number>()
         return response.data.data.filter((item: any) => {
@@ -389,7 +394,9 @@ export const productService = {
     const headers = { Authorization: `Bearer ${token}` }
 
     try {
-      const response = await api.get(`/wishlist/count/${productId}`, { headers })
+      const response = await api.get(`/wishlist/count/${productId}`, {
+        headers,
+      })
       return response.data?.wishlist_count ?? 0
     } catch (error) {
       console.error("Failed to fetch wishlist count:", error)
@@ -409,8 +416,13 @@ export const productService = {
     } = {}
   ): Promise<{ products: any[]; totalPages: number; total: number }> {
     const headers = { Authorization: `Bearer ${token}` }
-    const { page = 1, perPage = 20, roomId = null, categoryId = null, search } =
-      options
+    const {
+      page = 1,
+      perPage = 20,
+      roomId = null,
+      categoryId = null,
+      search,
+    } = options
 
     let url = `${API_CONFIG.BASE_URL}/products?status=1&page=${page}&per_page=${perPage}&brand_type=${brandType}`
     if (roomId) url += `&room_type=${roomId}`
@@ -441,6 +453,20 @@ export const productService = {
     return (response.data?.products ?? []) as any[]
   },
 
+  /**
+   * Fetch a single ZQ product from its separate backend and normalize it to the
+   * canonical `Product` type, so ProductDetailScreen and the shared components
+   * render it exactly like a regular product (variants come from ZQ `specs`).
+   */
+  async getZqProductById(id: number, token?: string): Promise<Product> {
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const response = await api.get(`/products/zq/cached/${id}`, { headers })
+    const raw = (response.data?.product ?? response.data) as ZqProduct
+    return normalizeZqProduct(raw)
+  },
+
   async getZqBrandNames(token?: string): Promise<Set<string>> {
     const headers = {
       "Content-Type": "application/json",
@@ -456,8 +482,24 @@ export const productService = {
           p.displayProduct?.brand || p.brand || p.brandName
         if (brand) names.add(brand.trim().toLowerCase())
       })
+      // Cache only a successful, non-empty result. (An empty result is trusted
+      // as "no ZQ brands" and intentionally not cached, so removed brands clear.)
+      if (names.size > 0) {
+        AsyncStorage.setItem(
+          ZQ_BRAND_NAMES_CACHE_KEY,
+          JSON.stringify([...names])
+        ).catch(() => {})
+      }
       return names
     } catch {
+      // Endpoint failed — fall back to the last-known ZQ brand names so ZQ
+      // brands don't disappear on a transient error.
+      try {
+        const cached = await AsyncStorage.getItem(ZQ_BRAND_NAMES_CACHE_KEY)
+        if (cached) return new Set<string>(JSON.parse(cached))
+      } catch {
+        // ignore cache read errors
+      }
       return new Set()
     }
   },

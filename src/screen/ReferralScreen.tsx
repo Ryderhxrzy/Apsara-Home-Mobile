@@ -1,5 +1,6 @@
 import React, { useEffect } from "react"
-import {  View,
+import {
+  View,
   Text,
   ScrollView,
   TouchableOpacity,

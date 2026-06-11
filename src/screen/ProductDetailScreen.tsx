@@ -7,7 +7,6 @@ import {  View,
   Dimensions,
   ActivityIndicator,
   BackHandler,
-  TextInput,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Animated,
@@ -24,7 +23,6 @@ import {
   type Product,
   type ProductCard,
   type ProductReviewsResponse,
-  type ProductReview,
 } from "../services/productService"
 import { authService } from "../services/authService"
 import { userBehaviorService } from "../services/userBehaviorService"
@@ -34,15 +32,13 @@ import FeaturedItems from "../components/Items/FeaturedItems"
 import ImageViewerModal from "../components/Items/ImageViewerModal"
 import BuyNowModal from "../components/Items/BuyNowModal"
 import AddToCartModal from "../components/Items/AddToCartModal"
-import PrimaryButton from "../components/Button/PrimaryButton"
-import AppHeader from "../components/AppHeader/AppHeader"
+import { ProductDetailSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
 import Toast from "react-native-toast-message"
 import styles from "../styles/ProductDetailScreen.styles"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
-const CARD_WIDTH = (SCREEN_WIDTH - 8 - 8 - 8) / 2
 
 interface WishlistItem {
   wishlist_id: number
@@ -75,6 +71,8 @@ interface ProductDetailScreenProps {
   cartCount?: number
   wishlistItems?: WishlistItem[]
   isDarkMode?: boolean
+  /** When true, this product comes from the ZQ separate backend. */
+  isZq?: boolean
 }
 
 const BADGE_CONFIG = [
@@ -146,17 +144,17 @@ export default function ProductDetailScreen({
   cartCount = 0,
   wishlistItems = [],
   isDarkMode = false,
+  isZq = false,
 }: ProductDetailScreenProps) {
   const insets = useSafeAreaInsets()
 
-  // Debug logging
-  console.log(`🔍 ProductDetailScreen mounted with productId: ${productId}`)
-
-  // Primary product detail GET migrated to React Query
+  // Primary product detail GET migrated to React Query. `isZq` routes to the
+  // ZQ separate backend; the response is normalized to the canonical Product
+  // type so everything below renders identically to a regular product.
   const {
     data: product = null,
     isLoading: loading,
-  } = useProductDetail({ productId, token })
+  } = useProductDetail({ productId, token, isZq })
 
   const [relatedProducts, setRelatedProducts] = useState<ProductCard[]>([])
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null)
@@ -173,6 +171,24 @@ export default function ProductDetailScreen({
   const scrollRef = useRef<ScrollView>(null)
   const galleryScrollRef = useRef<ScrollView>(null)
   const imageViewerScrollRef = useRef<ScrollView>(null)
+  // Horizontal variant/thumbnail strip + each item's measured position, so the
+  // active variant can be auto-scrolled into view while swiping the gallery.
+  const variantsScrollRef = useRef<ScrollView>(null)
+  const variantLayoutsRef = useRef<Record<number, { x: number; width: number }>>(
+    {}
+  )
+
+  // Tracks the gallery image currently in view, so the focus logic only runs
+  // when the index actually changes (avoids per-frame re-renders during scroll).
+  const lastGalleryIndexRef = useRef(0)
+
+  // Scroll the variant strip so the given variant is centered in the viewport.
+  const centerVariantInView = (variantId: number) => {
+    const layout = variantLayoutsRef.current[variantId]
+    if (!layout || !variantsScrollRef.current) return
+    const targetX = layout.x + layout.width / 2 - SCREEN_WIDTH / 2
+    variantsScrollRef.current.scrollTo({ x: Math.max(0, targetX), animated: true })
+  }
   const [showHeaderOnScroll, setShowHeaderOnScroll] = useState(false)
   const headerTranslateY = useState(() => new Animated.Value(-100))[0]
   const headerOpacity = useState(() => new Animated.Value(0))[0]
@@ -191,8 +207,42 @@ export default function ProductDetailScreen({
   const [wishlistCount, setWishlistCount] = useState<number | null>(null)
   const [optimisticCartCount, setOptimisticCartCount] = useState(0)
 
+  // --- Derived/optimistic state synced during render (not in effects) ---
+  // `isWishlisted` is optimistic (set instantly on tap, rolled back on error),
+  // but must also track the source of truth (wishlistItems). Re-sync only when
+  // the derived value changes, preserving the optimistic value otherwise.
+  const derivedWishlisted =
+    !!product && wishlistItems.some((item) => item.product_id === product.id)
+  const [prevDerivedWishlisted, setPrevDerivedWishlisted] = useState(false)
+  if (derivedWishlisted !== prevDerivedWishlisted) {
+    setPrevDerivedWishlisted(derivedWishlisted)
+    setIsWishlisted(derivedWishlisted)
+  }
+
+  // Clear the optimistic cart bump once the real cart count updates.
+  const [prevCartCount, setPrevCartCount] = useState(cartCount)
+  if (cartCount !== prevCartCount) {
+    setPrevCartCount(cartCount)
+    setOptimisticCartCount(0)
+  }
+
+  // Reset secondary UI state when the viewed product changes (imperative
+  // animation/scroll resets stay in an effect below).
+  const [prevProductId, setPrevProductId] = useState(productId)
+  if (productId !== prevProductId) {
+    setPrevProductId(productId)
+    setRelatedProducts([])
+    setYouMayAlsoLike([])
+    setVisibleYouMayAlsoLikeCount(8)
+    setBrandProfile(null)
+    setActiveImage(0)
+    setDescriptionExpanded(false)
+    setSpecificationsExpanded(false)
+    setSelectedVariant(null)
+    setShowHeaderOnScroll(false)
+  }
+
   useEffect(() => {
-    console.log(`🎯 ProductDetailScreen mounted for product ID: ${productId}`)
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
@@ -215,16 +265,6 @@ export default function ProductDetailScreen({
     return () => backHandler.remove()
   }, [onBack, showBuyModal, showImageViewer])
 
-  // Update wishlisted state when wishlistItems change
-  useEffect(() => {
-    if (product) {
-      const isProductWishlisted = wishlistItems.some(
-        (item) => item.product_id === product.id
-      )
-      setIsWishlisted(isProductWishlisted)
-    }
-  }, [wishlistItems, product?.id])
-
   // Fetch wishlist count for the product
   useEffect(() => {
     if (!token || !productId) return
@@ -242,28 +282,15 @@ export default function ProductDetailScreen({
     }
   }, [token, productId])
 
-  // Reset optimistic cart count when actual cart count updates from API
+  // Imperative resets (animation values + scroll position) when the product
+  // changes — external-system sync, correct to keep in an effect. The React
+  // state resets are handled during render above (prevProductId).
   useEffect(() => {
-    setOptimisticCartCount(0)
-  }, [cartCount])
-
-  // Reset secondary UI state whenever the product being viewed changes.
-  // The primary product fetch itself is handled by useProductDetail above.
-  useEffect(() => {
-    setRelatedProducts([])
-    setYouMayAlsoLike([])
-    setVisibleYouMayAlsoLikeCount(8)
-    setBrandProfile(null)
-    setActiveImage(0)
-    setDescriptionExpanded(false)
-    setSpecificationsExpanded(false)
-    setSelectedVariant(null)
-    setShowHeaderOnScroll(false)
-    // Reset animated header values to initial state
+    lastGalleryIndexRef.current = 0
     headerTranslateY.setValue(-100)
     headerOpacity.setValue(0)
     scrollRef.current?.scrollTo({ y: 0, animated: false })
-  }, [productId])
+  }, [productId, headerTranslateY, headerOpacity])
 
   // When the product (from React Query) is available, run cascading fetches.
   useEffect(() => {
@@ -273,15 +300,12 @@ export default function ProductDetailScreen({
 
     let active = true
 
-    // Check if product is in wishlist
-    const isProductWishlisted = wishlistItems.some(
-      (item) => item.product_id === data.id
-    )
-    setIsWishlisted(isProductWishlisted)
-    console.log(`❤️ Is wishlisted: ${isProductWishlisted}`)
+    // (isWishlisted is derived during render — see prevDerivedWishlisted above.)
 
-    // Set first variant as default
+    // Set first variant as default once the product data loads (initializing
+    // local selection from async-fetched data; the user can change it after).
     if (data.variants && data.variants.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize default selection from async-loaded product
       setSelectedVariant(data.variants[0].id)
     }
 
@@ -360,7 +384,7 @@ export default function ProductDetailScreen({
   const imagesWithVariants = useMemo(() => {
     if (!product) return []
 
-    const list: Array<{ image: string; variantId: number | null }> = []
+    const list: { image: string; variantId: number | null }[] = []
     const addedImages = new Set<string>()
 
     // Add variant images first (with variant ID) - only if not already added
@@ -400,18 +424,24 @@ export default function ProductDetailScreen({
     return imagesWithVariants.map((item) => item.image)
   }, [imagesWithVariants])
 
+  // Focus a gallery image: update the active image + matching variant and center
+  // its thumbnail. Called live from onScroll so the strip tracks the swipe with
+  // no lag, guarded so it fires once per image crossing (not every frame).
+  const focusGalleryImage = (index: number) => {
+    if (index < 0 || index >= images.length) return
+    if (index === lastGalleryIndexRef.current) return
+    lastGalleryIndexRef.current = index
+    setActiveImage(index)
+    const item = imagesWithVariants[index]
+    if (item && item.variantId !== null) {
+      setSelectedVariant(item.variantId)
+      centerVariantInView(item.variantId)
+    }
+  }
+
   const hasDiscount = product
     ? (product.priceMember ?? 0) < (product.priceSrp ?? 0)
     : false
-  const discountPct =
-    hasDiscount && product
-      ? Math.round(
-          (((product.priceSrp ?? 0) - (product.priceMember ?? 0)) /
-            (product.priceSrp ?? 0)) *
-            100
-        )
-      : 0
-
   const activeBadges = product
     ? BADGE_CONFIG.filter((b) => (product as any)[b.key])
     : []
@@ -756,9 +786,7 @@ export default function ProductDetailScreen({
     <View style={styles.root}>
       {console.log("🎯 [ProductDetailScreen] Starting main render...")}
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={Colors.sky} />
-        </View>
+        <ProductDetailSkeleton isDarkMode={isDarkMode} />
       ) : product ? (
         <>
           <Animated.View
@@ -868,18 +896,18 @@ export default function ProductDetailScreen({
                 showsHorizontalScrollIndicator={false}
                 scrollEventThrottle={16}
                 style={{ backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" }}
-                onMomentumScrollEnd={(e) => {
-                  const index = Math.round(
-                    e.nativeEvent.contentOffset.x / SCREEN_WIDTH
+                onScroll={(e) => {
+                  // Track the active image live (crosses at the halfway point) so
+                  // the bottom thumbnail focuses immediately, not after momentum ends.
+                  focusGalleryImage(
+                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
                   )
-                  setActiveImage(index)
-                  // Auto-select variant based on image index
-                  if (imagesWithVariants.length > index) {
-                    const item = imagesWithVariants[index]
-                    if (item.variantId !== null) {
-                      setSelectedVariant(item.variantId)
-                    }
-                  }
+                }}
+                onMomentumScrollEnd={(e) => {
+                  // Final settle — ensures the exact landing index is focused.
+                  focusGalleryImage(
+                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
+                  )
                 }}
               >
                 {images.length > 0 ? (
@@ -1058,6 +1086,7 @@ export default function ProductDetailScreen({
                 ]}
               >
                 <ScrollView
+                  ref={variantsScrollRef}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   style={styles.shopeeVariantsScroll}
@@ -1067,7 +1096,15 @@ export default function ProductDetailScreen({
                     const isSize = variant.size && !variant.images
 
                     return (
-                      <View key={variant.id}>
+                      <View
+                        key={variant.id}
+                        onLayout={(e) => {
+                          variantLayoutsRef.current[variant.id] = {
+                            x: e.nativeEvent.layout.x,
+                            width: e.nativeEvent.layout.width,
+                          }
+                        }}
+                      >
                         <TouchableOpacity
                           style={[
                             styles.shopeeVariantItem,
@@ -1489,38 +1526,8 @@ export default function ProductDetailScreen({
                         <View style={styles.descriptionContentInner}>
                           {(() => {
                             try {
-                              console.log(
-                                "🔄 [RenderHtml] Rendering description..."
-                              )
-                              console.log(
-                                "📄 [RenderHtml] Description HTML:",
-                                product.description?.substring(0, 500) + "..."
-                              )
-
-                              // TEMPORARY: Disable RenderHtml to test if it's the culprit
-                              const useRenderHtml = true // Set to false to test
-
-                              if (!useRenderHtml) {
-                                return (
-                                  <View
-                                    style={[
-                                      styles.descriptionContentInner,
-                                      { padding: 12 },
-                                    ]}
-                                  >
-                                    <Text
-                                      style={{
-                                        color: colors.text,
-                                        fontSize: 14,
-                                        lineHeight: 22,
-                                      }}
-                                    >
-                                      {product.description}
-                                    </Text>
-                                  </View>
-                                )
-                              }
-
+                              // Renders HTML descriptions (incl. ZQ products,
+                              // whose description is an HTML spec table).
                               return (
                                 <RenderHtml
                                   source={{

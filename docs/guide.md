@@ -14,3 +14,6 @@ Complete API reference — Every HTTP endpoint (60+ endpoints), organized by dom
 4
 04-architecture-deep-dive.md
 How it all works — Service layer design, every service file explained, hooks layer, state management architecture (Context vs React Query vs SecureStore vs AsyncStorage), caching strategy, and data flow diagrams for key operations (add-to-cart, authentication). Covers design patterns like optimistic updates, response normalization, and error handling
+5
+05-performance-audit-and-roadmap.md
+Performance, re-render & regression audit + Shopee-grade improvement roadmap (2026-06-10) — Evidence-based findings with file:line refs across five problem areas (timers/startup, context/re-renders, list virtualization, data layer, code health), severity/effort ratings, what's already good (don't regress), the gap-to-Shopee table, and a 3-phase roadmap. Supersedes the older rough notes in audit.md.

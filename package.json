@@ -58,7 +58,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.16.1",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/react": "~19.2.14",
