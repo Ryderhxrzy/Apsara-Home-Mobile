@@ -23,6 +23,18 @@ import ReferralSignupScreen from "./src/screen/ReferralSignupScreen"
 import ReferralOtpScreen from "./src/screen/ReferralOtpScreen"
 import AFHomeAffiliateScreen from "./src/screen/AFHomeAffiliateScreen"
 import { referralService } from "./src/services/referralService"
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from "@expo-google-fonts/plus-jakarta-sans"
+import { setupGlobalFont } from "./src/utils/fonts"
+
+// Apply Plus Jakarta Sans as the default font for all Text/TextInput
+setupGlobalFont()
 
 type AuthScreen =
   | "index"
@@ -104,6 +116,15 @@ export default function App() {
   const [productSlugFromDeepLink, setProductSlugFromDeepLink] = useState<
     string | null
   >(null)
+
+  // Load Plus Jakarta Sans font variants (embedded at build time)
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  })
 
   // Initialize FCM and register device when authenticated
   useFirebaseMessaging(authToken, authUser?.id || null)
@@ -318,7 +339,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        {isLoading ? (
+        {isLoading || !fontsLoaded ? (
           <LoadingScreen />
         ) : !hasOnboarded ? (
           <OnboardingScreen onDone={handleOnboardingDone} />
