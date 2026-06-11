@@ -1,45 +1,33 @@
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { productService } from "../../services/productService"
 
 export interface BrandProduct {
   id: number
   name: string
   image: string
-  price?: number
   priceMember?: number
   priceDp?: number
-  original_price?: number
-  discounted_price?: number
+  priceSrp?: number
+  originalPrice?: number
+  memberPrice?: number
   prodpv?: string
-  pv?: string
   musthave?: boolean
   bestseller?: boolean
   salespromo?: boolean
-  originalPrice?: number
-  memberPrice?: number
-  priceSrp?: number
   soldCount?: number
   brand?: string
   variants?: unknown[]
   isZqProduct?: boolean
 }
 
-interface UseBrandProductsOptions {
+interface UseInfiniteBrandProductsOptions {
   token?: string | null
   brandId?: number
   isZqBrand?: boolean
-  page?: number
   perPage?: number
-  roomId?: number | null
   categoryId?: number | null
   search?: string
   enabled?: boolean
-}
-
-interface BrandProductsResult {
-  products: BrandProduct[]
-  totalPages: number
-  total: number
 }
 
 function normalizeZq(
@@ -56,7 +44,6 @@ function normalizeZq(
       return name.includes(q) || subject.includes(q)
     })
   }
-
   return filtered.map((p) => {
     const dp = p.displayProduct as Record<string, unknown> | undefined
     const salePrice = (dp?.price as number | undefined) ?? 0
@@ -71,10 +58,9 @@ function normalizeZq(
         (dp?.image as string | undefined) ||
         (p.primaryImage as string | undefined) ||
         "",
-      price: salePrice,
       priceMember: salePrice,
-      original_price: comparePrice,
       memberPrice: salePrice,
+      priceSrp: comparePrice,
       originalPrice: comparePrice,
       brand: (dp?.brand as string | undefined) || "",
       isZqProduct: true,
@@ -82,59 +68,68 @@ function normalizeZq(
   })
 }
 
-export const useBrandProducts = ({
+export const useInfiniteBrandProducts = ({
   token,
   brandId,
   isZqBrand = false,
-  page = 1,
-  perPage = 20,
-  roomId = null,
+  perPage = 16,
   categoryId = null,
   search = "",
   enabled = true,
-}: UseBrandProductsOptions) => {
-  return useQuery<BrandProductsResult>({
+}: UseInfiniteBrandProductsOptions) => {
+  return useInfiniteQuery({
     queryKey: [
-      "brand-products",
+      "brand-products-infinite",
       token,
       isZqBrand,
       brandId ?? null,
-      page,
       perPage,
-      roomId,
       categoryId,
       search.trim(),
     ],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 1 }) => {
       if (!token) throw new Error("Token is required")
+      const page = pageParam as number
 
       if (isZqBrand) {
         const { products: raw, total, totalPages } =
-          await productService.getZqCachedProducts(token, { search })
+          await productService.getZqCachedProducts(token, {
+            page,
+            perPage,
+            search,
+          })
         return {
           products: normalizeZq(raw as Record<string, unknown>[], search),
-          totalPages,
           total,
+          hasMore: page < totalPages,
+          pageParam: page,
         }
       }
 
       if (!brandId) {
-        return { products: [], totalPages: 0, total: 0 }
+        return { products: [], total: 0, hasMore: false, pageParam: 1 }
       }
 
       const { products, totalPages, total } =
         await productService.getBrandProductsPaged(token, brandId, {
           page,
           perPage,
-          roomId,
           categoryId,
           search,
         })
 
-      return { products: products as BrandProduct[], totalPages, total }
+      return {
+        products: products as BrandProduct[],
+        total,
+        hasMore: page < totalPages,
+        pageParam: page,
+      }
     },
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.pageParam + 1 : undefined,
+    initialPageParam: 1,
     enabled: enabled && !!token && (isZqBrand || !!brandId),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   })
 }

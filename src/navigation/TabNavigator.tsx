@@ -137,7 +137,6 @@ function HomeTabScreen() {
         }}
         onSearchPress={onSearchPress}
         onProfilePress={() => onShowProfileDetails(true)}
-        onLogout={onLogout}
       />
       <HomeScreen
         token={token}

@@ -523,14 +523,16 @@ export default function ShopByBrandScreen({
         </View>
       </ImageBackground>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
-      >
-        {selectedTab === "home" && (
+      {selectedTab === "home" && (
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
           <ShopByBrandHomeScreen
             products={products as any}
             token={token}
@@ -541,20 +543,35 @@ export default function ShopByBrandScreen({
             loading={loading && !refreshing}
             onSeeMore={() => setSelectedTab("products")}
           />
-        )}
+        </ScrollView>
+      )}
 
-        {selectedTab === "products" && (
-          <ShopByBrandProductsScreen isDarkMode={isDarkMode} />
-        )}
+      {selectedTab === "products" && (
+        <ShopByBrandProductsScreen
+          token={token}
+          brandId={brandId}
+          isZqBrand={isZqBrand}
+          searchQuery={searchQuery}
+          wishlistItems={wishlistItems}
+          onWishlistChange={onWishlistChange}
+          onProductPress={onProductPress}
+          isDarkMode={isDarkMode}
+        />
+      )}
 
-        {selectedTab === "categories" && (
+      {selectedTab === "categories" && (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <ShopByBrandCategoriesScreen
             categories={categories}
             isDarkMode={isDarkMode}
             onCategoryPress={(categoryId) => setSelectedCategoryId(categoryId)}
           />
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   )
 }

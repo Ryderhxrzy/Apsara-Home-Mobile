@@ -22,12 +22,10 @@ import { authService, BrandItem, CategoryItem } from "../services/authService"
 import { productService } from "../services/productService"
 import { getBadgeImageSource } from "../constants/tierConfig"
 import type { ProductCard } from "../services/productService"
-import ItemCard from "../components/Items/ItemCard"
 import Toast from "react-native-toast-message"
 import {
   HomeScreenSkeleton,
   BannerSkeleton,
-  SectionHeaderSkeleton,
   RoomGridSkeleton,
   CategoryRowSkeleton,
   BrandCardSkeleton,
@@ -396,21 +394,6 @@ function HomeScreen({
   onShopByBrandPress = () => {},
   onRefresh: onRefreshProp,
 }: HomeScreenProps) {
-  const navigationStartTime = useRef(performance.now())
-
-  console.log("═══════════════════════════════════════════════════════════")
-  console.log("🏠 [HOMESCREEN] MOUNTED/NAVIGATED")
-  console.log("═══════════════════════════════════════════════════════════")
-  console.log("📊 DATA STATUS:", {
-    categoriesCount: categories.length,
-    brandsCount: brands.length,
-    roomsCount: roomTypes.length,
-    productsCount: featuredProducts.length,
-    isLoading: loadingFeatured,
-  })
-  console.log("👤 USER:", { name: user?.name, badge: user?.badge_name })
-  console.log("═══════════════════════════════════════════════════════════")
-
   const colors = {
     bg: isDarkMode ? "#0f172a" : "#f5f5f5",
     card: isDarkMode ? "#1e293b" : Colors.white,
@@ -433,25 +416,6 @@ function HomeScreen({
   // Cart count GET migrated to React Query
   const { data: cartCountData } = useCartCount({ token })
   const totalCart = cartCountData?.count ?? 0
-
-  // Track when data updates
-  useEffect(() => {
-    const timeSinceNav = performance.now() - navigationStartTime.current
-    console.log(
-      `📦 [HOMESCREEN] DATA UPDATED at ${timeSinceNav.toFixed(0)}ms:`,
-      {
-        categories: categories.length,
-        brands: brands.length,
-        rooms: roomTypes.length,
-        products: featuredProducts.length,
-      }
-    )
-  }, [
-    categories.length,
-    brands.length,
-    roomTypes.length,
-    featuredProducts.length,
-  ])
 
   const handleRefresh = () => {
     console.log("🔄 [HOMESCREEN] PULL-TO-REFRESH TRIGGERED")
@@ -651,14 +615,6 @@ function HomeScreen({
     },
     [colors.card, colors.border, onShopByBrandPress]
   )
-
-  const renderTime = performance.now() - navigationStartTime.current
-  console.log(`⚡ [HOMESCREEN] RENDER TIME: ${renderTime.toFixed(0)}ms`)
-  if (renderTime > 1000) {
-    console.log("⚠️  WARNING: Slow render detected!")
-  }
-
-  console.log(brands)
 
   return (
     <View style={{ flex: 1, position: "relative" }}>
@@ -1078,6 +1034,7 @@ function HomeScreen({
             />
           )}
         </View>
+
       </ScrollView>
 
       {/* Chat Bot Icon */}

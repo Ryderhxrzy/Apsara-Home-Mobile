@@ -13,7 +13,6 @@ import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../../constants/colors"
 import FeaturedItems from "../../components/Items/FeaturedItems"
-import ItemCard from "../../components/Items/ItemCard"
 import Toast from "react-native-toast-message"
 import styles, { width } from "../../styles/ShopByBrandHomeScreen.styles"
 
@@ -127,29 +126,15 @@ export default function ShopByBrandHomeScreen({
     divider: isDarkMode ? "#334155" : "#eef2f7",
   }
 
-  const masonryColumns = useMemo(() => {
-    const leftColumn: Product[] = []
-    const rightColumn: Product[] = []
+  const featuredProducts = useMemo(
+    () => products.filter((p) => p.musthave).slice(0, 8),
+    [products]
+  )
 
-    products.forEach((product, index) => {
-      if (index % 2 === 0) {
-        leftColumn.push(product)
-      } else {
-        rightColumn.push(product)
-      }
-    })
-
-    return { leftColumn, rightColumn }
-  }, [products])
-
-  const featuredProducts = useMemo(() => {
-    const shuffled = [...products]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    return shuffled.slice(0, 4)
-  }, [products])
+  const bestSellerProducts = useMemo(
+    () => products.filter((p) => p.bestseller).slice(0, 8),
+    [products]
+  )
 
   const renderFeaturedItem = (item: Product) => {
     const wishlistItem = wishlistItems?.find((w) => w.product.id === item.id)
@@ -181,114 +166,6 @@ export default function ShopByBrandHomeScreen({
     )
   }
 
-  const renderItem = (item: Product) => {
-    const wishlistItem = wishlistItems?.find((w) => w.product.id === item.id)
-    const productCard = {
-      id: item.id,
-      name: item.name,
-      image: item.image,
-      soldCount: item.soldCount || 0,
-      originalPrice: item.priceSrp,
-      memberPrice: item.priceMember,
-      pv: item.prodpv,
-      brandName: item.brand,
-      variantCount: item.variants?.length ?? 0,
-      badges: {
-        musthave: item.musthave,
-        bestseller: item.bestseller,
-        salespromo: item.salespromo,
-      },
-    }
-
-    return (
-      <View key={`product-${item.id}`} style={styles.masonryItem}>
-        <ItemCard
-          product={productCard}
-          token={token}
-          isDarkMode={isDarkMode}
-          onPress={(product) => onProductPress(product.id)}
-          isWishlisted={!!wishlistItem}
-          wishlistId={wishlistItem?.wishlist_id}
-          onWishlistToggle={onWishlistChange}
-        />
-      </View>
-    )
-  }
-
-  const renderLoadingPlaceholders = () => {
-    const dummyProducts = Array.from({ length: 6 }, (_, i) => ({ id: i }))
-    const leftColumn = dummyProducts.filter((_, i) => i % 2 === 0)
-    const rightColumn = dummyProducts.filter((_, i) => i % 2 !== 0)
-
-    const renderDummyCard = (item: any) => (
-      <View key={`loading-${item.id}`} style={styles.masonryItem}>
-        <View
-          style={[
-            styles.dummyCard,
-            {
-              backgroundColor: themeColors.cardBg,
-              borderColor: themeColors.cardBorder,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.dummyImageContainer,
-              { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" },
-            ]}
-          >
-            <Image
-              source={{
-              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-            }}
-              style={styles.dummyImage}
-              contentFit="contain"
-              transition={200}
-              tintColor={isDarkMode ? "#cbd5e1" : "#4b5563"}
-            />
-          </View>
-          <View style={styles.dummyContent}>
-            <View
-              style={[
-                styles.dummyLine,
-                { backgroundColor: isDarkMode ? "#334155" : "#e5e7eb" },
-              ]}
-            />
-            <View
-              style={[
-                styles.dummyLine,
-                {
-                  backgroundColor: isDarkMode ? "#334155" : "#e5e7eb",
-                  width: "70%",
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.dummyLine,
-                {
-                  backgroundColor: isDarkMode ? "#334155" : "#e5e7eb",
-                  width: "50%",
-                  marginTop: 8,
-                },
-              ]}
-            />
-          </View>
-        </View>
-      </View>
-    )
-
-    return (
-      <View style={styles.masonryGrid}>
-        <View style={styles.masonryColumn}>
-          {leftColumn.map((item) => renderDummyCard(item))}
-        </View>
-        <View style={styles.masonryColumn}>
-          {rightColumn.map((item) => renderDummyCard(item))}
-        </View>
-      </View>
-    )
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -474,7 +351,7 @@ export default function ShopByBrandHomeScreen({
       </View>
 
       {/* Best Products Section */}
-      {products.length > 0 && (
+      {bestSellerProducts.length > 0 && (
         <View
           style={[
             styles.bestProductsSection,
@@ -507,60 +384,11 @@ export default function ShopByBrandHomeScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.bestProductsGrid}
           >
-            {products.slice(0, 4).map((item) => renderFeaturedItem(item))}
+            {bestSellerProducts.map((item) => renderFeaturedItem(item))}
           </ScrollView>
         </View>
       )}
 
-      {/* Best Products Banner */}
-      <Image
-        source={{
-          uri: "https://img.pikbest.com/origin/10/01/82/867pIkbEsTAIq.png!w700wp",
-        }}
-        style={[
-          styles.bestProductsBanner,
-          { marginBottom: 8, borderRadius: 8 },
-        ]}
-        contentFit="cover"
-        transition={200}
-      />
-
-      <View
-        style={[
-          styles.productsSection,
-          {
-            backgroundColor: isDarkMode ? "#1e293b" : Colors.white,
-            borderColor: isDarkMode ? "#334155" : "#e2e8f0",
-            marginBottom: 8,
-          },
-        ]}
-      >
-        {loading ? (
-          renderLoadingPlaceholders()
-        ) : products.length > 0 ? (
-          <View style={styles.masonryGrid}>
-            <View style={styles.masonryColumn}>
-              {masonryColumns.leftColumn.map((product) => renderItem(product))}
-            </View>
-            <View style={styles.masonryColumn}>
-              {masonryColumns.rightColumn.map((product) => renderItem(product))}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="cube-outline"
-              size={48}
-              color={themeColors.textSecondary}
-            />
-            <Text
-              style={[styles.emptyText, { color: themeColors.textSecondary }]}
-            >
-              No products found
-            </Text>
-          </View>
-        )}
-      </View>
     </View>
   )
 }

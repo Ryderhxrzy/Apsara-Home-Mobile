@@ -632,6 +632,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
   },
+
 })
 
 export default styles
