@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { palette, radius, shadow } from "../theme/theme"
 
 const styles = StyleSheet.create({
   root: {
@@ -8,12 +9,13 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#f0f9ff",
+    backgroundColor: palette.slate50,
   },
   titleSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    ...shadow.sm,
   },
   filterBar: {
     borderTopWidth: 1,
@@ -47,8 +49,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: Colors.text,
   },
   totalBadge: {
@@ -74,22 +76,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 8,
-    paddingHorizontal: 0,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  // Each notification is a clean card — no full-width hard dividers.
+  notificationCard: {
+    width: "100%",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: "hidden",
+    ...shadow.sm,
   },
   notificationItem: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     gap: 12,
     alignItems: "flex-start",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
   },
-  notificationItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
+  notificationItemBorder: {},
   notificationIconBox: {
     width: 48,
     height: 48,

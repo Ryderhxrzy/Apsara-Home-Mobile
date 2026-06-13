@@ -23,9 +23,11 @@ import { API_CONFIG } from "../config/api"
 import { ChatBotIcon } from "../components/ChatBot"
 import ConfirmationModal from "../components/ConfirmationModal/ConfirmationModal"
 import { Colors } from "../constants/colors"
+import { getColors } from "../theme/theme"
 import Toast from "react-native-toast-message"
 import { userBehaviorService } from "../services/userBehaviorService"
 import { productService } from "../services/productService"
+import { CartSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
 import styles from "../styles/CartScreen.styles"
 
 interface CartItem {
@@ -201,15 +203,18 @@ export default function CartScreen({
     })
   ).current
 
+  // Palette sourced from the centralized theme (slate spine + sky accent),
+  // keeping the same keys this screen's render already uses.
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    containerBg: isDarkMode ? "#111827" : Colors.white,
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#374151" : "#e5e7eb",
-    borderLight: isDarkMode ? "#374151" : "#f1f5f9",
-    cardBg: isDarkMode ? "#1f2937" : "#f8fafc",
-    hint: isDarkMode ? "#1e293b" : "#f9fafb",
+    bg: t.bgSubtle,
+    containerBg: t.card,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    borderLight: t.divider,
+    cardBg: t.bgSubtle,
+    hint: isDarkMode ? t.bg : "#f9fafb",
   }
 
   const openProductDetails = (productId: number) => {
@@ -1286,12 +1291,8 @@ export default function CartScreen({
             </View>
           </View>
 
-          {/* Loading Content */}
-          <View
-            style={[styles.centerContainer, { backgroundColor: colors.bg }]}
-          >
-            <ActivityIndicator size="large" color={Colors.sky} />
-          </View>
+          {/* Loading skeleton */}
+          <CartSkeleton isDarkMode={isDarkMode} />
         </View>
       </View>
     )

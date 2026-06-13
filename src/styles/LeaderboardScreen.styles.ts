@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { radius } from "../theme/theme"
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -64,6 +65,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.white,
     textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    textAlign: "center",
+    marginTop: 2,
   },
   scrollContent: {
     flex: 1,
@@ -214,27 +222,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   rankingsSection: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     overflow: "hidden",
     borderWidth: 1,
     marginTop: -20,
     marginHorizontal: 0,
     paddingBottom: 2,
-    backgroundColor: "#f8f9fa",
-    borderTopColor: "rgba(0, 102, 255, 0.2)",
-    borderLeftColor: "rgba(0, 102, 255, 0.2)",
-    borderRightColor: "rgba(0, 102, 255, 0.2)",
   },
   sectionHeader: {
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    backgroundColor: "#F0F7FF",
+    backgroundColor: "transparent",
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   sectionSubtitle: {
     marginTop: 3,
@@ -248,12 +254,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    shadowColor: "rgba(0, 102, 255, 0.1)",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: "transparent",
   },
   rankingItemLeft: {
     flexDirection: "row",
@@ -341,6 +342,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
+  rankingScore: {
+    alignItems: "flex-end",
+    marginLeft: 12,
+    gap: 1,
+  },
+  rankingScoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  rankingScoreValue: {
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  rankingScoreLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
   currentUserContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -391,7 +412,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   currentUserHighlight: {
-    backgroundColor: "#E0F2FE",
+    backgroundColor: "rgba(14,165,233,0.12)",
   },
   floatingUserIndicator: {
     position: "absolute",
@@ -401,16 +422,14 @@ const styles = StyleSheet.create({
     width: 220,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: "#E0F2FE",
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#0066FF",
+    backgroundColor: Colors.sky,
+    borderRadius: radius.full,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
     elevation: 10,
     gap: 10,
   },
@@ -421,13 +440,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   floatingUserAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#0066FF",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.25)",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.6)",
   },
   floatingUserInitial: {
     color: Colors.white,
@@ -440,12 +461,12 @@ const styles = StyleSheet.create({
   floatingUserName: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#0066FF",
+    color: Colors.white,
   },
   floatingUserRank: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#0369A1",
+    color: "rgba(255,255,255,0.85)",
     marginTop: 2,
   },
 })

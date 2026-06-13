@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { radius, shadow } from "../theme/theme"
 
 // Layout-only styles. Theme colors are applied inline from the screen's `c`
 // palette so the screen fully supports dark mode.
@@ -64,17 +65,24 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   avatarWrap: {
-    marginTop: -46,
+    marginTop: -52,
     marginBottom: 8,
     position: "relative",
+    ...shadow.lg,
   },
-  avatar: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+  avatarRing: {
+    borderRadius: 56,
+    padding: 4,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
     overflow: "hidden",
   },
   avatarImage: {
@@ -113,11 +121,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   nameText: {
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 23,
+    fontWeight: "800",
     textAlign: "center",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
+    marginTop: 2,
   },
   usernameText: {
     fontSize: 14,
@@ -168,7 +176,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   chipBadge: {
-    backgroundColor: "#f59e0b",
+    backgroundColor: Colors.sky,
+  },
+  chipOutline: {
+    borderWidth: 1,
   },
   chipImage: {
     width: 16,
@@ -179,6 +190,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: Colors.white,
+  },
+  chipOutlineText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   /* ---------- Body ---------- */
@@ -196,12 +211,13 @@ const styles = StyleSheet.create({
   },
   statTile: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingVertical: 14,
     paddingHorizontal: 10,
     alignItems: "center",
     gap: 4,
+    ...shadow.sm,
   },
   statIconWrap: {
     width: 30,
@@ -265,9 +281,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     backgroundColor: Colors.sky,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 15,
+    borderRadius: radius.lg,
     marginBottom: 18,
+    ...shadow.md,
   },
   ctaComplete: {
     backgroundColor: "#10b981",
@@ -288,10 +305,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   group: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: "hidden",
     marginBottom: 18,
+    ...shadow.sm,
   },
   row: {
     flexDirection: "row",

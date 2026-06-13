@@ -87,6 +87,9 @@ function ItemCard({
   const [showMenu, setShowMenu] = useState(false)
   const menuScaleAnim = useState(() => new Animated.Value(0))[0]
   const lastClickTimeRef = useRef(0)
+  // Synchronous in-flight guard — state updates are async, so rapid taps would
+  // slip past an `isTogglingWishlist` state check and fire duplicate requests.
+  const togglingRef = useRef(false)
 
   // Sync incoming isWishlisted prop, but only if user didn't just click (avoid override)
   useEffect(() => {
@@ -112,9 +115,6 @@ function ItemCard({
       }).start()
     }
   }, [showMenu, menuScaleAnim])
-
-  // Debug logging
-  console.log(`🎨 ItemCard rendering: ${product.name} (ID: ${product.id})`)
 
   const colors = {
     bg: isDarkMode ? "#1e293b" : "#f8f9fa",
@@ -147,7 +147,7 @@ function ItemCard({
   )
 
   const handleWishlistToggle = useCallback(async () => {
-    if (!token || isTogglingWishlist) {
+    if (!token || togglingRef.current || isTogglingWishlist) {
       if (!token) {
         Toast.show({
           type: "error",
@@ -157,6 +157,9 @@ function ItemCard({
       }
       return
     }
+
+    // Block re-entry synchronously (before any await/re-render).
+    togglingRef.current = true
 
     const previousWishlistState = wishlisted
     const newWishlistedState = !wishlisted
@@ -216,6 +219,7 @@ function ItemCard({
           : "Failed to add to wishlist",
       })
     } finally {
+      togglingRef.current = false
       setIsTogglingWishlist(false)
     }
   }, [token, product, wishlisted, onWishlistToggle, isTogglingWishlist])

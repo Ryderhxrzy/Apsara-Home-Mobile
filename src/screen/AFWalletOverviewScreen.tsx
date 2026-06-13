@@ -1,5 +1,6 @@
 import React, { useEffect } from "react"
-import {  View,
+import {
+  View,
   Text,
   ScrollView,
   TouchableOpacity,
@@ -128,6 +129,17 @@ export default function AFWalletOverviewScreen({
         )
       )
     : 0
+
+  // Performance milestone progress (PV earned toward the next cash reward).
+  const milestone = walletData?.performance_milestone
+  const msPer = Number(milestone?.pv_per_milestone) || 0
+  const pvToNext = Number(milestone?.pv_to_next) || 0
+  const cashPerMs = Number(milestone?.cash_per_milestone) || 0
+  const msReached = Number(milestone?.milestones_reached) || 0
+  const msProgress =
+    msPer > 0
+      ? Math.min(100, Math.max(0, ((msPer - pvToNext) / msPer) * 100))
+      : 0
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -353,6 +365,96 @@ export default function AFWalletOverviewScreen({
                   isDarkMode={isDarkMode}
                 />
               </View>
+            </View>
+
+            {/* PV & Performance Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionLabel}>
+                <Text style={[styles.sectionIcon, { color: colors.text }]}>
+                  ✦
+                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  PV & Performance
+                </Text>
+              </View>
+
+              <View style={styles.cardsGrid}>
+                <BalanceCard
+                  label="Lifetime PV"
+                  value={`${numberFmt(walletData.lifetime_pv || 0)} PV`}
+                  sub="All-time earned"
+                  icon="∞"
+                  isDarkMode={isDarkMode}
+                />
+                <BalanceCard
+                  label="This Month PV"
+                  value={`${numberFmt(walletData.monthly_purchase_points || 0)} PV`}
+                  sub={
+                    walletData.monthly_activation?.month_label ||
+                    "Current month"
+                  }
+                  icon="📅"
+                  isDarkMode={isDarkMode}
+                />
+                <BalanceCard
+                  label="Current CV"
+                  value={peso(walletData.current_cv || 0)}
+                  sub="Commission value"
+                  icon="📈"
+                  isDarkMode={isDarkMode}
+                />
+              </View>
+
+              {/* Performance Milestone progress */}
+              {milestone && (
+                <View
+                  style={[
+                    styles.capacityBar,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.capacityHeader}>
+                    <Text
+                      style={[styles.capacityTitle, { color: colors.text }]}
+                    >
+                      Performance Milestone
+                    </Text>
+                    <Text
+                      style={[styles.capacityPercent, { color: Colors.sky }]}
+                    >
+                      {msReached} reached
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.progressBarBg,
+                      { backgroundColor: colors.border },
+                    ]}
+                  >
+                    <View
+                      style={[styles.progressBar, { width: `${msProgress}%` }]}
+                    />
+                  </View>
+                  <View style={styles.capacityDetails}>
+                    <Text
+                      style={[styles.capacityDetail, { color: colors.textSec }]}
+                    >
+                      {numberFmt(pvToNext)} PV to next
+                    </Text>
+                    <Text
+                      style={[styles.capacityDetail, { color: colors.textSec }]}
+                    >
+                      Reward:{" "}
+                      <Text style={{ color: "#10b981", fontWeight: "bold" }}>
+                        {peso(cashPerMs)}
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Wallet Ledger */}

@@ -37,9 +37,7 @@ import CartScreen from "../screen/CartScreen"
 import ProfileDetailsScreen from "../screen/ProfileDetailsScreen"
 import AffiliateReferralModal from "../components/Referral/AffiliateReferralModal"
 import ReferralNetworkScreen from "../screen/ReferralNetworkScreen"
-import ReferralScreen from "../screen/ReferralScreen"
-import ReferralSignupScreen from "../screen/ReferralSignupScreen"
-import ReferralOtpScreen from "../screen/ReferralOtpScreen"
+import ReferralSignupFlow from "../components/ModalHost/ReferralSignupFlow"
 import CheckoutScreen from "../screen/CheckoutScreen"
 import OrderSuccessScreen from "../screen/OrderSuccessScreen"
 import PaymentWebViewScreen from "../screen/PaymentWebViewScreen"
@@ -182,12 +180,15 @@ export default function AppNavigator({
   user,
   token,
   onLogout,
+  onUserUpdate,
   productSlugFromDeepLink,
   onProductDeepLinkHandled,
 }: {
   user?: User | null
   token?: string | null
   onLogout?: () => void
+  /** Merge a partial update into the global user (avatar, etc.) + persist. */
+  onUserUpdate?: (patch: Record<string, any>) => void
   productSlugFromDeepLink?: string | null
   onProductDeepLinkHandled?: () => void
 }) {
@@ -241,6 +242,7 @@ export default function AppNavigator({
   const openInfoPage = useModalStore((s) => s.openInfoPage)
   const openWalletPage = useModalStore((s) => s.openWalletPage)
   const openHistory = useModalStore((s) => s.openHistory)
+  const openReferralIntro = useModalStore((s) => s.openReferralIntro)
 
   const [activeTab, setActiveTab] = useState<TabKey>("home")
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -329,14 +331,8 @@ export default function AppNavigator({
   )
   // AF Wallet overlays migrated to the Zustand modal store (useModalStore) and
   // rendered by <ModalHost />.
-  const [showReferralScreen, setShowReferralScreen] = useState(false)
-  const [showReferralSignupScreen, setShowReferralSignupScreen] =
-    useState(false)
-  const [showReferralOtpScreen, setShowReferralOtpScreen] = useState(false)
-  const [referralOtpData, setReferralOtpData] = useState<{
-    phone: string
-    verificationToken: string
-  } | null>(null)
+  // Referral signup flow (intro/signup/OTP) state migrated to the Zustand modal
+  // store and rendered by <ReferralSignupFlow />.
   const [showPVEarnerFromTab, setShowPVEarnerFromTab] = useState(false)
   const [showShopProductDetail, setShowShopProductDetail] = useState(false)
   const [shopSelectedProductId, setShopSelectedProductId] = useState<
@@ -739,7 +735,7 @@ export default function AppNavigator({
             username
           )
           setReferralCodeFromDeepLink(decodeURIComponent(username))
-          setShowReferralScreen(true)
+          openReferralIntro()
         }
       } else if (url.includes("/shop")) {
         console.log("[AppNavigator] Shop deep link triggered:", url)
@@ -778,7 +774,7 @@ export default function AppNavigator({
     return () => {
       subscription.remove()
     }
-  }, [token])
+  }, [token, openReferralIntro])
 
   // Save dark mode preference to cache whenever it changes
   useEffect(() => {
@@ -2005,6 +2001,7 @@ export default function AppNavigator({
               placeholderUser={enrichedUser}
               cartCount={cartCount}
               isDarkMode={isDarkMode}
+              onUserUpdate={onUserUpdate}
               onClose={() => setShowProfileDetails(false)}
               onCartPress={() => {
                 setShowProfileDetails(false)
@@ -2314,67 +2311,18 @@ export default function AppNavigator({
           </View>
         )}
 
-        {showReferralScreen && referralCodeFromDeepLink && (
-          <View style={styles.cartScreenOverlay}>
-            <ReferralScreen
-              referrerUsername={referralCodeFromDeepLink}
-              referrerName={referrerProfileData?.name}
-              referrerAvatarUrl={referrerProfileData?.avatar_url}
-              isDarkMode={isDarkMode}
-              onClose={() => {
-                setShowReferralScreen(false)
-                setReferralCodeFromDeepLink(null)
-                setReferrerProfileData(null)
-              }}
-              onRegister={() => {
-                setShowReferralSignupScreen(true)
-              }}
-            />
-          </View>
-        )}
-
-        {showReferralSignupScreen && referralCodeFromDeepLink && (
-          <View style={styles.cartScreenOverlay}>
-            <ReferralSignupScreen
-              referrerUsername={referralCodeFromDeepLink}
-              isDarkMode={isDarkMode}
-              onBack={() => {
-                setShowReferralSignupScreen(false)
-              }}
-              onContinueToOtp={(phone: string, verificationToken: string) => {
-                setShowReferralSignupScreen(false)
-                setReferralOtpData({ phone, verificationToken })
-                setShowReferralOtpScreen(true)
-              }}
-            />
-          </View>
-        )}
-
-        {showReferralOtpScreen && referralOtpData && (
-          <View style={styles.cartScreenOverlay}>
-            <ReferralOtpScreen
-              phone={referralOtpData.phone}
-              verificationToken={referralOtpData.verificationToken}
-              isDarkMode={isDarkMode}
-              onBack={() => {
-                setShowReferralOtpScreen(false)
-                setReferralOtpData(null)
-                setShowReferralSignupScreen(true)
-              }}
-              onSuccess={() => {
-                setShowReferralOtpScreen(false)
-                setReferralOtpData(null)
-                setShowReferralScreen(false)
-                setReferralCodeFromDeepLink(null)
-                setReferrerProfileData(null)
-                Toast.show({
-                  type: "success",
-                  text1: "Registration Complete",
-                  text2: "Welcome to AF Home!",
-                })
-              }}
-            />
-          </View>
+        {/* Referral signup flow (intro → signup → OTP). Step state lives in the
+            Zustand store; the shared deep-link data is passed in here. */}
+        {referralCodeFromDeepLink && (
+          <ReferralSignupFlow
+            referralCode={referralCodeFromDeepLink}
+            referrerProfile={referrerProfileData}
+            isDarkMode={isDarkMode}
+            onExit={() => {
+              setReferralCodeFromDeepLink(null)
+              setReferrerProfileData(null)
+            }}
+          />
         )}
 
         {/* Exit Confirmation Modal */}

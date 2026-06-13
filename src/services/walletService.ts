@@ -84,7 +84,11 @@ export const walletService = {
     try {
       const response = await api.get("/encashment/wallet", {
         headers: { Authorization: `Bearer ${token}` },
-        params: walletType ? { wallet_type: walletType } : undefined,
+        params: {
+          wallet_type: walletType || "all",
+          page: 1,
+          per_page: 15,
+        },
       })
 
       const data = response.data?.data || response.data

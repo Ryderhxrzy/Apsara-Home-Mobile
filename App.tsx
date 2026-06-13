@@ -10,7 +10,7 @@ import SignupScreen from "./src/screen/SignupScreen"
 import OtpScreen from "./src/screen/OtpScreen"
 import AppNavigator from "./src/navigation/AppNavigator"
 import OnboardingScreen from "./src/screen/OnboardingScreen"
-import { storageService, StoredUser } from "./src/services/storageService"
+import { storageService } from "./src/services/storageService"
 import LoadingScreen from "./src/screen/LoadingScreen"
 import { useFirebaseMessaging } from "./src/hooks/useFirebaseMessaging"
 import { useAppUpdates } from "./src/hooks/useAppUpdates"
@@ -233,6 +233,20 @@ export default function App() {
     setAuthenticated(true)
   }
 
+  // Merge a partial update into the global user (e.g. a new avatar) and persist
+  // it, so every header/screen reading `authUser` reflects the change and it
+  // survives an app reload.
+  function updateAuthUser(patch: Partial<AuthUser>) {
+    setAuthUser((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, ...patch }
+      if (authToken) {
+        storageService.saveAuthData(authToken, next).catch(() => {})
+      }
+      return next
+    })
+  }
+
   async function logout() {
     try {
       await storageService.clearAuthData()
@@ -349,6 +363,7 @@ export default function App() {
               user={authUser}
               token={authToken}
               onLogout={logout}
+              onUserUpdate={updateAuthUser}
               productSlugFromDeepLink={productSlugFromDeepLink}
               onProductDeepLinkHandled={() => setProductSlugFromDeepLink(null)}
             />

@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../../constants/colors"
+import { gradients, palette, radius, shadow } from "../../theme/theme"
 import { productService } from "../../services/productService"
 import HeaderFilter from "./HeaderFilter"
 
@@ -273,190 +274,152 @@ export default function AppHeader({
 
   return (
     <>
-      <View style={styles.headerBackground}>
-        <Image
-          source={{
-            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/header_bg_jjpkvu.png",
-          }}
-          style={styles.headerBackgroundImage}
-          contentFit="cover"
-          transition={200}
-        />
-        <View style={[styles.headerContent, { paddingTop: insets.top }]}>
-          {/* <MarqueeBanner isDarkMode={isDarkMode} /> */}
-
-          <View style={styles.innerContent}>
-            <View style={styles.topRow}>
-              <TouchableOpacity
-                style={styles.profileSection}
-                onPress={onProfilePress}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.avatar,
-                    isDarkMode && { backgroundColor: "#374151" },
-                  ]}
-                >
-                  {photoUrl && !imageLoadError ? (
-                    <Image
-                      source={{ uri: photoUrl }}
-                      style={styles.avatarImage}
-                      onError={() => setImageLoadError(true)}
-                      transition={200}
-                    />
-                  ) : initial ? (
-                    <Text style={styles.avatarInitial}>{initial}</Text>
-                  ) : (
-                    <Ionicons
-                      name="person-outline"
-                      size={18}
-                      color={isDarkMode ? "#9ca3af" : Colors.textSecondary}
-                    />
-                  )}
-                </View>
-                <View style={styles.nameContainer}>
-                  <Text style={[styles.welcomeText, { color: Colors.white }]}>
-                    Welcome back,
-                  </Text>
-                  <View style={styles.nameRow}>
-                    <Text
-                      style={[styles.nameText, { color: Colors.white }]}
-                      numberOfLines={1}
-                    >
-                      {firstName}
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={14}
-                      color={Colors.white}
-                      style={styles.profileIcon}
-                    />
-                  </View>
-                  {user?.username && (
-                    <View style={styles.usernameRow}>
-                      <Text
-                        style={[styles.usernameText, { color: Colors.white }]}
-                      >
-                        @{user.username}
-                      </Text>
-                      {badgeName && (
-                        <>
-                          <View style={styles.usernameDot} />
-                          <View style={styles.userBadge}>
-                            <Ionicons
-                              name="shield-checkmark"
-                              size={10}
-                              color={Colors.white}
-                            />
-                            <Text style={styles.userBadgeText}>
-                              {badgeName}
-                            </Text>
-                          </View>
-                        </>
-                      )}
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.rightActions}>
-                <TouchableOpacity
-                  style={[
-                    styles.pvBadge,
-                    isDarkMode && { backgroundColor: "#0284c7" },
-                  ]}
-                  onPress={() => setShowBalance(!showBalance)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showBalance ? "eye-outline" : "eye-off-outline"}
-                    size={12}
-                    color={Colors.white}
+      <LinearGradient
+        colors={isDarkMode ? ["#0f172a", "#1e293b"] : [...gradients.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.headerBackground, { paddingTop: insets.top + 6 }]}
+      >
+        <View style={styles.innerContent}>
+          <View style={styles.topRow}>
+            <TouchableOpacity
+              style={styles.profileSection}
+              onPress={onProfilePress}
+              activeOpacity={0.7}
+            >
+              <View style={styles.avatar}>
+                {photoUrl && !imageLoadError ? (
+                  <Image
+                    source={{ uri: photoUrl }}
+                    style={styles.avatarImage}
+                    onError={() => setImageLoadError(true)}
+                    transition={200}
                   />
-                  <Text style={styles.pvText}>
-                    {showBalance ? `₱${moneyBalance.toLocaleString()}` : "••••"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.iconBtn, isDarkMode && styles.iconBtnDark]}
-                  onPress={onCartPress}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="cart-outline"
-                    size={20}
-                    color={Colors.white}
-                  />
-                  {cartCount > 0 && (
-                    <View
-                      style={[
-                        styles.cartBadge,
-                        isDarkMode && styles.cartBadgeDark,
-                      ]}
-                    >
-                      <Text style={styles.cartBadgeText}>
-                        {cartCount > 99 ? "99+" : cartCount}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                ) : initial ? (
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                ) : (
+                  <Ionicons name="person-outline" size={18} color={Colors.white} />
+                )}
               </View>
-            </View>
-
-            <View style={styles.searchRow}>
-              <TouchableOpacity
-                style={[
-                  styles.searchWrapper,
-                  isDarkMode && styles.searchWrapperDark,
-                ]}
-                onPress={onSearchPress}
-                activeOpacity={0.75}
-              >
-                <Ionicons
-                  name="search-outline"
-                  size={16}
-                  color={Colors.white}
-                  style={styles.searchIconLeft}
-                />
-                <Text
-                  style={[styles.searchPlaceholder, { color: Colors.white }]}
-                  numberOfLines={1}
-                >
-                  {dynamicPlaceholder}
+              <View style={styles.nameContainer}>
+                <Text style={[styles.welcomeText, { color: "rgba(255,255,255,0.85)" }]}>
+                  Welcome back,
                 </Text>
-                <TouchableOpacity
-                  onPress={onCameraPress}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
+                <View style={styles.nameRow}>
+                  <Text
+                    style={[styles.nameText, { color: Colors.white }]}
+                    numberOfLines={1}
+                  >
+                    {firstName}
+                  </Text>
                   <Ionicons
-                    name="mic-outline"
-                    size={16}
+                    name="chevron-forward"
+                    size={14}
                     color={Colors.white}
-                    style={styles.cameraIconInside}
+                    style={styles.profileIcon}
                   />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                </View>
+                {user?.username && (
+                  <View style={styles.usernameRow}>
+                    <Text
+                      style={[styles.usernameText, { color: "rgba(255,255,255,0.9)" }]}
+                    >
+                      @{user.username}
+                    </Text>
+                    {badgeName && (
+                      <View style={styles.userBadge}>
+                        <Ionicons
+                          name="shield-checkmark"
+                          size={9}
+                          color={Colors.white}
+                        />
+                        <Text style={styles.userBadgeText}>{badgeName}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
 
+            <View style={styles.rightActions}>
               <TouchableOpacity
-                style={[
-                  styles.iconBtn,
-                  isDarkMode && styles.iconBtnDark,
-                  showFilter && styles.iconBtnActive,
-                ]}
-                onPress={() => setShowFilter(!showFilter)}
+                style={styles.pvBadge}
+                onPress={() => setShowBalance(!showBalance)}
                 activeOpacity={0.7}
               >
                 <Ionicons
-                  name="options-outline"
-                  size={20}
+                  name={showBalance ? "eye-outline" : "eye-off-outline"}
+                  size={12}
                   color={Colors.white}
                 />
+                <Text style={styles.pvText}>
+                  {showBalance ? `₱${moneyBalance.toLocaleString()}` : "••••"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={onCartPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="cart-outline" size={20} color={Colors.white} />
+                {cartCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
+
+          <View style={styles.searchRow}>
+            <TouchableOpacity
+              style={[
+                styles.searchWrapper,
+                isDarkMode && { backgroundColor: palette.slate800 },
+              ]}
+              onPress={onSearchPress}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="search-outline"
+                size={18}
+                color={Colors.sky}
+                style={styles.searchIconLeft}
+              />
+              <Text
+                style={[
+                  styles.searchPlaceholder,
+                  isDarkMode && { color: palette.slate400 },
+                ]}
+                numberOfLines={1}
+              >
+                {dynamicPlaceholder}
+              </Text>
+              <TouchableOpacity
+                onPress={onCameraPress}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="mic-outline"
+                  size={18}
+                  color={Colors.sky}
+                  style={styles.cameraIconInside}
+                />
+              </TouchableOpacity>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.iconBtn, showFilter && styles.iconBtnActive]}
+              onPress={() => setShowFilter(!showFilter)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="options-outline" size={20} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
       {showFilter && (
         <HeaderFilter
           showRoomFilter={showRoomFilter}
@@ -528,28 +491,9 @@ const marqueeStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   headerBackground: {
-    position: "relative",
-    overflow: "hidden",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    minHeight: 170,
-  },
-  headerBackgroundImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-  },
-  headerContent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 2,
+    // Flat, full-bleed bottom (no corner radius) — rounded bottom corners
+    // exposed the white parent background as "white borders" at the corners.
+    ...shadow.md,
   },
   container: {
     backgroundColor: Colors.white,
@@ -561,10 +505,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#374151",
   },
   innerContent: {
-    paddingHorizontal: 8,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 16,
+    gap: 14,
   },
   topRow: {
     flexDirection: "row",
@@ -586,10 +530,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.sky,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
   pvText: {
     fontSize: 11,
@@ -597,15 +543,15 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#e5e7eb",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: Colors.sky,
+    borderColor: "rgba(255,255,255,0.6)",
   },
   avatarDark: {
     backgroundColor: "#374151",
@@ -616,8 +562,8 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: 16,
-    fontWeight: "700",
-    color: Colors.sky,
+    fontWeight: "800",
+    color: Colors.white,
   },
   welcomeText: {
     fontSize: 11,
@@ -668,8 +614,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#f59e0b",
-    paddingHorizontal: 6,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
     overflow: "hidden",
@@ -686,16 +632,16 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   iconBtnDark: {},
   iconBtnActive: {
-    backgroundColor: Colors.sky,
-    borderColor: Colors.sky,
+    backgroundColor: "rgba(255,255,255,0.38)",
   },
   searchRow: {
     flexDirection: "row",
@@ -706,11 +652,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 40,
-    borderWidth: 1,
-    borderColor: Colors.white,
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
+    height: 46,
+    backgroundColor: Colors.white,
+    ...shadow.sm,
   },
   searchWrapperDark: {},
   searchIcon: {
@@ -725,6 +671,7 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     flex: 1,
     fontSize: 14,
+    fontWeight: "500",
     color: Colors.textSecondary,
   },
   cartBadge: {

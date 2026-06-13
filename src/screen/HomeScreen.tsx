@@ -18,16 +18,16 @@ import { Ionicons } from "@expo/vector-icons"
 import { VideoView, useVideoPlayer } from "expo-video"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../constants/colors"
+import { getColors, gradients } from "../theme/theme"
+import SectionHeader from "../components/ui/SectionHeader"
 import { authService, BrandItem, CategoryItem } from "../services/authService"
 import { productService } from "../services/productService"
 import { getBadgeImageSource } from "../constants/tierConfig"
 import type { ProductCard } from "../services/productService"
-import ItemCard from "../components/Items/ItemCard"
 import Toast from "react-native-toast-message"
 import {
   HomeScreenSkeleton,
   BannerSkeleton,
-  SectionHeaderSkeleton,
   RoomGridSkeleton,
   CategoryRowSkeleton,
   BrandCardSkeleton,
@@ -396,35 +396,28 @@ function HomeScreen({
   onShopByBrandPress = () => {},
   onRefresh: onRefreshProp,
 }: HomeScreenProps) {
-  const navigationStartTime = useRef(performance.now())
-
-  console.log("═══════════════════════════════════════════════════════════")
-  console.log("🏠 [HOMESCREEN] MOUNTED/NAVIGATED")
-  console.log("═══════════════════════════════════════════════════════════")
-  console.log("📊 DATA STATUS:", {
-    categoriesCount: categories.length,
-    brandsCount: brands.length,
-    roomsCount: roomTypes.length,
-    productsCount: featuredProducts.length,
-    isLoading: loadingFeatured,
-  })
-  console.log("👤 USER:", { name: user?.name, badge: user?.badge_name })
-  console.log("═══════════════════════════════════════════════════════════")
-
+  // Palette now sourced from the centralized theme (slate spine + sky accent),
+  // keeping the same keys the render already uses.
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    card: isDarkMode ? "#1e293b" : Colors.white,
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#334155" : "#e2e8f0",
-    sectionEven: isDarkMode ? "#1e293b" : "#f0f9ff",
-    statsBg: isDarkMode ? "#1e293b" : "#f0f9ff",
+    bg: t.bgSubtle,
+    card: t.card,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    sectionEven: t.primarySoft,
+    statsBg: t.primarySoft,
   }
 
   const [refreshing, setRefreshing] = useState(false)
   const [activeBanner, setActiveBanner] = useState(0)
   const [totalOrders, setTotalOrders] = useState(0)
   const [totalReferrals, setTotalReferrals] = useState(0)
+  // "View all" expands a section in place (show every room/category/brand)
+  // instead of navigating to the products screen.
+  const [showAllRooms, setShowAllRooms] = useState(false)
+  const [showAllCategories, setShowAllCategories] = useState(false)
+  const [showAllBrands, setShowAllBrands] = useState(false)
   const bannerRef = useRef<ScrollView>(null)
 
   // Prefetch products in background for instant Shop screen load
@@ -433,25 +426,6 @@ function HomeScreen({
   // Cart count GET migrated to React Query
   const { data: cartCountData } = useCartCount({ token })
   const totalCart = cartCountData?.count ?? 0
-
-  // Track when data updates
-  useEffect(() => {
-    const timeSinceNav = performance.now() - navigationStartTime.current
-    console.log(
-      `📦 [HOMESCREEN] DATA UPDATED at ${timeSinceNav.toFixed(0)}ms:`,
-      {
-        categories: categories.length,
-        brands: brands.length,
-        rooms: roomTypes.length,
-        products: featuredProducts.length,
-      }
-    )
-  }, [
-    categories.length,
-    brands.length,
-    roomTypes.length,
-    featuredProducts.length,
-  ])
 
   const handleRefresh = () => {
     console.log("🔄 [HOMESCREEN] PULL-TO-REFRESH TRIGGERED")
@@ -601,9 +575,22 @@ function HomeScreen({
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <View style={styles.brandLogoContainer}>
+            {/* Logo tile — contained on a soft gradient so logos stay crisp */}
+            <LinearGradient
+              colors={
+                isDarkMode ? ["#1e293b", "#0f172a"] : ["#ffffff", "#eef4fb"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.brandLogoBox}
+            >
               {logo ? (
-                <Image source={{ uri: logo }} style={styles.brandLogoImage} transition={200} />
+                <Image
+                  source={{ uri: logo }}
+                  style={styles.brandLogoImage}
+                  contentFit="contain"
+                  transition={200}
+                />
               ) : (
                 <View
                   style={[
@@ -616,49 +603,48 @@ function HomeScreen({
                   </Text>
                 </View>
               )}
-              <LinearGradient
-                colors={["rgba(14, 165, 233, 0)", "rgba(14, 165, 233, 0.95)"]}
-                style={styles.brandLogoOverlay}
-              >
-                <View style={styles.brandOverlayContent}>
+            </LinearGradient>
+
+            <View
+              style={[styles.brandDivider, { backgroundColor: colors.border }]}
+            />
+
+            {/* Footer — name + product count, with a circular CTA */}
+            <View style={styles.brandFooter}>
+              <View style={styles.brandFooterInfo}>
+                <Text
+                  style={[styles.brandFooterName, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                <View style={styles.brandFooterCountRow}>
+                  <Ionicons name="cube-outline" size={11} color={colors.textSec} />
                   <Text
-                    style={[
-                      styles.brandCardNameOverlay,
-                      { color: Colors.white },
-                    ]}
+                    style={[styles.brandFooterCount, { color: colors.textSec }]}
                     numberOfLines={1}
                   >
-                    {item.name}
+                    {item.total_products ?? 0} products
                   </Text>
-                  {item.total_products !== undefined && (
-                    <View style={styles.brandProductBadge}>
-                      <Ionicons
-                        name="cube-outline"
-                        size={12}
-                        color={Colors.white}
-                      />
-                      <Text style={styles.brandProductCountOverlay}>
-                        {item.total_products}
-                      </Text>
-                    </View>
-                  )}
                 </View>
-              </LinearGradient>
+              </View>
+              <View style={styles.brandArrowBtn}>
+                <Ionicons name="arrow-forward" size={15} color={Colors.white} />
+              </View>
             </View>
           </View>
         </Pressable>
       )
     },
-    [colors.card, colors.border, onShopByBrandPress]
+    [
+      colors.card,
+      colors.border,
+      colors.text,
+      colors.textSec,
+      isDarkMode,
+      onShopByBrandPress,
+    ]
   )
-
-  const renderTime = performance.now() - navigationStartTime.current
-  console.log(`⚡ [HOMESCREEN] RENDER TIME: ${renderTime.toFixed(0)}ms`)
-  if (renderTime > 1000) {
-    console.log("⚠️  WARNING: Slow render detected!")
-  }
-
-  console.log(brands)
 
   return (
     <View style={{ flex: 1, position: "relative" }}>
@@ -675,211 +661,143 @@ function HomeScreen({
           />
         }
       >
-        {/* Ranking Badge */}
-        <View
-          style={[
-            styles.rankingBadgeSection,
-            {
-              borderBottomColor: colors.border,
-              width: SCREEN_WIDTH,
-              marginHorizontal: -8,
-            },
-          ]}
+        {/* Hero membership card */}
+        <LinearGradient
+          colors={gradients.membership}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroCard}
         >
-          <View
-            style={[
-              styles.memberCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <View
-              style={[
-                styles.rankingBadgeWrapper,
-                user?.badge && user.badge === 0 ? { opacity: 0.5 } : {},
-              ]}
-            >
+          <Image
+            source={{
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
+            }}
+            style={styles.heroWatermark}
+            contentFit="contain"
+            transition={200}
+          />
+
+          <View style={styles.heroTop}>
+            <View style={styles.heroBadgeWrap}>
               {user?.badge && user.badge > 0 ? (
                 (() => {
                   const badgeSource = getBadgeImageSource(user.badge_image)
                   return badgeSource ? (
                     <Image
                       source={badgeSource}
-                      style={styles.rankingBadgeImage}
+                      style={styles.heroBadgeImg}
                       contentFit="contain"
                       transition={200}
                     />
                   ) : (
                     <Ionicons
                       name="shield-checkmark"
-                      size={60}
+                      size={34}
                       color={Colors.white}
                     />
                   )
                 })()
               ) : (
-                <Image
-                  source={{
-                  uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-                }}
-                  style={[
-                    styles.rankingBadgeImage,
-                    { tintColor: "#9ca3af", opacity: 0.7 },
-                  ]}
-                  contentFit="contain"
-                  transition={200}
+                <Ionicons
+                  name="ribbon-outline"
+                  size={32}
+                  color="rgba(255,255,255,0.85)"
                 />
               )}
             </View>
 
-            <View style={styles.memberInfo}>
-              <Text style={[styles.memberLabel, { color: colors.textSec }]}>
-                Your Badge Level
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroEyebrow}>Your membership</Text>
+              <Text style={styles.heroLevel} numberOfLines={1}>
+                {user?.badge && user.badge > 0 ? user.badge_name : "No Badge Yet"}
               </Text>
-              <Text style={[styles.rankingBadgeName, { color: colors.text }]}>
-                {user?.badge && user.badge > 0
-                  ? user.badge_name
-                  : "No Badge Yet"}
-              </Text>
-              <Text
-                style={[styles.rankingBadgeSubtext, { color: colors.textSec }]}
-              >
+              <Text style={styles.heroSubtext} numberOfLines={2}>
                 {user?.badge && user.badge > 0
                   ? "Grow your team and earn more per order."
-                  : "Invite at least 2 people to earn your first badge."}
+                  : "Invite 2 friends to unlock your first badge."}
               </Text>
-            </View>
-
-            <View style={styles.badgeLogoContainer}>
-              <Image
-                source={{
-                  uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-                }}
-                style={styles.badgeLogo}
-                contentFit="contain"
-                transition={200}
-              />
             </View>
           </View>
 
-          <View
-            style={[
-              styles.quickActionRow,
-              { width: SCREEN_WIDTH, marginHorizontal: -8 },
-            ]}
-          >
+          {/* Glass stat strip */}
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCell}>
+              <Text style={styles.heroStatValue}>{totalOrders}</Text>
+              <Text style={styles.heroStatLabel}>Orders</Text>
+            </View>
+            <View style={styles.heroStatDivider} />
             <TouchableOpacity
-              style={[styles.quickActionCard, { borderColor: colors.border }]}
-              activeOpacity={0.85}
-              onPress={onReferralPress}
-            >
-              <LinearGradient
-                colors={["#f97316", "#fb923c"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="people" size={16} color={Colors.white} />
-                <Text style={styles.quickActionTitle}>Invite Friends</Text>
-                <Text style={styles.quickActionSubtitle}>
-                  Turn Invites and Orders into Earnings
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickActionCard, { borderColor: colors.border }]}
-              activeOpacity={0.85}
+              style={styles.heroStatCell}
+              activeOpacity={0.7}
               onPress={onCartPress}
             >
-              <LinearGradient
-                colors={["#0284c7", "#0ea5e9"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="bag-check" size={16} color={Colors.white} />
-                <Text style={styles.quickActionTitle}>Order Now</Text>
-                <Text style={styles.quickActionSubtitle}>
-                  Earn Performance Value (PV) Faster
-                </Text>
-              </LinearGradient>
+              <Text style={styles.heroStatValue}>{totalCart}</Text>
+              <Text style={styles.heroStatLabel}>Cart</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.statsBar,
-            {
-              backgroundColor: colors.statsBg,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.statsItem,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-          >
-            <View style={styles.statsMain}>
-              <Ionicons name="receipt-outline" size={18} color="#f97316" />
-              <Text style={[styles.statsValue, { color: colors.text }]}>
-                {totalOrders}
-              </Text>
-            </View>
-            <Text style={[styles.statsLabel, { color: colors.textSec }]}>
-              Total Orders
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.statsItem,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-            onPress={onCartPress}
-          >
-            <View style={styles.statsMain}>
-              <Ionicons name="cart-outline" size={18} color="#0ea5e9" />
-              <Text style={[styles.statsValue, { color: colors.text }]}>
-                {totalCart}
-              </Text>
-            </View>
-            <Text style={[styles.statsLabel, { color: colors.textSec }]}>
-              Total Cart
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.statsItem,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-            onPress={onReferralPress}
-          >
-            <View style={styles.statsMain}>
-              <Ionicons name="people-outline" size={18} color="#22c55e" />
-              <Text style={[styles.statsValue, { color: colors.text }]}>
-                {totalReferrals}
-              </Text>
-            </View>
-            <Text style={[styles.statsLabel, { color: colors.textSec }]}>
-              Total Referrals
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.statsItem,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-          >
-            <View style={styles.statsMain}>
-              <Ionicons name="trending-up-outline" size={18} color="#ef4444" />
-              <Text style={[styles.statsValue, { color: colors.text }]}>
+            <View style={styles.heroStatDivider} />
+            <TouchableOpacity
+              style={styles.heroStatCell}
+              activeOpacity={0.7}
+              onPress={onReferralPress}
+            >
+              <Text style={styles.heroStatValue}>{totalReferrals}</Text>
+              <Text style={styles.heroStatLabel}>Referrals</Text>
+            </TouchableOpacity>
+            <View style={styles.heroStatDivider} />
+            <View style={styles.heroStatCell}>
+              <Text style={styles.heroStatValue}>
                 {user?.monthly_activation?.remaining_pv ?? 0}
               </Text>
+              <Text style={styles.heroStatLabel}>PV Left</Text>
             </View>
-            <Text style={[styles.statsLabel, { color: colors.textSec }]}>
-              Perf. Value
-            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* Quick actions */}
+        <View style={styles.quickActionRow}>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            activeOpacity={0.9}
+            onPress={onReferralPress}
+          >
+            <LinearGradient
+              colors={["#fb923c", "#f97316"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.quickActionGradient}
+            >
+              <View style={styles.quickActionIcon}>
+                <Ionicons name="people" size={18} color={Colors.white} />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Invite Friends</Text>
+                <Text style={styles.quickActionSubtitle} numberOfLines={1}>
+                  Earn from every order
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            activeOpacity={0.9}
+            onPress={onCartPress}
+          >
+            <LinearGradient
+              colors={gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.quickActionGradient}
+            >
+              <View style={styles.quickActionIcon}>
+                <Ionicons name="bag-check" size={18} color={Colors.white} />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Order Now</Text>
+                <Text style={styles.quickActionSubtitle} numberOfLines={1}>
+                  Gain PV faster
+                </Text>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -970,23 +888,22 @@ function HomeScreen({
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.bg }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Shop by Rooms
-            </Text>
-            <View style={styles.sectionAction}>
-              <Text style={[styles.sectionMeta, { color: colors.textSec }]}>
-                {roomTypes.length || FALLBACK_ROOMS.length} total
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.textSec}
-              />
-            </View>
-          </View>
+          <SectionHeader
+            title="Shop by Rooms"
+            icon="bed-outline"
+            isDarkMode={isDarkMode}
+            actionLabel={showAllRooms ? "Show less" : "View all"}
+            onAction={
+              (roomTypes.length > 0 ? roomTypes : FALLBACK_ROOMS).length > 4
+                ? () => setShowAllRooms((v) => !v)
+                : undefined
+            }
+          />
           <FlatList
-            data={roomTypes.length > 0 ? roomTypes : FALLBACK_ROOMS}
+            data={(() => {
+              const all = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOMS
+              return showAllRooms ? all : all.slice(0, 4)
+            })()}
             renderItem={({ item }) => (
               <RoomItemComponent
                 item={item}
@@ -1002,26 +919,29 @@ function HomeScreen({
           />
         </View>
 
-        <View
-          style={[styles.sectionEven, { backgroundColor: colors.sectionEven }]}
-        >
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Shop by Categories
-            </Text>
-            <View style={styles.sectionAction}>
-              <Text style={[styles.sectionMeta, { color: colors.textSec }]}>
-                {categories.length} total
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.textSec}
-              />
-            </View>
-          </View>
+        <View style={[styles.sectionEven, { backgroundColor: colors.bg }]}>
+          <SectionHeader
+            title="Shop by Categories"
+            icon="grid-outline"
+            isDarkMode={isDarkMode}
+            actionLabel={showAllCategories ? "Show less" : "View all"}
+            onAction={() => setShowAllCategories((v) => !v)}
+          />
           {loadingFeatured && categories.length === 0 ? (
             <CategoryRowSkeleton />
+          ) : showAllCategories ? (
+            <View style={styles.categoryGridWrap}>
+              {categories.map((item, index) => (
+                <CategoryCircle
+                  key={`category-all-${item.id}`}
+                  category={item}
+                  index={index}
+                  onPress={onShopByCategoryPress}
+                  isDarkMode={isDarkMode}
+                  colors={colors}
+                />
+              ))}
+            </View>
           ) : (
             <ScrollView
               horizontal
@@ -1049,23 +969,72 @@ function HomeScreen({
         </View>
 
         <View style={[styles.sectionOdd, { backgroundColor: colors.bg }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Shop by Brand
-            </Text>
-            <View style={styles.sectionAction}>
-              <Text style={[styles.sectionMeta, { color: colors.textSec }]}>
-                {brands.length} total
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.textSec}
-              />
-            </View>
-          </View>
+          <SectionHeader
+            title="Top Brands"
+            icon="pricetag-outline"
+            isDarkMode={isDarkMode}
+            actionLabel={showAllBrands ? "Show less" : "View all"}
+            onAction={() => setShowAllBrands((v) => !v)}
+          />
           {loadingFeatured && brands.length === 0 ? (
             <BrandCardSkeleton />
+          ) : showAllBrands ? (
+            <View style={styles.brandListWrap}>
+              {brands.map((item) => {
+                const logo = getBrandLogo(item)
+                return (
+                  <Pressable
+                    key={`brand-all-${item.id}`}
+                    onPress={() => onShopByBrandPress?.(item.id)}
+                    style={[
+                      styles.brandRow,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.brandRowLogo,
+                        { backgroundColor: isDarkMode ? "#0f172a" : "#f8fafc" },
+                      ]}
+                    >
+                      {logo ? (
+                        <Image
+                          source={{ uri: logo }}
+                          style={styles.brandRowLogoImg}
+                          contentFit="contain"
+                          transition={200}
+                        />
+                      ) : (
+                        <Text style={styles.brandRowInitial}>
+                          {getBrandInitial(item)}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.brandRowInfo}>
+                      <Text
+                        style={[styles.brandRowName, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[styles.brandRowCount, { color: colors.textSec }]}
+                      >
+                        {item.total_products ?? 0} products
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={colors.textSec}
+                    />
+                  </Pressable>
+                )
+              })}
+            </View>
           ) : (
             <FlashList
               data={brands}
@@ -1078,6 +1047,7 @@ function HomeScreen({
             />
           )}
         </View>
+
       </ScrollView>
 
       {/* Chat Bot Icon */}

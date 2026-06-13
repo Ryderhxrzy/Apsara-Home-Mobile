@@ -11,24 +11,19 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
+import Toast from "react-native-toast-message"
 import { Colors } from "../../constants/colors"
+import {
+  useDailyCheckin,
+  useClaimDailyCheckin,
+} from "../../hooks/query/useDailyCheckin"
 
 interface DailyCheckinProps {
   isDarkMode?: boolean
+  token?: string | null
   onCheckin?: (day: number) => void
   onViewMore?: () => void
 }
-
-const CHECKIN_REWARDS = [20, 25, 30, 35, 40, 45, 50] // PV for each day
-const DAY_LABELS = [
-  "Today",
-  "Day 2",
-  "Day 3",
-  "Day 4",
-  "Day 5",
-  "Day 6",
-  "Day 7",
-]
 
 const ConfettiPiece = ({ delay }: { delay: number }) => {
   const translateY = new Animated.Value(0)
@@ -81,10 +76,17 @@ const ConfettiPiece = ({ delay }: { delay: number }) => {
 
 export default function DailyCheckin({
   isDarkMode = false,
+  token,
   onCheckin,
 }: DailyCheckinProps) {
-  const [checkedInDays, setCheckedInDays] = useState<number[]>([])
-  const [scaleAnims] = useState(DAY_LABELS.map(() => new Animated.Value(1)))
+  // The board is the single source of truth — ladder/streak/claimed all come
+  // from the API (GET), never hardcoded.
+  const { data: board } = useDailyCheckin(token)
+  const claim = useClaimDailyCheckin(token)
+
+  const [scaleAnims] = useState(() =>
+    Array.from({ length: 7 }, () => new Animated.Value(1))
+  )
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [claimedReward, setClaimedReward] = useState(0)
 
@@ -98,32 +100,72 @@ export default function DailyCheckin({
     borderLight: isDarkMode ? "#475569" : "#f1f5f9",
   }
 
-  const handleCheckin = (day: number) => {
-    if (!checkedInDays.includes(day)) {
+  const ladder = board?.ladder ?? []
+  const calendar = board?.calendar
+  // next_day_index is the claimable "current day" (1–7), or null once today is
+  // already claimed. next_reward_pv is likewise null when checked in.
+  const nextDayIndex = board?.next_day_index ?? null
+  const nextRewardPv = board?.next_reward_pv ?? 0
+  const canCheckIn = board?.can_check_in ?? false
+
+  const calendarEntry = (day: number) => calendar?.find((c) => c.day === day)
+
+  // Claimed state — authoritative from the server calendar's `claimed` flag
+  // (e.g. Day 1 claimed yesterday → calendar day 1 claimed: true). Fallback when
+  // no calendar: days before the next claimable day are already claimed.
+  const isDayClaimed = (day: number) => {
+    const entry = calendarEntry(day)
+    if (entry) return !!entry.claimed
+    return nextDayIndex != null ? day < nextDayIndex : false
+  }
+
+  // "Today" = the single claimable rung. The server marks it via
+  // `is_today_reward` (true only when not yet checked in today). After today's
+  // claim, next_day_index is null and no rung is "today" — today reads as
+  // claimed instead. Fall back to next_day_index if the flag is absent.
+  const isTodayReward = (day: number) => {
+    const entry = calendarEntry(day)
+    if (entry && typeof entry.is_today_reward === "boolean")
+      return entry.is_today_reward
+    return canCheckIn && day === nextDayIndex
+  }
+
+  // Claim TODAY (the only claimable day, per the API). 409 = already checked in.
+  const handleClaim = () => {
+    if (!canCheckIn || claim.isPending) return
+    const anim = scaleAnims[(nextDayIndex ?? 1) - 1]
+    if (anim) {
       Animated.sequence([
-        Animated.timing(scaleAnims[day - 1], {
+        Animated.timing(anim, {
           toValue: 1.1,
           duration: 100,
           useNativeDriver: true,
         }),
-        Animated.timing(scaleAnims[day - 1], {
+        Animated.timing(anim, {
           toValue: 1,
           duration: 100,
           useNativeDriver: true,
         }),
       ]).start()
-
-      setCheckedInDays([...checkedInDays, day])
-      setClaimedReward(CHECKIN_REWARDS[day - 1])
-      setShowClaimModal(true)
-
-      if (onCheckin) {
-        onCheckin(day)
-      }
     }
-  }
 
-  const todayReward = CHECKIN_REWARDS[0]
+    claim.mutate(undefined, {
+      onSuccess: (result) => {
+        setClaimedReward(result.earned_pv)
+        setShowClaimModal(true)
+        onCheckin?.(result.day_index)
+      },
+      onError: (error: any) => {
+        Toast.show({
+          type: "info",
+          text1:
+            error?.status === 409
+              ? "You've already checked in today."
+              : error?.message || "Couldn't check in. Please try again.",
+        })
+      },
+    })
+  }
 
   return (
     <View
@@ -146,11 +188,13 @@ export default function DailyCheckin({
         contentContainerStyle={styles.daysScrollContainer}
         style={styles.daysScroll}
       >
-        {CHECKIN_REWARDS.map((reward, index) => {
-          const day = index + 1
-          const isChecked = checkedInDays.includes(day)
-          const scaleAnim = scaleAnims[index]
-          const isToday = day === 1
+        {ladder.map((entry) => {
+          const day = entry.day
+          const reward = entry.pv
+          const isChecked = isDayClaimed(day)
+          const scaleAnim = scaleAnims[day - 1] ?? scaleAnims[0]
+          const isToday = isTodayReward(day)
+          const isClaimable = isToday && canCheckIn
 
           return (
             <Animated.View
@@ -174,8 +218,8 @@ export default function DailyCheckin({
                       borderWidth: 1,
                     },
                   ]}
-                  onPress={() => handleCheckin(day)}
-                  disabled={isChecked}
+                  onPress={isClaimable ? handleClaim : undefined}
+                  disabled={!isClaimable || claim.isPending}
                   activeOpacity={1}
                 >
                   {/* Reward Badge with Check Icon */}
@@ -232,7 +276,7 @@ export default function DailyCheckin({
                     },
                   ]}
                 >
-                  {DAY_LABELS[index]}
+                  {isToday ? "Today" : `Day ${day}`}
                 </Text>
               </View>
             </Animated.View>
@@ -242,13 +286,23 @@ export default function DailyCheckin({
 
       {/* Check-in Button */}
       <TouchableOpacity
-        style={[styles.checkinButton, { borderTopColor: colors.borderLight }]}
-        onPress={() => handleCheckin(1)}
-        disabled={checkedInDays.includes(1)}
+        style={[
+          styles.checkinButton,
+          {
+            borderTopColor: colors.borderLight,
+            opacity: canCheckIn && !claim.isPending ? 1 : 0.55,
+          },
+        ]}
+        onPress={handleClaim}
+        disabled={!canCheckIn || claim.isPending}
       >
         <Ionicons name="flash" size={16} color={Colors.sky} />
         <Text style={styles.checkinButtonText}>
-          Claim +{todayReward} PV Points
+          {claim.isPending
+            ? "Claiming..."
+            : canCheckIn
+              ? `Claim +${nextRewardPv} PV Points`
+              : "Checked in today ✓"}
         </Text>
       </TouchableOpacity>
 

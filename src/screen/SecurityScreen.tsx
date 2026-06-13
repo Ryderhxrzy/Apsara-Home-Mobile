@@ -24,6 +24,14 @@ import { API_CONFIG } from "../config/api"
 import axios from "axios"
 import GoogleSignInService from "../services/googleSignInService"
 import BiometricUtils from "../utils/biometricUtils"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  changePasswordSchema,
+  CHANGE_PASSWORD_DEFAULTS,
+  ChangePasswordValues,
+} from "../schemas/securitySchemas"
+import ControlledFormField from "../components/ui/ControlledFormField"
 import styles from "../styles/SecurityScreen.styles"
 
 interface SecurityScreenProps {
@@ -42,13 +50,18 @@ export default function SecurityScreen({
   onOpenHistory,
 }: SecurityScreenProps) {
   const insets = useSafeAreaInsets()
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loadingPassword, setLoadingPassword] = useState(false)
+  // Change-password form is managed by react-hook-form + zod (validation lives
+  // in changePasswordSchema). FormField handles its own show/hide toggles.
+  const {
+    control: passwordControl,
+    handleSubmit: handlePasswordSubmit,
+    reset: resetPasswordForm,
+  } = useForm<ChangePasswordValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: CHANGE_PASSWORD_DEFAULTS,
+    mode: "onBlur",
+  })
   const [googleLinked, setGoogleLinked] = useState(false)
   const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [googleAccount, setGoogleAccount] = useState<any>(null)
@@ -217,67 +230,16 @@ export default function SecurityScreen({
     }
   }
 
-  const handleChangePassword = async () => {
-    if (
-      !currentPassword.trim() ||
-      !newPassword.trim() ||
-      !confirmPassword.trim()
-    ) {
-      Alert.alert("Error", "Please fill in all fields")
-      return
-    }
-
-    if (newPassword.length < 8) {
-      Alert.alert("Error", "New password must be at least 8 characters")
-      return
-    }
-
-    // Validate password strength
-    const hasUppercase = /[A-Z]/.test(newPassword)
-    const hasLowercase = /[a-z]/.test(newPassword)
-    const hasNumber = /[0-9]/.test(newPassword)
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(
-      newPassword
-    )
-
-    if (!hasUppercase) {
-      Alert.alert(
-        "Error",
-        "New password must include at least one uppercase letter"
-      )
-      return
-    }
-    if (!hasLowercase) {
-      Alert.alert(
-        "Error",
-        "New password must include at least one lowercase letter"
-      )
-      return
-    }
-    if (!hasNumber) {
-      Alert.alert("Error", "New password must include at least one number")
-      return
-    }
-    if (!hasSpecialChar) {
-      Alert.alert(
-        "Error",
-        "New password must include at least one special character"
-      )
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "New password and confirm password do not match")
-      return
-    }
-
+  // Validation is handled by zodResolver(changePasswordSchema); this only runs
+  // once the form passes, so we receive already-validated values.
+  const onSubmitPassword = async (values: ChangePasswordValues) => {
     setLoadingPassword(true)
     try {
       const headers = { Authorization: `Bearer ${token}` }
       const payload = {
-        current_password: currentPassword,
-        new_password: newPassword,
-        new_password_confirmation: confirmPassword,
+        current_password: values.currentPassword,
+        new_password: values.newPassword,
+        new_password_confirmation: values.confirmPassword,
       }
 
       await axios.post(`${API_CONFIG.BASE_URL}/auth/change-password`, payload, {
@@ -285,9 +247,7 @@ export default function SecurityScreen({
       })
 
       Alert.alert("Success", "Password changed successfully")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
+      resetPasswordForm(CHANGE_PASSWORD_DEFAULTS)
     } catch (error: any) {
       const errorMsg =
         error.response?.data?.message ||
@@ -848,108 +808,42 @@ export default function SecurityScreen({
               </Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSec }]}>
-                Current Password
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.cardBg,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textSec}
-                  secureTextEntry={!showCurrentPassword}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  <Ionicons
-                    name={showCurrentPassword ? "eye-off" : "eye"}
-                    size={20}
-                    color={colors.textSec}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ControlledFormField
+              control={passwordControl}
+              name="currentPassword"
+              label="Current Password"
+              placeholder="••••••••"
+              leftIcon="lock-closed-outline"
+              isPassword
+              isDarkMode={isDarkMode}
+              textContentType="password"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSec }]}>
-                New Password
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.cardBg,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="Min. 8 characters"
-                  placeholderTextColor={colors.textSec}
-                  secureTextEntry={!showNewPassword}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowNewPassword(!showNewPassword)}
-                >
-                  <Ionicons
-                    name={showNewPassword ? "eye-off" : "eye"}
-                    size={20}
-                    color={colors.textSec}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ControlledFormField
+              control={passwordControl}
+              name="newPassword"
+              label="New Password"
+              placeholder="Min. 8 characters"
+              leftIcon="key-outline"
+              isPassword
+              isDarkMode={isDarkMode}
+              textContentType="newPassword"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSec }]}>
-                Confirm New Password
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.cardBg,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textSec}
-                  secureTextEntry={!showConfirmPassword}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? "eye-off" : "eye"}
-                    size={20}
-                    color={colors.textSec}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ControlledFormField
+              control={passwordControl}
+              name="confirmPassword"
+              label="Confirm New Password"
+              placeholder="••••••••"
+              leftIcon="checkmark-circle-outline"
+              isPassword
+              isDarkMode={isDarkMode}
+              textContentType="newPassword"
+            />
 
             <TouchableOpacity
               style={[styles.button, { backgroundColor: Colors.sky }]}
-              onPress={handleChangePassword}
+              onPress={handlePasswordSubmit(onSubmitPassword)}
               disabled={loadingPassword}
             >
               {loadingPassword && (

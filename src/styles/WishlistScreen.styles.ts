@@ -1,10 +1,11 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { palette, radius, shadow } from "../theme/theme"
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: palette.slate50,
   },
   centerContainer: {
     flex: 1,
@@ -36,7 +37,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    gap: 12,
+    ...shadow.sm,
+  },
+  screenTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: Colors.text,
   },
   headerTop: {
     flexDirection: "row",
@@ -77,9 +85,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: radius.full,
     backgroundColor: "#f3f4f6",
     borderWidth: 0,
   },
@@ -96,7 +104,83 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   listContent: {
-    backgroundColor: Colors.white,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 24,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    height: 42,
+  },
+  searchBarFocused: {
+    borderColor: Colors.sky,
+    backgroundColor: "rgba(14,165,233,0.06)",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    paddingVertical: 0,
+  },
+  rowWrap: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 10,
+    ...shadow.sm,
+  },
+  rowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  rowActionCart: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.sky,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+  },
+  rowActionCartText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  rowActionDelete: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+  },
+  rowActionDeleteText: {
+    color: "#ef4444",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  listFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  listStateBox: {
+    paddingTop: 90,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    gap: 12,
   },
   footer: {
     backgroundColor: Colors.white,
@@ -123,9 +207,10 @@ const styles = StyleSheet.create({
   },
   checkoutBtn: {
     backgroundColor: Colors.sky,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: radius.lg,
     alignItems: "center",
+    ...shadow.sm,
   },
   checkoutBtnText: {
     color: Colors.white,

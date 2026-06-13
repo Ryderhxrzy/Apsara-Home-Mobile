@@ -33,12 +33,34 @@ import ImageViewerModal from "../components/Items/ImageViewerModal"
 import BuyNowModal from "../components/Items/BuyNowModal"
 import AddToCartModal from "../components/Items/AddToCartModal"
 import { ProductDetailSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
+import ProductVariantStrip from "../components/ProductVariantStrip/ProductVariantStrip"
+import VariantImageViewer from "../components/VariantImageViewer/VariantImageViewer"
+import GalleryThumbnails from "../components/GalleryThumbnails/GalleryThumbnails"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
 import Toast from "react-native-toast-message"
 import styles from "../styles/ProductDetailScreen.styles"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
+
+// Backend descriptions can arrive entity-encoded (e.g. "&lt;p&gt;" shows the
+// literal <p> tag) and carry inline CSS (style="font-size:16px") that fights the
+// app's own typography. Decode entities and strip inline style/class so our
+// tagsStyles fully control the look — consistent, theme-matched HTML rendering.
+const toRenderableHtml = (raw?: string | null): string => {
+  if (!raw || !raw.trim()) return "<p>No description available</p>"
+  return raw
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\sstyle="[^"]*"/gi, "") // drop inline CSS (font-size, colors, etc.)
+    .replace(/\sclass="[^"]*"/gi, "") // drop classes (no effect in RN anyway)
+    .trim()
+}
 
 interface WishlistItem {
   wishlist_id: number
@@ -161,34 +183,26 @@ export default function ProductDetailScreen({
   const [productReviews, setProductReviews] =
     useState<ProductReviewsResponse | null>(null)
   const [activeImage, setActiveImage] = useState(0)
-  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  // Expanded by default — the description drives purchase decisions, so show it
+  // immediately (the header still toggles collapse for users who want it hidden).
+  const [descriptionExpanded, setDescriptionExpanded] = useState(true)
   const [specificationsExpanded, setSpecificationsExpanded] = useState(false)
   const [selectedVariant, setSelectedVariant] = useState<number | null>(null)
   const [showBuyModal, setShowBuyModal] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [imageViewerIndex, setImageViewerIndex] = useState(0)
+  const [showVariantViewer, setShowVariantViewer] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
   const galleryScrollRef = useRef<ScrollView>(null)
   const imageViewerScrollRef = useRef<ScrollView>(null)
-  // Horizontal variant/thumbnail strip + each item's measured position, so the
-  // active variant can be auto-scrolled into view while swiping the gallery.
-  const variantsScrollRef = useRef<ScrollView>(null)
-  const variantLayoutsRef = useRef<Record<number, { x: number; width: number }>>(
-    {}
-  )
 
   // Tracks the gallery image currently in view, so the focus logic only runs
   // when the index actually changes (avoids per-frame re-renders during scroll).
   const lastGalleryIndexRef = useRef(0)
-
-  // Scroll the variant strip so the given variant is centered in the viewport.
-  const centerVariantInView = (variantId: number) => {
-    const layout = variantLayoutsRef.current[variantId]
-    if (!layout || !variantsScrollRef.current) return
-    const targetX = layout.x + layout.width / 2 - SCREEN_WIDTH / 2
-    variantsScrollRef.current.scrollTo({ x: Math.max(0, targetX), animated: true })
-  }
+  // True while an animated scrollTo (thumbnail/variant tap) is in flight, so
+  // live onScroll tracking ignores the intermediate pages it passes through.
+  const isProgrammaticScrollRef = useRef(false)
   const [showHeaderOnScroll, setShowHeaderOnScroll] = useState(false)
   const headerTranslateY = useState(() => new Animated.Value(-100))[0]
   const headerOpacity = useState(() => new Animated.Value(0))[0]
@@ -236,7 +250,7 @@ export default function ProductDetailScreen({
     setVisibleYouMayAlsoLikeCount(8)
     setBrandProfile(null)
     setActiveImage(0)
-    setDescriptionExpanded(false)
+    setDescriptionExpanded(true)
     setSpecificationsExpanded(false)
     setSelectedVariant(null)
     setShowHeaderOnScroll(false)
@@ -380,7 +394,9 @@ export default function ProductDetailScreen({
     }
   }, [product, productId, token])
 
-  // Create image list with variant mapping (unique images only)
+  // Create image list with variant mapping (unique images only). The main
+  // gallery shows EVERYTHING — variant photos first, then the product images.
+  // (Variant-only viewing lives in the VariantImageViewer popup.)
   const imagesWithVariants = useMemo(() => {
     if (!product) return []
 
@@ -424,9 +440,10 @@ export default function ProductDetailScreen({
     return imagesWithVariants.map((item) => item.image)
   }, [imagesWithVariants])
 
-  // Focus a gallery image: update the active image + matching variant and center
-  // its thumbnail. Called live from onScroll so the strip tracks the swipe with
-  // no lag, guarded so it fires once per image crossing (not every frame).
+  // Focus a gallery image: update the active image + matching variant. Called
+  // live from onScroll so the strip tracks the swipe with no lag, guarded so it
+  // fires once per image crossing (not every frame). The variant strip centers
+  // itself off the selectedVariant prop, so no imperative call is needed here.
   const focusGalleryImage = (index: number) => {
     if (index < 0 || index >= images.length) return
     if (index === lastGalleryIndexRef.current) return
@@ -435,7 +452,61 @@ export default function ProductDetailScreen({
     const item = imagesWithVariants[index]
     if (item && item.variantId !== null) {
       setSelectedVariant(item.variantId)
-      centerVariantInView(item.variantId)
+    }
+  }
+
+  // Select a variant from the strip: update selection and scroll the gallery to
+  // that variant's image. Plain function — React Compiler caches it, so the
+  // ProductVariantStrip child still receives a stable prop and won't re-render.
+  const handleSelectVariant = (variantId: number) => {
+    setSelectedVariant(variantId)
+    const idx = imagesWithVariants.findIndex(
+      (item) => item.variantId === variantId
+    )
+    if (idx >= 0) {
+      lastGalleryIndexRef.current = idx
+      setActiveImage(idx)
+      isProgrammaticScrollRef.current = true
+      galleryScrollRef.current?.scrollTo({
+        x: idx * SCREEN_WIDTH,
+        animated: true,
+      })
+    }
+  }
+
+  // Tap the Selected-variation thumbnail: open the variant-only swipable popup
+  // (shows just the variation images — not the full product gallery).
+  const handlePressSelectedVariantImage = () => {
+    setShowVariantViewer(true)
+  }
+
+  // Tap a variation BUTTON: select it, and when that variant has its own
+  // photos, pop up the variant-only viewer (variants[].images — the product's
+  // general images are never included). Photo-less variants just select.
+  const handleVariantButtonPress = (variantId: number) => {
+    handleSelectVariant(variantId)
+    const tapped = product?.variants?.find((v) => v.id === variantId)
+    if (tapped?.images?.length) {
+      setShowVariantViewer(true)
+    }
+  }
+
+  // Tap a gallery thumbnail: scroll the gallery to that exact image and sync the
+  // active index + matching variant. We set lastGalleryIndexRef so the gallery's
+  // onMomentumScrollEnd (fired by this animated scroll) is a no-op, avoiding a
+  // double update.
+  const handleSelectImage = (index: number) => {
+    if (index < 0 || index >= images.length) return
+    lastGalleryIndexRef.current = index
+    setActiveImage(index)
+    isProgrammaticScrollRef.current = true
+    galleryScrollRef.current?.scrollTo({
+      x: index * SCREEN_WIDTH,
+      animated: true,
+    })
+    const item = imagesWithVariants[index]
+    if (item && item.variantId !== null) {
+      setSelectedVariant(item.variantId)
     }
   }
 
@@ -756,6 +827,8 @@ export default function ProductDetailScreen({
     }
   }
 
+  // Plain object — React Compiler auto-memoizes it (reactCompiler is enabled in
+  // app.json), so manual useMemo is unnecessary and would disable compilation.
   const colors = {
     bg: isDarkMode ? "#0f172a" : "#ffffff",
     containerBg: isDarkMode ? "#1e293b" : "#f8fbff",
@@ -767,24 +840,8 @@ export default function ProductDetailScreen({
     divider: isDarkMode ? "#334155" : "#f1f5f9",
   }
 
-  if (loading) {
-    console.log("⏳ ProductDetailScreen: Loading state...")
-  } else if (product) {
-    console.log(`📦 ProductDetailScreen: Rendering product "${product.name}"`)
-    console.log(
-      `📝 Description: ${product.description ? "YES (length: " + product.description.length + ")" : "NO"}`
-    )
-    console.log(`📋 Specifications: ${product.specifications ? "YES" : "NO"}`)
-    console.log(`🔧 Material: ${product.material ? "YES" : "NO"}`)
-    console.log(`⚡ Warranty: ${product.warranty ? "YES" : "NO"}`)
-    console.log(`📐 Dimensions: ${product.pswidth ? "YES" : "NO"}`)
-  } else {
-    console.log("❌ ProductDetailScreen: No product data available")
-  }
-
   return (
     <View style={styles.root}>
-      {console.log("🎯 [ProductDetailScreen] Starting main render...")}
       {loading ? (
         <ProductDetailSkeleton isDarkMode={isDarkMode} />
       ) : product ? (
@@ -894,17 +951,37 @@ export default function ProductDetailScreen({
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
+                disableIntervalMomentum
                 scrollEventThrottle={16}
                 style={{ backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" }}
+                // A user touch always means a user-driven scroll — re-enable
+                // live tracking even if a programmatic scroll was in flight.
+                onScrollBeginDrag={() => {
+                  isProgrammaticScrollRef.current = false
+                }}
+                // Live tracking for USER swipes only: the index commits as the
+                // page crosses halfway (feels instant), and the ref guard in
+                // focusGalleryImage means one state update per page. Animated
+                // scrollTo from thumbnail/variant taps is ignored here so the
+                // pages it passes through don't flash the UI.
                 onScroll={(e) => {
-                  // Track the active image live (crosses at the halfway point) so
-                  // the bottom thumbnail focuses immediately, not after momentum ends.
+                  if (isProgrammaticScrollRef.current) return
                   focusGalleryImage(
                     Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
                   )
                 }}
+                // Final settle for both user and programmatic scrolls — lands on
+                // the exact page and re-arms live tracking.
                 onMomentumScrollEnd={(e) => {
-                  // Final settle — ensures the exact landing index is focused.
+                  isProgrammaticScrollRef.current = false
+                  focusGalleryImage(
+                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
+                  )
+                }}
+                // Fallback for slow drags with no momentum (esp. Android), where
+                // onMomentumScrollEnd may not fire. A fling still lands via the
+                // momentum handler above; the index guard skips the duplicate.
+                onScrollEndDrag={(e) => {
                   focusGalleryImage(
                     Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
                   )
@@ -1074,128 +1151,23 @@ export default function ProductDetailScreen({
               </View>
             </View>
 
-            {/* Variants - Shopee Style (Bottom of Image) */}
-            {product.variants && product.variants.length > 0 && (
-              <View
-                style={[
-                  styles.shopeeVariantsBar,
-                  {
-                    backgroundColor: colors.card,
-                    borderBottomColor: colors.divider,
-                  },
-                ]}
-              >
-                <ScrollView
-                  ref={variantsScrollRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.shopeeVariantsScroll}
-                  contentContainerStyle={styles.shopeeVariantsContainer}
-                >
-                  {product.variants.map((variant, index) => {
-                    const isSize = variant.size && !variant.images
+            {/* Gallery thumbnails — tap to jump, auto-centers on swipe */}
+            <GalleryThumbnails
+              images={images}
+              activeIndex={activeImage}
+              isDarkMode={isDarkMode}
+              onSelectIndex={handleSelectImage}
+            />
 
-                    return (
-                      <View
-                        key={variant.id}
-                        onLayout={(e) => {
-                          variantLayoutsRef.current[variant.id] = {
-                            x: e.nativeEvent.layout.x,
-                            width: e.nativeEvent.layout.width,
-                          }
-                        }}
-                      >
-                        <TouchableOpacity
-                          style={[
-                            styles.shopeeVariantItem,
-                            selectedVariant === variant.id &&
-                              styles.shopeeVariantItemSelected,
-                            {
-                              borderColor:
-                                selectedVariant === variant.id
-                                  ? Colors.sky
-                                  : colors.divider,
-                            },
-                          ]}
-                          onPress={() => {
-                            setSelectedVariant(variant.id)
-                            // Scroll gallery to this variant's image
-                            if (variant.images && variant.images.length > 0) {
-                              const variantImageIndex =
-                                imagesWithVariants.findIndex(
-                                  (item) => item.variantId === variant.id
-                                )
-                              if (variantImageIndex >= 0) {
-                                setActiveImage(variantImageIndex)
-                                galleryScrollRef.current?.scrollTo({
-                                  x: variantImageIndex * SCREEN_WIDTH,
-                                  animated: true,
-                                })
-                              }
-                            }
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          {variant.images && variant.images.length > 0 ? (
-                            <Image
-                              source={{ uri: variant.images[0] }}
-                              style={styles.shopeeVariantImage}
-                              contentFit="cover"
-                              transition={200}
-                            />
-                          ) : variant.colorHex ? (
-                            <View
-                              style={[
-                                styles.shopeeVariantColor,
-                                { backgroundColor: variant.colorHex },
-                              ]}
-                            />
-                          ) : isSize ? (
-                            <Text
-                              style={[
-                                styles.shopeeVariantSizeText,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {variant.size}
-                            </Text>
-                          ) : (
-                            <Text
-                              style={[
-                                styles.shopeeVariantText,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {variant.name}
-                            </Text>
-                          )}
-                          {selectedVariant === variant.id && (
-                            <View style={styles.shopeeVariantCheck}>
-                              <Ionicons
-                                name="checkmark"
-                                size={12}
-                                color={Colors.white}
-                              />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                        {selectedVariant === variant.id &&
-                          variant.colorHex &&
-                          !variant.images?.length && (
-                            <Text
-                              style={[
-                                styles.shopeeVariantLabel,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {variant.color || variant.name}
-                            </Text>
-                          )}
-                      </View>
-                    )
-                  })}
-                </ScrollView>
-              </View>
+            {/* Variations — text buttons + Selected card (tap image → viewer) */}
+            {product.variants && product.variants.length > 0 && (
+              <ProductVariantStrip
+                variants={product.variants}
+                selectedVariantId={selectedVariant}
+                isDarkMode={isDarkMode}
+                onSelectVariant={handleVariantButtonPress}
+                onPressSelectedImage={handlePressSelectedVariantImage}
+              />
             )}
 
             {/* Price Section - Shopee Style (Price First, Large & Bold) */}
@@ -1531,12 +1503,16 @@ export default function ProductDetailScreen({
                               return (
                                 <RenderHtml
                                   source={{
-                                    html:
-                                      product.description ||
-                                      "<p>No description available</p>",
+                                    html: toRenderableHtml(product.description),
                                   }}
-                                  contentWidth={SCREEN_WIDTH - 16}
-                                  defaultTextProps={{ selectable: false }}
+                                  contentWidth={SCREEN_WIDTH - 32}
+                                  defaultTextProps={{ selectable: true }}
+                                  enableExperimentalMarginCollapsing
+                                  baseStyle={{
+                                    color: colors.text,
+                                    fontSize: 14,
+                                    lineHeight: 22,
+                                  }}
                                   tagsStyles={{
                                     body: {
                                       color: colors.text,
@@ -2280,7 +2256,7 @@ export default function ProductDetailScreen({
                   },
                 ]}
               >
-                <Text style={[{ color: colors.textSecondary, fontSize: 14 }]}>
+                <Text style={[{ color: colors.textSec, fontSize: 14 }]}>
                   No related products found
                 </Text>
               </View>
@@ -2474,6 +2450,17 @@ export default function ProductDetailScreen({
         }}
         hasDiscount={hasDiscount}
       />
+
+      {/* Variant-only swipable popup (from the Selected card's thumbnail) */}
+      {product && (
+        <VariantImageViewer
+          visible={showVariantViewer}
+          variants={product.variants ?? []}
+          selectedVariantId={selectedVariant}
+          onClose={() => setShowVariantViewer(false)}
+          onSelectVariant={handleSelectVariant}
+        />
+      )}
 
       {/* Old slideshow code is now in ImageViewerModal component - removed for clarity */}
       {false && (

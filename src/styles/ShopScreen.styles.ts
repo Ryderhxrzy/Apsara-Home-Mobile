@@ -174,6 +174,119 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.text,
   },
+
+  // ─── View-mode toolbar ───────────────────────────────────────────────────
+  viewToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  viewToolbarCount: {
+    fontSize: 12,
+    fontWeight: "500",
+    flex: 1,
+  },
+  viewToggleGroup: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  viewModeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+
+  // ─── List-mode row card ──────────────────────────────────────────────────
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 8,
+    marginHorizontal: 4,
+  },
+  listRowThumb: {
+    width: 100,
+    height: 100,
+    flexShrink: 0,
+    position: "relative",
+  },
+  listRowImg: {
+    width: "100%",
+    height: "100%",
+  },
+  listRowDiscount: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#ef4444",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  listRowDiscountText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  listRowDetails: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  listRowBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 2,
+  },
+  listRowBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  listRowName: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  listRowBrandText: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  listRowPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  listRowPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: Colors.sky,
+  },
+  listRowSrp: {
+    fontSize: 11,
+    textDecorationLine: "line-through",
+  },
+  listRowPv: {
+    fontSize: 10,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  listRowWishlistArea: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignSelf: "center",
+  },
 })
 
 export default styles

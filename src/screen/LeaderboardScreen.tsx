@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
+import { getColors, palette } from "../theme/theme"
 import { API_CONFIG } from "../config/api"
 import { useAppContext } from "../context/AppContext"
 import styles from "../styles/LeaderboardScreen.styles"
@@ -63,16 +64,25 @@ export default function LeaderboardScreen({
   const pulse = useState(() => new Animated.Value(1))[0]
   const scrollViewRef = useRef<ScrollView>(null)
 
+  // Palette sourced from the centralized theme (slate spine + sky accent),
+  // matching the app header / website.
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0a0e27" : "#0ea5e9",
-    headerStart: "#0066FF",
-    headerEnd: "#00D4FF",
-    cardAlt: isDarkMode ? "#0c1728" : "#f8fbff",
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#23324a" : "#dbe7f3",
-    accent: Colors.sky,
+    bg: t.bgSubtle,
+    headerStart: isDarkMode ? "#0f172a" : palette.sky500,
+    headerEnd: palette.cyan500,
+    card: t.card,
+    cardAlt: isDarkMode ? t.surface : t.bgSubtle,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    accent: t.primary,
   }
+  // Shared sky→cyan hero gradient (header + podium use it so they blend),
+  // matching the rest of the app.
+  const heroGradient: [string, string, string] = isDarkMode
+    ? ["#0f172a", "#1e293b", "#0f172a"]
+    : [palette.sky500, palette.cyan500, palette.sky600]
 
   useEffect(() => {
     fetchLeaderboard()
@@ -451,7 +461,7 @@ export default function LeaderboardScreen({
         edges={[]}
       >
         <LinearGradient
-          colors={["#0066FF", "#00D4FF", "#0066FF"]}
+          colors={heroGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerBackground}
@@ -484,7 +494,7 @@ export default function LeaderboardScreen({
       edges={[]}
     >
       <LinearGradient
-        colors={["#0066FF", "#00D4FF", "#0066FF"]}
+        colors={heroGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerBackground}
@@ -502,6 +512,7 @@ export default function LeaderboardScreen({
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle}>Leaderboard</Text>
+            <Text style={styles.headerSubtitle}>Top members by referrals</Text>
           </View>
           <View style={styles.menuBtn} />
         </View>
@@ -524,7 +535,7 @@ export default function LeaderboardScreen({
       >
         {topThree.length > 0 && (
           <LinearGradient
-            colors={["#0066FF", "#00D4FF", "#0066FF"]}
+            colors={heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.topThreeContainer, styles.topThreeOverlap]}
@@ -542,7 +553,7 @@ export default function LeaderboardScreen({
             style={[
               styles.rankingsSection,
               {
-                backgroundColor: isDarkMode ? "#0f1b31" : "#f4f8fc",
+                backgroundColor: colors.card,
                 borderColor: colors.border,
               },
             ]}
@@ -580,7 +591,7 @@ export default function LeaderboardScreen({
                         <Text
                           style={[
                             styles.rankingBadgeText,
-                            { color: "#0369A1" },
+                            { color: colors.accent },
                           ]}
                         >
                           {`${idx + 4}`}
@@ -654,16 +665,35 @@ export default function LeaderboardScreen({
                           styles.rankingEarnings,
                           { color: colors.textSec },
                         ]}
+                        numberOfLines={1}
                       >
-                        {entry.referrals} referrals
+                        @{entry.username}
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.rankingMeta}>
+                  <View style={styles.rankingScore}>
+                    <View style={styles.rankingScoreRow}>
+                      <Ionicons
+                        name="people"
+                        size={13}
+                        color={colors.accent}
+                      />
+                      <Text
+                        style={[
+                          styles.rankingScoreValue,
+                          { color: colors.accent },
+                        ]}
+                      >
+                        {entry.referrals}
+                      </Text>
+                    </View>
                     <Text
-                      style={[styles.rankingTrend, { color: colors.textSec }]}
+                      style={[
+                        styles.rankingScoreLabel,
+                        { color: colors.textSec },
+                      ]}
                     >
-                      Member
+                      referrals
                     </Text>
                   </View>
                 </View>
@@ -706,7 +736,7 @@ export default function LeaderboardScreen({
                 <Text style={styles.floatingUserRank}>#{currentUserRank}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-down" size={16} color="#0066FF" />
+            <Ionicons name="chevron-down" size={16} color={Colors.white} />
           </TouchableOpacity>
         )}
     </SafeAreaView>

@@ -1,12 +1,9 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
-  Platform,
   Linking,
   Share,
   Clipboard,
@@ -21,10 +18,10 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useQueryClient } from "@tanstack/react-query"
 import { Colors } from "../constants/colors"
+import { getColors, gradients } from "../theme/theme"
 import PrimaryButton from "../components/Button/PrimaryButton"
 import OutlineButton from "../components/Button/OutlineButton"
 import { referralService, ReferralTree } from "../services/referralService"
-import { getBadgeImageSource } from "../constants/tierConfig"
 import { useWallet } from "../hooks/query/useWallet"
 import {
   useLoyaltyData,
@@ -40,6 +37,7 @@ import LevelProgress from "../components/LevelProgress/LevelProgress"
 import LevelProgressDetailsScreen from "./LevelProgressDetailsScreen"
 import { ChatBotIcon } from "../components/ChatBot"
 import LeaderboardScreen from "./LeaderboardScreen"
+import WebViewModal from "../components/WebViewModal/WebViewModal"
 import { styles } from "../styles/ProfileScreen.styles"
 
 interface User {
@@ -173,6 +171,12 @@ const SOCIAL_ITEMS = [
 
 const MENU_ITEMS = [
   {
+    icon: "cube-outline" as const,
+    label: "Track My Order",
+    chevron: true,
+    key: "track",
+  },
+  {
     icon: "heart-outline" as const,
     label: "My Wishlist",
     chevron: true,
@@ -233,17 +237,20 @@ export default function ProfileScreen({
   })
   const insets = useSafeAreaInsets()
 
+  // Palette sourced from the centralized theme (slate spine + sky accent),
+  // matching the website. Same keys the render already uses.
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    containerBg: isDarkMode ? "#1f2937" : Colors.white,
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#374151" : "#e5e7eb",
-    borderLight: isDarkMode ? "#475569" : "#f1f5f9",
-    cardBg: isDarkMode ? "#1e293b" : "#f8fafc",
-    headerBg: isDarkMode ? "#1f2937" : Colors.white,
-    socialIconBg: isDarkMode ? "#334155" : "#f8fafc",
-    purchaseIconBg: isDarkMode ? "#334155" : "#f8fafc",
+    bg: t.bgSubtle,
+    containerBg: t.card,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    borderLight: t.divider,
+    cardBg: isDarkMode ? t.surface : t.bgSubtle,
+    headerBg: t.card,
+    socialIconBg: t.primarySoft,
+    purchaseIconBg: t.primarySoft,
   }
   const [enlargedQR, setEnlargedQR] = useState<"signup" | "shopping" | null>(
     null
@@ -254,6 +261,7 @@ export default function ProfileScreen({
   const [showSecurityBanner, setShowSecurityBanner] = useState(true)
   const [dailyCheckinClaimed, setDailyCheckinClaimed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [showTrackOrder, setShowTrackOrder] = useState(false)
 
   // ── Server state via React Query ──
   const { data: loyaltyData = null, isLoading: loadingLoyalty } =
@@ -425,22 +433,14 @@ export default function ProfileScreen({
   return (
     <View style={{ flex: 1, position: "relative" }}>
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        {/* ── Header with Background Image ── */}
-        <View
-          style={[
-            styles.headerBackground,
-            { borderBottomColor: colors.border },
-          ]}
+        {/* ── Gradient header (matches the app header / website scheme) ── */}
+        <LinearGradient
+          colors={isDarkMode ? ["#0f172a", "#1e293b"] : [...gradients.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.headerBackground, { paddingTop: insets.top + 6 }]}
         >
-          <Image
-            source={{
-            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/profile_bg_pndcaa.png"
-          }}
-            style={styles.headerBackgroundImage}
-            contentFit="cover"
-            transition={200}
-          />
-          <View style={[styles.headerContent, { paddingTop: insets.top }]}>
+          <View style={styles.headerContent}>
             <TouchableOpacity
               style={styles.headerLeft}
               onPress={() => onShowProfileDetails?.(true)}
@@ -475,28 +475,31 @@ export default function ProfileScreen({
                 {user?.username && (
                   <View style={styles.usernameRow}>
                     <Text
-                      style={[styles.usernameText, { color: Colors.white }]}
+                      style={[
+                        styles.usernameText,
+                        { color: "rgba(255,255,255,0.9)" },
+                      ]}
                     >
                       @{user.username}
                     </Text>
                     {user?.badge_name && (
-                      <>
-                        <View style={styles.usernameDot} />
-                        <View style={styles.userBadge}>
-                          <Ionicons
-                            name="shield-checkmark"
-                            size={10}
-                            color={Colors.white}
-                          />
-                          <Text style={styles.userBadgeText}>
-                            {user.badge_name}
-                          </Text>
-                        </View>
-                      </>
+                      <View style={styles.userBadge}>
+                        <Ionicons
+                          name="shield-checkmark"
+                          size={9}
+                          color={Colors.white}
+                        />
+                        <Text style={styles.userBadgeText}>
+                          {user.badge_name}
+                        </Text>
+                      </View>
                     )}
                     <View style={styles.usernameDot} />
                     <Text
-                      style={[styles.usernamePvText, { color: Colors.white }]}
+                      style={[
+                        styles.usernamePvText,
+                        { color: "rgba(255,255,255,0.85)" },
+                      ]}
                     >
                       {user.monthly_activation?.remaining_pv ?? 0} PV
                     </Text>
@@ -532,7 +535,49 @@ export default function ProfileScreen({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+
+          {/* Frosted glass stats strip — mirrors the Home membership hero */}
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCell}>
+              <Text style={styles.heroStatValue}>
+                {user?.monthly_activation?.remaining_pv ?? 0}
+              </Text>
+              <Text style={styles.heroStatLabel}>Total PV</Text>
+            </View>
+            <View style={styles.heroStatDivider} />
+            <View style={styles.heroStatCell}>
+              <Text style={styles.heroStatValue} numberOfLines={1}>
+                ₱{loyaltyData?.earnings || 0}
+              </Text>
+              <Text style={styles.heroStatLabel}>Earnings</Text>
+            </View>
+            <View style={styles.heroStatDivider} />
+            <TouchableOpacity
+              style={styles.heroStatCell}
+              onPress={() => setShowLeaderboard?.(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.heroStatValueRow}>
+                <Ionicons name="trophy" size={13} color="#fbbf24" />
+                <Text style={styles.heroStatValue}>
+                  #{userLeaderboardRank ?? "-"}
+                </Text>
+              </View>
+              <Text style={styles.heroStatLabel}>Rank</Text>
+            </TouchableOpacity>
+            <View style={styles.heroStatDivider} />
+            <TouchableOpacity
+              style={styles.heroStatCell}
+              onPress={() => onShowReferralNetwork?.(referralTree)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.heroStatValue}>
+                {loyaltyData?.referral_count || 0}
+              </Text>
+              <Text style={styles.heroStatLabel}>Referrals</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
         {/* ── Scrollable body ── */}
         <ScrollView
@@ -609,137 +654,58 @@ export default function ProfileScreen({
             </View>
           )}
 
-          {/* PV Overview Section */}
-          {loyaltyData && (
+          {/* Daily Check-In — gold-accented reward card */}
+          <TouchableOpacity
+            style={[
+              styles.checkinCard,
+              {
+                backgroundColor: colors.containerBg,
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={() => onShowPVEarner?.(true)}
+            activeOpacity={0.85}
+          >
             <View
               style={[
-                styles.pvOverviewSection,
+                styles.checkinIconWrap,
                 {
-                  backgroundColor: colors.containerBg,
-                  borderColor: colors.border,
+                  backgroundColor: isDarkMode
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "#fffbeb",
                 },
               ]}
             >
-              {/* Top Stats */}
-              <View style={styles.pvStatsRow}>
-                <View style={styles.pvStatItem}>
-                  <Text style={[styles.pvStatLabel, { color: colors.textSec }]}>
-                    Total PV
-                  </Text>
-                  <Text style={[styles.pvStatValue, { color: Colors.sky }]}>
-                    {user?.monthly_activation?.remaining_pv ?? 0}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.pvStatDivider,
-                    { backgroundColor: colors.border },
-                  ]}
-                />
-                <View style={styles.pvStatItem}>
-                  <Text style={[styles.pvStatLabel, { color: colors.textSec }]}>
-                    Earnings
-                  </Text>
-                  <Text style={[styles.pvStatValue, { color: Colors.sky }]}>
-                    ₱{loyaltyData.earnings || 0}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.pvStatDivider,
-                    { backgroundColor: colors.border },
-                  ]}
-                />
-                <TouchableOpacity
-                  style={styles.pvStatItem}
-                  onPress={() => setShowLeaderboard?.(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pvStatLabel, { color: colors.textSec }]}>
-                    Leaderboard
-                  </Text>
-                  <View style={styles.leaderboardRankDisplay}>
-                    <Ionicons name="trophy" size={16} color="#FFD700" />
-                    <Text style={[styles.pvStatValue, { color: Colors.sky }]}>
-                      #{userLeaderboardRank ?? "-"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                <View
-                  style={[
-                    styles.pvStatDivider,
-                    { backgroundColor: colors.border },
-                  ]}
-                />
-                <TouchableOpacity
-                  style={styles.pvStatItem}
-                  onPress={() => onShowReferralNetwork?.(referralTree)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pvStatLabel, { color: colors.textSec }]}>
-                    Referrals
-                  </Text>
-                  <View style={styles.referralsDisplay}>
-                    <Ionicons name="people" size={16} color={Colors.sky} />
-                    <Text style={[styles.pvStatValue, { color: Colors.sky }]}>
-                      {loyaltyData?.referral_count || 0}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Daily Check-In Button */}
-              <TouchableOpacity
-                style={[
-                  styles.dailyCheckinBtn,
-                  { borderTopColor: colors.borderLight },
-                ]}
-                onPress={() => {
-                  onShowPVEarner?.(true)
+              <Image
+                source={{
+                  uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780879975/coin_1_kpacst.png",
                 }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.dailyCheckinBtnLeft}>
-                  <View style={styles.dailyCheckinIconContainer}>
-                    <Image
-                      source={{
-                        uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780879975/coin_1_kpacst.png",
-                      }}
-                      style={styles.dailyCheckinIcon}
-                      contentFit="contain"
-                      transition={200}
-                    />
-                  </View>
-                  <Text
-                    style={[styles.dailyCheckinBtnText, { color: colors.text }]}
-                  >
-                    Daily Check-In
-                  </Text>
-                </View>
-                {!dailyCheckinClaimed && (
-                  <View style={styles.dailyCheckinClaimContainer}>
-                    <View style={styles.dailyCheckinDotContainer}>
-                      <View style={styles.dailyCheckinDotGlow} />
-                      <View style={styles.dailyCheckinRedDot} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.dailyCheckinClaimText,
-                        { color: Colors.sky },
-                      ]}
-                    >
-                      Claim +20 PV!
-                    </Text>
-                  </View>
-                )}
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textSec}
-                />
-              </TouchableOpacity>
+                style={styles.checkinIcon}
+                contentFit="contain"
+                transition={200}
+              />
             </View>
-          )}
+            <View style={styles.checkinInfo}>
+              <Text style={[styles.checkinTitle, { color: colors.text }]}>
+                Daily Check-In
+              </Text>
+              <Text style={[styles.checkinSub, { color: colors.textSec }]}>
+                Check in every day to earn PV rewards
+              </Text>
+            </View>
+            {!dailyCheckinClaimed ? (
+              <View style={styles.claimPill}>
+                <View style={styles.dailyCheckinRedDot} />
+                <Text style={styles.claimPillText}>Claim +20 PV</Text>
+              </View>
+            ) : (
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.textSec}
+              />
+            )}
+          </TouchableOpacity>
 
           {/* Level Progress */}
           {loyaltyData && (
@@ -780,9 +746,23 @@ export default function ProfileScreen({
               }
               activeOpacity={0.7}
             >
-              <Text style={[styles.purchasesTitle, { color: colors.text }]}>
-                My Purchases
-              </Text>
+              <View style={styles.cardHeaderLeft}>
+                <View
+                  style={[
+                    styles.cardHeaderChip,
+                    { backgroundColor: colors.purchaseIconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name="bag-handle-outline"
+                    size={15}
+                    color={Colors.sky}
+                  />
+                </View>
+                <Text style={[styles.purchasesTitle, { color: colors.text }]}>
+                  My Purchases
+                </Text>
+              </View>
               <TouchableOpacity
                 style={styles.purchasesViewAll}
                 onPress={() =>
@@ -930,9 +910,23 @@ export default function ProfileScreen({
               disabled={loadingReferral}
               activeOpacity={0.7}
             >
-              <Text style={[styles.purchasesTitle, { color: colors.text }]}>
-                My Referrals
-              </Text>
+              <View style={styles.cardHeaderLeft}>
+                <View
+                  style={[
+                    styles.cardHeaderChip,
+                    { backgroundColor: colors.purchaseIconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name="people-outline"
+                    size={15}
+                    color={Colors.sky}
+                  />
+                </View>
+                <Text style={[styles.purchasesTitle, { color: colors.text }]}>
+                  My Referrals
+                </Text>
+              </View>
               <TouchableOpacity
                 style={styles.purchasesViewAll}
                 onPress={handleViewNetwork}
@@ -1074,13 +1068,27 @@ export default function ProfileScreen({
                 { borderBottomColor: colors.borderLight },
               ]}
             >
-              <View>
-                <Text style={[styles.purchasesTitle, { color: colors.text }]}>
-                  Affiliate Referral QR
-                </Text>
-                <Text style={[styles.qrSubtitle, { color: Colors.sky }]}>
-                  Ready to Share
-                </Text>
+              <View style={styles.cardHeaderLeft}>
+                <View
+                  style={[
+                    styles.cardHeaderChip,
+                    { backgroundColor: colors.purchaseIconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={15}
+                    color={Colors.sky}
+                  />
+                </View>
+                <View>
+                  <Text style={[styles.purchasesTitle, { color: colors.text }]}>
+                    Affiliate Referral QR
+                  </Text>
+                  <Text style={[styles.qrSubtitle, { color: Colors.sky }]}>
+                    Ready to Share
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -1310,9 +1318,23 @@ export default function ProfileScreen({
                 { borderBottomColor: colors.borderLight },
               ]}
             >
-              <Text style={[styles.purchasesTitle, { color: colors.text }]}>
-                AF Wallet
-              </Text>
+              <View style={styles.cardHeaderLeft}>
+                <View
+                  style={[
+                    styles.cardHeaderChip,
+                    { backgroundColor: colors.purchaseIconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name="wallet-outline"
+                    size={15}
+                    color={Colors.sky}
+                  />
+                </View>
+                <Text style={[styles.purchasesTitle, { color: colors.text }]}>
+                  AF Wallet
+                </Text>
+              </View>
             </View>
 
             {loadingWallet ? (
@@ -1336,11 +1358,22 @@ export default function ProfileScreen({
                   activeOpacity={0.7}
                 >
                   <View style={styles.walletCardTitle}>
-                    <Ionicons
-                      name="wallet-outline"
-                      size={18}
-                      color={Colors.sky}
-                    />
+                    <View
+                      style={[
+                        styles.walletIconChip,
+                        {
+                          backgroundColor: isDarkMode
+                            ? "rgba(14,165,233,0.15)"
+                            : "#e0f2fe",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="wallet-outline"
+                        size={17}
+                        color={Colors.sky}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.walletCardTitleText,
@@ -1371,7 +1404,22 @@ export default function ProfileScreen({
                   activeOpacity={0.7}
                 >
                   <View style={styles.walletCardTitle}>
-                    <Ionicons name="ticket-outline" size={18} color="#f97316" />
+                    <View
+                      style={[
+                        styles.walletIconChip,
+                        {
+                          backgroundColor: isDarkMode
+                            ? "rgba(249,115,22,0.15)"
+                            : "#ffedd5",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="ticket-outline"
+                        size={17}
+                        color="#f97316"
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.walletCardTitleText,
@@ -1402,14 +1450,25 @@ export default function ProfileScreen({
                   activeOpacity={0.7}
                 >
                   <View style={styles.walletCardTitle}>
-                    <Image
-                      source={{
-                        uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780879975/coin_1_kpacst.png",
-                      }}
-                      style={styles.walletCardIcon}
-                      contentFit="contain"
-                      transition={200}
-                    />
+                    <View
+                      style={[
+                        styles.walletIconChip,
+                        {
+                          backgroundColor: isDarkMode
+                            ? "rgba(245,158,11,0.15)"
+                            : "#fffbeb",
+                        },
+                      ]}
+                    >
+                      <Image
+                        source={{
+                          uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780879975/coin_1_kpacst.png",
+                        }}
+                        style={styles.walletCardIcon}
+                        contentFit="contain"
+                        transition={200}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.walletCardTitleText,
@@ -1440,11 +1499,22 @@ export default function ProfileScreen({
                   activeOpacity={0.7}
                 >
                   <View style={styles.walletCardTitle}>
-                    <Ionicons
-                      name="git-network-outline"
-                      size={18}
-                      color="#8b5cf6"
-                    />
+                    <View
+                      style={[
+                        styles.walletIconChip,
+                        {
+                          backgroundColor: isDarkMode
+                            ? "rgba(139,92,246,0.15)"
+                            : "#ede9fe",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="git-network-outline"
+                        size={17}
+                        color="#8b5cf6"
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.walletCardTitleText,
@@ -1491,6 +1561,7 @@ export default function ProfileScreen({
                   if (item.key === "logout") onLogout?.()
                   if (item.key === "settings") onNavigateSettings?.()
                   if (item.key === "wishlist") onNavigateWishlist?.()
+                  if (item.key === "track") setShowTrackOrder(true)
                 }}
               >
                 <View
@@ -1557,9 +1628,23 @@ export default function ProfileScreen({
                 { borderBottomColor: colors.borderLight },
               ]}
             >
-              <Text style={[styles.purchasesTitle, { color: colors.text }]}>
-                Connect with Us
-              </Text>
+              <View style={styles.cardHeaderLeft}>
+                <View
+                  style={[
+                    styles.cardHeaderChip,
+                    { backgroundColor: colors.purchaseIconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name="share-social-outline"
+                    size={15}
+                    color={Colors.sky}
+                  />
+                </View>
+                <Text style={[styles.purchasesTitle, { color: colors.text }]}>
+                  Connect with Us
+                </Text>
+              </View>
             </View>
             <View style={styles.purchasesGrid}>
               {SOCIAL_ITEMS.map((item) => (
@@ -1664,6 +1749,15 @@ export default function ProfileScreen({
           </View>
         )}
       </View>
+
+      {/* Track Order — in-app browser */}
+      <WebViewModal
+        visible={showTrackOrder}
+        url="https://afhome.ph/track-order"
+        title="Track My Order"
+        isDarkMode={isDarkMode}
+        onClose={() => setShowTrackOrder(false)}
+      />
 
       {/* Chat Bot Icon */}
       <ChatBotIcon

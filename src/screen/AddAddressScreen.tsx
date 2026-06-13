@@ -6,13 +6,20 @@ import {
   TouchableOpacity,
   BackHandler,
   ActivityIndicator,
-  TextInput,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Colors } from "../constants/colors"
 import Toast from "react-native-toast-message"
+import {
+  addressSchema,
+  ADDRESS_DEFAULTS,
+  AddressValues,
+} from "../schemas/addressSchemas"
+import ControlledFormField from "../components/ui/ControlledFormField"
 import BottomSheetSelector from "../components/BottomSheetSelector/BottomSheetSelector"
 import { useRegions } from "../hooks/query/useRegions"
 import { useProvinces } from "../hooks/query/useProvinces"
@@ -42,10 +49,15 @@ export default function AddAddressScreen({
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
 
+  // Free-text fields are managed by react-hook-form + zod (addressSchema).
+  const { control, handleSubmit } = useForm<AddressValues>({
+    resolver: zodResolver(addressSchema),
+    defaultValues: ADDRESS_DEFAULTS,
+    mode: "onBlur",
+  })
+
   // Form states
   const [locationType, setLocationType] = useState("Home")
-  const [fullName, setFullName] = useState("")
-  const [contactNumber, setContactNumber] = useState("")
   const [region, setRegion] = useState<LocationData | null>(null)
   const [province, setProvince] = useState<LocationData | null>(null)
   const [city, setCity] = useState<LocationData | null>(null)
@@ -157,25 +169,9 @@ export default function AddAddressScreen({
     setShowBarangayModal(false)
   }
 
-  const handleAddAddress = async () => {
-    if (!fullName.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Please enter your name",
-      })
-      return
-    }
-
-    if (!contactNumber.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Please enter contact number",
-      })
-      return
-    }
-
+  // Text fields are validated by zodResolver; here we only need to check the
+  // dependent location dropdowns (kept in component state).
+  const onSubmit = async (_values: AddressValues) => {
     if (!region || !province || !city || !barangay) {
       Toast.show({
         type: "error",
@@ -289,42 +285,27 @@ export default function AddAddressScreen({
           </TouchableOpacity>
 
           {/* Name */}
-          <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>
-            Name *
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.borderLight,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
+          <ControlledFormField
+            control={control}
+            name="fullName"
+            label="Name"
+            required
             placeholder="Enter your name"
-            placeholderTextColor={colors.textSec}
-            value={fullName}
-            onChangeText={setFullName}
+            leftIcon="person-outline"
+            isDarkMode={isDarkMode}
+            containerStyle={{ marginTop: 16 }}
           />
 
           {/* Contact Number */}
-          <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>
-            Contact Number *
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.borderLight,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
+          <ControlledFormField
+            control={control}
+            name="contactNumber"
+            label="Contact Number"
+            required
             placeholder="Enter contact number"
-            placeholderTextColor={colors.textSec}
             keyboardType="phone-pad"
-            value={contactNumber}
-            onChangeText={setContactNumber}
+            leftIcon="call-outline"
+            isDarkMode={isDarkMode}
           />
 
           {/* Region */}
@@ -451,7 +432,7 @@ export default function AddAddressScreen({
             styles.addButton,
             { backgroundColor: Colors.sky, opacity: loading ? 0.6 : 1 },
           ]}
-          onPress={handleAddAddress}
+          onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
           {loading ? (

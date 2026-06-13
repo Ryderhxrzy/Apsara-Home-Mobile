@@ -9,6 +9,7 @@ import React, {
 import {
   View,
   Text,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
   NativeSyntheticEvent,
@@ -19,6 +20,7 @@ import { FlashList, FlashListRef } from "@shopify/flash-list"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
+import { getColors } from "../theme/theme"
 import { Product } from "../services/productService"
 import ItemCard from "../components/Items/ItemCard"
 import AppHeader from "../components/AppHeader/AppHeader"
@@ -91,12 +93,17 @@ function ShopScreen({
     price: "All",
   })
 
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
+  // Palette from the centralized theme (slate spine + sky accent).
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#334155" : "#e5e7eb",
-    card: isDarkMode ? "#1e293b" : Colors.white,
+    bg: t.bgSubtle,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    card: t.card,
+    toolbar: t.card,
   }
 
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(() => {
@@ -375,6 +382,84 @@ function ShopScreen({
     ]
   )
 
+  const renderListItem = useCallback(
+    ({ item }: { item: Product }) => {
+      const wishlistItem = wishlistItems?.find((w) => w.product.id === item.id)
+      const price = item.priceMember ?? item.priceDp ?? item.priceSrp ?? 0
+      const srp = item.priceSrp ?? 0
+      const hasDiscount = price > 0 && srp > price
+      const discountPct = hasDiscount ? Math.round(((srp - price) / srp) * 100) : 0
+      const badge = item.musthave
+        ? { label: "Must Have", color: "#f97316" }
+        : item.bestseller
+        ? { label: "Bestseller", color: "#d4a017" }
+        : item.salespromo
+        ? { label: "On Sale", color: "#10b981" }
+        : null
+
+      return (
+        <Pressable
+          onPress={() => onProductPress(item.id)}
+          style={[
+            styles.listRow,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          android_ripple={{ color: "rgba(0,0,0,0.04)" }}
+        >
+          <View style={[styles.listRowThumb, { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" }]}>
+            <Image
+              source={{ uri: item.image }}
+              style={styles.listRowImg}
+              contentFit="cover"
+              transition={200}
+            />
+            {hasDiscount && (
+              <View style={styles.listRowDiscount}>
+                <Text style={styles.listRowDiscountText}>{discountPct}%</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.listRowDetails}>
+            {badge && (
+              <View style={[styles.listRowBadge, { backgroundColor: badge.color }]}>
+                <Text style={styles.listRowBadgeText}>{badge.label}</Text>
+              </View>
+            )}
+            <Text style={[styles.listRowName, { color: colors.text }]} numberOfLines={2}>
+              {item.name}
+            </Text>
+            {!!item.brand && (
+              <Text style={[styles.listRowBrandText, { color: colors.textSec }]} numberOfLines={1}>
+                {item.brand}
+              </Text>
+            )}
+            <View style={styles.listRowPriceRow}>
+              <Text style={styles.listRowPrice}>₱{price.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={[styles.listRowSrp, { color: colors.textSec }]}>
+                  ₱{srp.toLocaleString()}
+                </Text>
+              )}
+            </View>
+            {!!item.prodpv && (
+              <Text style={[styles.listRowPv, { color: colors.textSec }]}>
+                PV: {item.prodpv}
+              </Text>
+            )}
+          </View>
+          <View style={styles.listRowWishlistArea}>
+            <Ionicons
+              name={wishlistItem ? "heart" : "heart-outline"}
+              size={20}
+              color={wishlistItem ? "#ef4444" : colors.textSec}
+            />
+          </View>
+        </Pressable>
+      )
+    },
+    [wishlistItems, token, isDarkMode, onProductPress, colors]
+  )
+
   const keyExtractor = useCallback(
     (item: Product, index: number) => `${item.id}-${index}`,
     []
@@ -531,29 +616,73 @@ function ShopScreen({
           }}
         />
 
+        {/* View-mode toolbar */}
+        <View
+          style={[
+            styles.viewToolbar,
+            {
+              backgroundColor: colors.toolbar,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.viewToolbarCount, { color: colors.textSec }]}>
+            {products.length > 0 ? `${total} Products` : ""}
+          </Text>
+          <View style={[styles.viewToggleGroup, { borderColor: colors.border }]}>
+            <Pressable
+              style={[
+                styles.viewModeBtn,
+                viewMode === "grid" && { backgroundColor: Colors.sky },
+              ]}
+              onPress={() => setViewMode("grid")}
+            >
+              <Ionicons
+                name="grid-outline"
+                size={16}
+                color={viewMode === "grid" ? Colors.white : colors.textSec}
+              />
+            </Pressable>
+            <Pressable
+              style={[
+                styles.viewModeBtn,
+                viewMode === "list" && { backgroundColor: Colors.sky },
+              ]}
+              onPress={() => setViewMode("list")}
+            >
+              <Ionicons
+                name="list-outline"
+                size={16}
+                color={viewMode === "list" ? Colors.white : colors.textSec}
+              />
+            </Pressable>
+          </View>
+        </View>
+
         <FlashList
-          ref={flashListRef}
-          masonry
-          numColumns={2}
-          data={products}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={handleRefresh}
-              tintColor={isDarkMode ? "#fff" : Colors.sky}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
-        />
+            key={viewMode}
+            ref={flashListRef}
+            masonry={viewMode === "grid"}
+            numColumns={viewMode === "grid" ? 2 : 1}
+            data={products}
+            renderItem={viewMode === "grid" ? renderItem : renderListItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={renderEmpty}
+            ListFooterComponent={renderFooter}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={handleRefresh}
+                tintColor={isDarkMode ? "#fff" : Colors.sky}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+          />
       </SafeAreaView>
 
       {/* Chat Bot Icon */}

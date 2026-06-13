@@ -8,8 +8,11 @@ import {  View,
   Alert,
 } from "react-native"
 import { Image } from "expo-image"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
+import { getColors } from "../theme/theme"
+import { API_CONFIG } from "../config/api"
 import { orderService } from "../services/orderService"
 import { ChatBotIcon } from "../components/ChatBot"
 import { useNotifications } from "../hooks/useNotifications"
@@ -49,15 +52,18 @@ export default function NotificationsScreen({
     }
   })
 
+  const insets = useSafeAreaInsets()
+  // Palette from the centralized theme (slate spine + sky accent).
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    containerBg: isDarkMode ? "#1f2937" : Colors.white,
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#374151" : "#e5e7eb",
-    borderLight: isDarkMode ? "#374151" : "#e5e7eb",
-    emptyIcon: isDarkMode ? "#0284c7" : Colors.sky,
-    unreadBg: isDarkMode ? "#374151" : "#f8f8f8",
+    bg: t.bgSubtle,
+    containerBg: t.card,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    borderLight: t.divider,
+    emptyIcon: t.primary,
+    unreadBg: t.primarySoft,
   }
 
   useEffect(() => {
@@ -96,7 +102,7 @@ export default function NotificationsScreen({
     setLoadingUpdates((prev) => ({ ...prev, [notificationId]: true }))
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL || "https://api.afhomebiz.com"}/mobile/notifications/${notificationId}/updates`,
+        `${API_CONFIG.BASE_URL}/mobile/notifications/${notificationId}/updates`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -344,6 +350,7 @@ export default function NotificationsScreen({
             {
               backgroundColor: colors.containerBg,
               borderBottomColor: colors.border,
+              paddingTop: insets.top + 14,
             },
           ]}
         >
@@ -467,23 +474,24 @@ export default function NotificationsScreen({
               (() => {
                 const filtered = getFilteredNotifications()
                 return filtered.length > 0 ? (
-                  filtered.map((item: any, index: number) => {
+                  filtered.map((item: any) => {
                     const isExpanded = expandedNotificationId === item.id
                     const isLoadingUpdates = loadingUpdates[item.id]
+                    const isUnread = !item.is_read
 
                     return (
                       <View
                         key={item.id}
                         style={[
+                          styles.notificationCard,
                           {
-                            width: "100%",
-                            borderBottomColor: colors.border,
-                            backgroundColor: !item.is_read
+                            backgroundColor: isUnread
                               ? colors.unreadBg
-                              : "transparent",
+                              : colors.containerBg,
+                            borderColor: isUnread
+                              ? Colors.sky + "55"
+                              : colors.border,
                           },
-                          index !== filtered.length - 1 &&
-                            styles.notificationItemBorder,
                         ]}
                       >
                         <TouchableOpacity
@@ -586,7 +594,10 @@ export default function NotificationsScreen({
                             )}
                             {(item.updates || []).length > 0 && (
                               <TouchableOpacity
-                                style={styles.updatesToggle}
+                                style={[
+                                  styles.updatesToggle,
+                                  { borderTopColor: colors.border },
+                                ]}
                                 onPress={() =>
                                   toggleNotificationExpand(item.id)
                                 }

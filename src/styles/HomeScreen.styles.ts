@@ -1,12 +1,13 @@
 import { Dimensions, StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { palette, radius, shadow } from "../theme/theme"
 
 export const BANNER_HEIGHT = 190
 export const SCREEN_WIDTH = Dimensions.get("window").width
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  content: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 28, gap: 8 },
+  container: { flex: 1, backgroundColor: palette.slate50 },
+  content: { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 28, gap: 10 },
   loadingWrap: { paddingVertical: 42, alignItems: "center", gap: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
   bannerShell: {
@@ -14,13 +15,14 @@ const styles = StyleSheet.create({
   },
   banner: {
     height: BANNER_HEIGHT,
-    borderRadius: 24,
+    borderRadius: radius["2xl"],
     overflow: "hidden",
     backgroundColor: "#0f172a",
     padding: 18,
     marginRight: 12,
     justifyContent: "space-between",
     position: "relative",
+    ...shadow.lg,
   },
   bannerGlow: {
     position: "absolute",
@@ -103,89 +105,130 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.sky,
   },
   section: { gap: 0, paddingHorizontal: 4 },
-  rankingBadgeSection: {
-    flexDirection: "column",
-    paddingHorizontal: 8,
-    paddingTop: 0,
-    paddingBottom: 10,
-    marginBottom: 0,
-    borderBottomWidth: 0.5,
-    gap: 12,
+
+  // ── Hero membership card ──────────────────────────────────────────────
+  heroCard: {
+    borderRadius: radius["2xl"],
+    padding: 18,
+    marginHorizontal: 4,
+    marginBottom: 2,
+    overflow: "hidden",
+    gap: 16,
+    ...shadow.lg,
   },
-  memberCard: {
-    width: "100%",
-    maxWidth: "100%",
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
+  heroWatermark: {
+    position: "absolute",
+    right: -28,
+    top: -24,
+    width: 150,
+    height: 150,
+    opacity: 0.08,
+  },
+  heroTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
   },
-  rankingBadgeWrapper: {
-    width: 70,
-    height: 70,
-    borderRadius: 12,
+  heroBadgeWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
     flexShrink: 0,
   },
-  rankingBadgeImage: {
-    width: 70,
-    height: 70,
+  heroBadgeImg: {
+    width: 52,
+    height: 52,
     borderRadius: 12,
-    resizeMode: "contain" as any,
   },
-  memberInfo: {
+  heroInfo: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
-  memberLabel: {
-    fontSize: 11,
+  heroEyebrow: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  heroLevel: {
+    color: "#ffffff",
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "800",
+  },
+  heroSubtext: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  heroStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  heroStatCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 3,
+  },
+  heroStatValue: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  heroStatLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 9,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
-  rankingBadgeName: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.text,
+  heroStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
-  rankingBadgeSubtext: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
-  badgeLogoContainer: {
-    position: "absolute",
-    right: -26,
-    top: "50%",
-    marginTop: -59,
-    opacity: 0.15,
-  },
-  badgeLogo: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-  },
+
+  // ── Quick actions ─────────────────────────────────────────────────────
   quickActionRow: {
-    width: "100%",
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 0,
+    gap: 10,
+    paddingHorizontal: 4,
   },
   quickActionCard: {
     flex: 1,
-    maxWidth: "100%",
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: radius.lg,
     overflow: "hidden",
+    ...shadow.md,
   },
   quickActionGradient: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 2,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  quickActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  quickActionText: {
+    flex: 1,
+    gap: 1,
   },
   quickActionTitle: {
     color: "#ffffff",
@@ -194,45 +237,8 @@ const styles = StyleSheet.create({
   },
   quickActionSubtitle: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-  },
-  statsBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f9ff",
-    marginHorizontal: -8,
-    marginBottom: 0,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#e0f2fe",
-  },
-  statsItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    gap: 4,
-    borderWidth: 0.25,
-    borderColor: "#e5e7eb",
-    backgroundColor: Colors.white,
-  },
-  statsMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  statsValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-  statsLabel: {
-    fontSize: 8,
-    fontWeight: "700",
-    color: Colors.textSecondary,
-    textAlign: "center",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
   },
   sectionEven: {
     backgroundColor: "#f0f9ff",
@@ -277,6 +283,56 @@ const styles = StyleSheet.create({
   categoryGrid: {
     gap: 16,
   },
+  // "View all" expanded layouts
+  categoryGridWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 4,
+    rowGap: 12,
+  },
+  brandListWrap: {
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 10,
+    ...shadow.sm,
+  },
+  brandRowLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    padding: 6,
+  },
+  brandRowLogoImg: {
+    width: "100%",
+    height: "100%",
+  },
+  brandRowInitial: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: Colors.sky,
+  },
+  brandRowInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  brandRowName: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  brandRowCount: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
   roomGrid: {
     gap: 0,
   },
@@ -314,10 +370,8 @@ const styles = StyleSheet.create({
   roomItem: {
     flex: 1,
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderWidth: 0.5,
-    borderColor: "#e5e7eb",
+    gap: 8,
+    paddingVertical: 12,
   },
   roomCircleContainer: {
     position: "relative",
@@ -358,6 +412,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 2,
     borderColor: "#e0f2fe",
+    ...shadow.sm,
   },
   roomImage: {
     width: "100%",
@@ -379,11 +434,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#eff6ff",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
+    borderWidth: 1.5,
+    borderColor: "#e0f2fe",
+    ...shadow.sm,
   },
   circleLabel: {
     fontSize: 12,
@@ -400,12 +453,23 @@ const styles = StyleSheet.create({
     width: 14,
   },
   brandCard: {
-    width: 210,
-    height: 200,
-    borderRadius: 12,
+    width: 184,
+    height: 196,
+    borderRadius: radius.xl,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: palette.slate200,
+    ...shadow.md,
+  },
+  brandLogoBox: {
+    height: 120,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  brandDivider: {
+    height: 1,
+    width: "100%",
   },
   brandLogoContainer: {
     width: "100%",
@@ -419,8 +483,45 @@ const styles = StyleSheet.create({
   brandLogoFallback: {
     width: "100%",
     height: "100%",
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  brandFooter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  brandFooterInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  brandFooterName: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  brandFooterCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  brandFooterCount: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  brandArrowBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.sky,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.sm,
   },
   brandFallbackInitialLarge: {
     fontSize: 48,
@@ -536,8 +637,9 @@ const styles = StyleSheet.create({
   sampleAdCard: {
     width: "100%",
     height: 160,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     overflow: "hidden",
+    ...shadow.md,
   },
   sampleAdGradient: {
     flex: 1,
@@ -632,6 +734,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
   },
+
 })
 
 export default styles

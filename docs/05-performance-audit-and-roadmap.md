@@ -29,16 +29,18 @@ Fixing #1–#3 is mostly **S/M effort** and removes the worst regressions. #4–
 
 ## 1. Critical performance regressions (fix first)
 
-| # | Finding | Evidence | Sev | Effort |
-|---|---------|----------|-----|--------|
-| 1.1 | **Marquee `setInterval(tick, 16)` never cleared.** `startScrolling` returns a cleanup fn that callers ignore; `handleLayout` can spawn duplicates. A 60 fps JS-thread loop bridging `Animated.setValue` every frame. | `AppHeader.tsx:123` (callers 129/139, setValue 119-120) | 🔴 Critical | M |
-| 1.2 | **All 5 tabs eager-mount** (`lazy: false`). Home/Wishlist/Shop/Notifications/Profile + **two `AppHeader`s each** fire fetches, Pusher init, and timers at login — so 1.1 runs ×4–5 concurrently. | `TabNavigator.tsx:593` | 🟠 High | M |
-| 1.3 | **Context value unmemoized + ~30 inline callbacks.** Raw `value={{…}}` (~90 keys) recreated every render; not wrapped in `useMemo`; callbacks not `useCallback`'d. Every `useAppContext()` consumer re-renders on any of 84 `useState` changes. | `AppNavigator.tsx:1318-1455`; `AppContext.tsx:197-205` | 🔴 Critical | S → L |
-| 1.4 | **`AppNavigator` god-component (2862 lines, 35 modal booleans).** Any `setShowX(true)` re-renders the whole tree and recreates the context value (1.3). `navigationValue` (`:1186`) is also an unmemoized inline object. | `AppNavigator.tsx` modals 1633–2450 | 🔴 Critical | L |
-| 1.5 | **Forever 2 s `AsyncStorage` poll** for dark-mode hot-reload, shipped to prod; re-created on every `isDarkMode` change. | `AppNavigator.tsx:826` | 🟠 High | S |
-| 1.6 | **MFA polling interval has no unmount cleanup** — leaks network polling if the user leaves mid-MFA. | `LoginScreen.tsx:379` | 🟠 High | S |
+> **Status as of 2026-06-11:** 5 of 6 resolved. Also enabled the **React Compiler** (`experiments.reactCompiler` + `babel-plugin-react-compiler@1.0.0`), which auto-memoizes broadly.
 
-**Fix first:** 1.1 + 1.5 + 1.6 are small and stop active leaks today. 1.3 has an immediate **S** mitigation (memoize the value + callbacks) before the **L** architectural fix (1.4).
+| # | Finding | Status | Notes |
+|---|---------|--------|-------|
+| 1.1 | Marquee `setInterval(tick,16)` never cleared | ✅ **Fixed** | `marqueeIntervalRef` + clear-before-start + unmount cleanup (`AppHeader.tsx`). Also `<MarqueeBanner>` is currently commented out, so it doesn't even run. (The JS-thread→Reanimated rewrite is moot until the banner is re-enabled.) |
+| 1.2 | All tabs eager-mount (`lazy: false`) | ✅ **Fixed** | `lazy: true` (`TabNavigator.tsx`) — tabs mount on first focus, stay mounted after. **Device-test the first open of each tab.** |
+| 1.3 | Context value unmemoized | ✅ **Fixed** | `appContextValue = useMemo(...)`, deps verified by `exhaustive-deps`; modal booleans are NOT in its deps, so toggling a modal no longer recreates the value or re-renders consumers. |
+| 1.4 | God-component (modal booleans) | ⚠️ **Perf resolved; decomposition partial** | `navigationValue` memoized. The critical impact ("modal toggle recreates context / re-renders consumers") is **gone** via 1.3 + React Compiler. **Remaining = code decomposition only:** 19 modals still inline, but every one is coupled (context-exposed, in `hideTabBar`, or callback-bound), and **47 set-sites are the cart→checkout→payment→success state machine** (high-risk, entangled with #5). Continue extracting to `ModalHost` **incrementally, device-tested**; do **not** extract the payment flow blind. Info/wallet/history already migrated. |
+| 1.5 | 2 s dark-mode poll in prod | ✅ **Fixed** | `if (!__DEV__) return` gates the poll (`AppNavigator.tsx`) — production never polls. |
+| 1.6 | MFA poll no unmount cleanup | ✅ **Fixed** | `stopMfaPolling()` + unmount cleanup + clear-before-start (`LoginScreen.tsx`). |
+
+**Remaining work:** only 1.4's **decomposition** (a maintainability refactor now that its perf is resolved), best done one device-tested modal-group at a time — leaving the cart/checkout/payment flow for a coordinated pass alongside #5 (payment-success verification).
 
 ---
 

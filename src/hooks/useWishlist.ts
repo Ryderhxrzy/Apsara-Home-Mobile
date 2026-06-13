@@ -38,7 +38,13 @@ export const useWishlist = ({ token, enabled = true }: UseWishlistOptions) => {
   })
 
   const invalidateWishlist = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["wishlist"] })
+    // Refresh BOTH the global wishlist (badge/heart state) AND the Wishlist
+    // screen's infinite/searchable query so adds/removes from anywhere
+    // (e.g. the Shop heart) show up on the Wishlist page.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["wishlist"] }),
+      queryClient.invalidateQueries({ queryKey: ["wishlist-infinite"] }),
+    ])
   }
 
   return {

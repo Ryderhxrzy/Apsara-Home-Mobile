@@ -16,6 +16,12 @@ import { Colors } from "../../constants/colors"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
+// Variants often carry a placeholder colorHex like "#N/A" — truthy but not a
+// real color. Only strict #RGB / #RRGGBB values render as a swatch, so
+// size-only variants fall through to their text label instead of a blank box.
+const isValidHex = (hex?: string | null): boolean =>
+  !!hex && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(hex).trim())
+
 interface Product {
   id: number
   name: string
@@ -31,6 +37,8 @@ interface Product {
     color?: string
     name?: string
     colorHex?: string
+    size?: string
+    sku?: string
     images?: string[]
     priceMember?: number
     priceSrp?: number
@@ -283,11 +291,12 @@ export default function ImageViewerModal({
             {/* Variant Label */}
             {selectedVariant && product.variants && (
               <Text style={styles.slideshowVariantLabelText} numberOfLines={1}>
-                {product.variants.find((v) => v.id === selectedVariant)
-                  ?.color ||
-                  product.variants.find((v) => v.id === selectedVariant)
-                    ?.name ||
-                  "Variant"}
+                {(() => {
+                  const v = product.variants.find(
+                    (sv) => sv.id === selectedVariant
+                  )
+                  return v?.color || v?.size || v?.name || "Variant"
+                })()}
               </Text>
             )}
 
@@ -356,7 +365,10 @@ export default function ImageViewerModal({
               contentContainerStyle={styles.shopeeVariantsContainer}
             >
               {product.variants.map((variant, index) => {
-                const isSize = variant.size && !variant.images
+                // `images` is always an array (often empty) — guard on length.
+                const hasVariantImage = !!variant.images?.length
+                const hasColor = isValidHex(variant.colorHex)
+                const isSize = !!variant.size && !hasVariantImage && !hasColor
 
                 return (
                   <View key={variant.id}>
@@ -387,14 +399,14 @@ export default function ImageViewerModal({
                       }}
                       activeOpacity={0.7}
                     >
-                      {variant.images && variant.images.length > 0 ? (
+                      {hasVariantImage ? (
                         <Image
                           source={{ uri: variant.images[0] }}
                           style={styles.shopeeVariantImage}
                           contentFit="cover"
                           transition={200}
                         />
-                      ) : variant.colorHex ? (
+                      ) : hasColor ? (
                         <View
                           style={[
                             styles.shopeeVariantColor,
@@ -407,6 +419,7 @@ export default function ImageViewerModal({
                             styles.shopeeVariantSizeText,
                             { color: Colors.text },
                           ]}
+                          numberOfLines={2}
                         >
                           {variant.size}
                         </Text>
@@ -416,8 +429,9 @@ export default function ImageViewerModal({
                             styles.shopeeVariantText,
                             { color: Colors.text },
                           ]}
+                          numberOfLines={2}
                         >
-                          {variant.name}
+                          {variant.name || variant.color || variant.sku}
                         </Text>
                       )}
                       {selectedVariant === variant.id && (
@@ -431,8 +445,8 @@ export default function ImageViewerModal({
                       )}
                     </TouchableOpacity>
                     {selectedVariant === variant.id &&
-                      variant.colorHex &&
-                      !variant.images?.length && (
+                      hasColor &&
+                      !hasVariantImage && (
                         <Text
                           style={[
                             styles.shopeeVariantLabel,

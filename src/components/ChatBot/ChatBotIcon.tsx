@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../../constants/colors"
 import { storageService } from "../../services/storageService"
 import { useUIStore } from "../../store/uiStore"
+import WebViewModal from "../WebViewModal/WebViewModal"
 
 interface ChatBotIconProps {
   onPress?: () => void
@@ -25,11 +26,72 @@ interface ChatBotIconProps {
   isDarkMode?: boolean
 }
 
+/** An in-app link the bot can offer (renders as a button in its message). */
+interface BotAction {
+  label: string
+  url: string
+}
+
 interface ChatMessage {
   id: string
   type: "user" | "bot"
   text: string
+  action?: BotAction
   timestamp: Date
+}
+
+const TRACK_ORDER_URL = "https://afhome.ph/track-order"
+
+// Built-in answers for the popular questions. The track-order entry carries an
+// action so the bot can offer a button that opens the page in an in-app WebView.
+const FAQ: { q: string; answer: string; action?: BotAction }[] = [
+  {
+    q: "How can I track my order?",
+    answer:
+      "You can track your order in real time on our Track Order page. Tap the button below to open it.",
+    action: { label: "Track My Order", url: TRACK_ORDER_URL },
+  },
+  {
+    q: "What products do you have?",
+    answer:
+      "We carry home essentials, furniture, appliances, decor and more. Browse the Shop tab or use the search bar to find exactly what you need.",
+  },
+  {
+    q: "How do I place an order?",
+    answer:
+      "Add items to your cart, open the cart to review them, then tap Checkout and follow the steps to complete your purchase.",
+  },
+  {
+    q: "What's your return policy?",
+    answer:
+      "Items can be returned within the return window if they arrive damaged or incorrect. Go to Profile → My Purchases → Return to start a request.",
+  },
+  {
+    q: "Do you offer free shipping?",
+    answer:
+      "Yes! Enjoy free shipping on orders over ₱5,000. Smaller orders show a standard delivery fee at checkout.",
+  },
+]
+
+// Resolve a built-in answer: exact match for tapped suggestions, else loose
+// keyword matching for free-typed messages, else a friendly fallback.
+const getBotAnswer = (text: string): { answer: string; action?: BotAction } => {
+  const q = text.toLowerCase().trim()
+  const exact = FAQ.find((f) => f.q.toLowerCase() === q)
+  if (exact) return { answer: exact.answer, action: exact.action }
+  if (q.includes("track")) return { answer: FAQ[0].answer, action: FAQ[0].action }
+  if (q.includes("return") || q.includes("refund"))
+    return { answer: FAQ[3].answer }
+  if (q.includes("ship") || q.includes("delivery"))
+    return { answer: FAQ[4].answer }
+  if (q.includes("order") || q.includes("checkout") || q.includes("buy"))
+    return { answer: FAQ[2].answer }
+  if (q.includes("product") || q.includes("item") || q.includes("catalog"))
+    return { answer: FAQ[1].answer }
+  return {
+    answer:
+      "Thanks for your message! Our support team will get back to you shortly. Meanwhile, you can browse the Shop tab or check your orders in Profile.",
+  }
 }
 
 const SHEET_OFFSET = 300
@@ -72,6 +134,9 @@ export default function ChatBotIcon({
   ])
   const [inputText, setInputText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [webView, setWebView] = useState<{ url: string; title: string } | null>(
+    null
+  )
   const scaleAnim = useState(() => new Animated.Value(1))[0]
   const slideAnim = useState(() => new Animated.Value(SHEET_OFFSET))[0]
   const floatingAnim = useState(() => new Animated.Value(0))[0]
@@ -293,14 +358,16 @@ export default function ChatBotIcon({
     })
   )
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim()) return
+  // Send a message (typed input or a tapped suggestion) and reply with a
+  // built-in FAQ answer (with an action button when relevant, e.g. Track Order).
+  const sendMessage = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
 
-    // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
-      text: inputText,
+      text: trimmed,
       timestamp: new Date(),
     }
 
@@ -308,35 +375,28 @@ export default function ChatBotIcon({
     setInputText("")
     setIsLoading(true)
 
-    // Simulate bot response after a short delay
     setTimeout(() => {
-      const botResponses = [
-        "Thanks for your message! Our support team will assist you shortly.",
-        "I'm here to help! Can you provide more details?",
-        "Great question! Let me find that information for you.",
-        "I understand. How else can I help you?",
-        "Feel free to browse our product categories while we connect you with an agent.",
-      ]
-
-      const randomResponse =
-        botResponses[Math.floor(Math.random() * botResponses.length)]
-
+      const { answer, action } = getBotAnswer(trimmed)
       const botMessage: ChatMessage = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-bot`,
         type: "bot",
-        text: randomResponse,
+        text: answer,
+        action,
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, botMessage])
       setIsLoading(false)
 
-      // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true })
       }, 100)
-    }, 800)
+    }, 700)
   }
+
+  const handleSendMessage = () => sendMessage(inputText)
+
+  const openWebView = (url: string, title: string) => setWebView({ url, title })
 
   const renderMessage = ({ item }: { item: ChatMessage }) => (
     <View
@@ -373,6 +433,16 @@ export default function ChatBotIcon({
         >
           {item.text}
         </Text>
+        {item.action ? (
+          <TouchableOpacity
+            style={styles.botActionBtn}
+            onPress={() => openWebView(item.action!.url, item.action!.label)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="open-outline" size={16} color={Colors.white} />
+            <Text style={styles.botActionBtnText}>{item.action.label}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   )
@@ -645,7 +715,7 @@ export default function ChatBotIcon({
                         styles.questionTag,
                         isDarkMode && styles.questionTagDark,
                       ]}
-                      onPress={() => setInputText(question)}
+                      onPress={() => sendMessage(question)}
                     >
                       <Text
                         style={[
@@ -702,6 +772,15 @@ export default function ChatBotIcon({
           </Animated.View>
         </Pressable>
       </Modal>
+
+      {/* In-app browser (Track Order, etc.) */}
+      <WebViewModal
+        visible={!!webView}
+        url={webView?.url || ""}
+        title={webView?.title}
+        isDarkMode={isDarkMode}
+        onClose={() => setWebView(null)}
+      />
     </View>
   )
 }
@@ -931,6 +1010,22 @@ const styles = StyleSheet.create({
   userMessageText: {
     color: Colors.white,
     fontWeight: "500",
+  },
+  botActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: Colors.sky,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  botActionBtnText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "700",
   },
   botMessageText: {
     color: Colors.text,

@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from "react"
-import {  View,
+import {
+  View,
   Text,
   RefreshControl,
   TouchableOpacity,
@@ -13,6 +14,7 @@ import ItemCard from "../components/Items/ItemCard"
 import Toast from "react-native-toast-message"
 import { useSearchResults } from "../hooks/query/useSearchResults"
 import type { ProductCard } from "../services/productService"
+import { SearchResultsSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
 import styles from "../styles/SearchResultScreen.styles"
 
 interface SearchResultScreenProps {
@@ -102,7 +104,7 @@ export default function SearchResultScreen({
           color={isDarkMode ? "#9ca3af" : Colors.textSecondary}
         />
         <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark]}>
-          No results found for "{query}"
+          No results found for &quot;{query}&quot;
         </Text>
       </View>
     ),
@@ -146,23 +148,7 @@ export default function SearchResultScreen({
       </View>
 
       {loading && !refreshing ? (
-        <View
-          style={[
-            styles.loadingContainer,
-            isDarkMode && styles.loadingContainerDark,
-          ]}
-        >
-          <Ionicons
-            name="search-outline"
-            size={48}
-            color={isDarkMode ? "#9ca3af" : Colors.textSecondary}
-          />
-          <Text
-            style={[styles.loadingText, isDarkMode && styles.loadingTextDark]}
-          >
-            Searching...
-          </Text>
-        </View>
+        <SearchResultsSkeleton isDarkMode={isDarkMode} />
       ) : (
         <FlashList
           masonry

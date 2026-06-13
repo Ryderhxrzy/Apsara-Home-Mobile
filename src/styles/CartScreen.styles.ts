@@ -1,5 +1,6 @@
 import { StyleSheet, Dimensions } from "react-native"
 import { Colors } from "../constants/colors"
+import { palette, radius, shadow } from "../theme/theme"
 
 const SCREEN_HEIGHT = Dimensions.get("window").height
 const VARIANT_MODAL_HEIGHT = SCREEN_HEIGHT * 0.75
@@ -7,7 +8,7 @@ const VARIANT_MODAL_HEIGHT = SCREEN_HEIGHT * 0.75
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fbff",
+    backgroundColor: palette.slate50,
   },
   headerBackground: {
     position: "relative",
@@ -40,13 +41,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8fbff",
+    backgroundColor: palette.slate50,
   },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8fbff",
+    backgroundColor: palette.slate50,
     paddingHorizontal: 16,
   },
   emptyTitle: {
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   listContent: {
-    backgroundColor: "#f8fbff",
+    backgroundColor: palette.slate50,
     paddingHorizontal: 0,
     paddingTop: 0,
     paddingBottom: 16,
@@ -228,9 +229,9 @@ const styles = StyleSheet.create({
     position: "relative",
     width: 100,
     height: 100,
-    borderRadius: 8,
+    borderRadius: radius.md,
     overflow: "hidden",
-    backgroundColor: "#e5e7eb",
+    backgroundColor: palette.slate200,
     flexShrink: 0,
   },
   productImage: {
@@ -439,14 +440,15 @@ const styles = StyleSheet.create({
   },
   checkoutBtn: {
     backgroundColor: Colors.sky,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 8,
+    borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
     flex: 1,
+    ...shadow.sm,
   },
   checkoutBtnText: {
     color: Colors.white,
@@ -584,7 +586,7 @@ const styles = StyleSheet.create({
   variantThumbnail: {
     width: 56,
     height: 56,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

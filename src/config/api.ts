@@ -1,6 +1,9 @@
 export const API_CONFIG = {
-  //BASE_URL: 'http://131.226.100.206:8000/api',
-  BASE_URL: "https://backend.afhome.ph/api",
+  // Uses EXPO_PUBLIC_API_URL from .env when set (e.g. your PC's LAN IP for
+  // local-backend testing on a phone). Falls back to production when unset.
+  // ⚠️ Don't ship a LAN IP to production — leave it unset for release builds.
+  BASE_URL:
+    process.env.EXPO_PUBLIC_API_URL || "https://backend.afhome.ph/api",
 }
 
 export const MEILI_CONFIG = {

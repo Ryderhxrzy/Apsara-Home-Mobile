@@ -137,7 +137,6 @@ function HomeTabScreen() {
         }}
         onSearchPress={onSearchPress}
         onProfilePress={() => onShowProfileDetails(true)}
-        onLogout={onLogout}
       />
       <HomeScreen
         token={token}
@@ -188,18 +187,6 @@ function WishlistTabScreen() {
 
   return (
     <>
-      <AppHeader
-        user={enrichedUser}
-        cartCount={cartCount}
-        isDarkMode={isDarkMode}
-        onCartPress={onCartPress}
-        onCameraPress={() => {
-          console.log("Camera pressed")
-        }}
-        onSearchPress={onSearchPress}
-        onProfilePress={() => {}}
-        onLogout={onLogout}
-      />
       <WishlistScreen
         token={token}
         wishlistItems={wishlistItems}
@@ -345,16 +332,6 @@ function NotificationTabScreen() {
 
   return (
     <>
-      <AppHeader
-        user={enrichedUser}
-        cartCount={cartCount}
-        isDarkMode={isDarkMode}
-        onCartPress={onCartPress}
-        onCameraPress={() => {}}
-        onSearchPress={onSearchPress}
-        onProfilePress={() => {}}
-        onLogout={onLogout}
-      />
       <NotificationsScreen
         token={token}
         isDarkMode={isDarkMode}
@@ -599,7 +576,9 @@ export default function TabNavigator({
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        lazy: false, // Pre-mount all screens immediately = instant switching
+        // Lazy-mount tabs on first focus (not all at login) to cut startup work.
+        // They stay mounted after the first visit, so switching remains instant.
+        lazy: true,
         tabBarHideOnKeyboard: true,
       }}
       tabBar={(props) => <CustomTabBar {...props} hideTabBar={hideTabBar} />}

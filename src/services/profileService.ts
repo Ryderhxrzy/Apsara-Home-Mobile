@@ -113,26 +113,50 @@ export const profileService = {
     return this.updateProfile(token, { name })
   },
 
-  // Returns the new avatar URL, or null if the backend didn't return one.
-  async uploadAvatar(token: string, uri: string): Promise<string | null> {
+  /**
+   * Upload a new profile photo as binary multipart (field name `file`) to
+   * POST /me/avatar. Returns the new avatar URLs plus the updated user object
+   * the backend echoes back, so callers can refresh global state everywhere.
+   */
+  async uploadAvatar(token: string, uri: string): Promise<AvatarUploadResult> {
     try {
       const filename = uri.split("/").pop() || "avatar.jpg"
+      const match = /\.(\w+)$/.exec(filename)
+      const ext = (match?.[1] || "jpg").toLowerCase()
+      const mime = ext === "png" ? "image/png" : "image/jpeg"
+
       const formData = new FormData()
       formData.append("file", {
         uri,
-        type: "image/jpeg",
+        type: mime,
         name: filename,
       } as any)
 
       const res = await api.post("/me/avatar", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
+          // Let the platform set the multipart boundary automatically.
           "Content-Type": "multipart/form-data",
+          Accept: "application/json",
         },
       })
-      return res.data?.avatar_url || res.data?.data?.avatar_url || null
+
+      const data = res.data?.data || res.data || {}
+      const avatarUrl = data.avatar_url ?? data.user?.avatar_url ?? null
+      return {
+        avatarUrl,
+        avatarOriginalUrl:
+          data.avatar_original_url ?? data.user?.avatar_original_url ?? avatarUrl,
+        user: data.user ?? null,
+      }
     } catch (error: any) {
       throw toError(error, "Failed to upload avatar")
     }
   },
+}
+
+export interface AvatarUploadResult {
+  avatarUrl: string | null
+  avatarOriginalUrl: string | null
+  user: any | null
 }

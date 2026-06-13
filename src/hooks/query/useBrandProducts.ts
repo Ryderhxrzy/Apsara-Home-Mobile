@@ -109,13 +109,12 @@ export const useBrandProducts = ({
       if (!token) throw new Error("Token is required")
 
       if (isZqBrand) {
-        const raw = (await productService.getZqCachedProducts(
-          token
-        )) as Record<string, unknown>[]
+        const { products: raw, total, totalPages } =
+          await productService.getZqCachedProducts(token, { search })
         return {
-          products: normalizeZq(raw, search),
-          totalPages: 1,
-          total: raw.length,
+          products: normalizeZq(raw as Record<string, unknown>[], search),
+          totalPages,
+          total,
         }
       }
 

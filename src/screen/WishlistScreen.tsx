@@ -1,18 +1,26 @@
-import React, { useEffect, useState } from "react"
-import {  View,
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { useFocusEffect } from "@react-navigation/native"
+import {
+  View,
   Text,
-  FlatList,
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  TextInput,
   Modal,
 } from "react-native"
-import { SwipeListView } from "react-native-swipe-list-view"
+import { FlashList } from "@shopify/flash-list"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
+import { getColors } from "../theme/theme"
 import Toast from "react-native-toast-message"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
+import {
+  useInfiniteWishlist,
+  useInvalidateInfiniteWishlist,
+} from "../hooks/query/useInfiniteWishlist"
 import ItemList from "../components/Items/ItemList"
 import AddToCartModal from "../components/Items/AddToCartModal"
 import MultipleItemsCartModal from "../components/Items/MultipleItemsCartModal"
@@ -62,7 +70,11 @@ export default function WishlistScreen({
   onCheckout,
   isDarkMode = false,
 }: WishlistScreenProps) {
-  const [wishlist, setWishlist] = useState<WishlistItem[]>(wishlistItems)
+  const [searchInput, setSearchInput] = useState("")
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  // Optimistically-hidden items (removed/moved-to-cart) until the query refetches.
+  const [removedIds, setRemovedIds] = useState<Set<number>>(new Set())
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set())
   const [sortOrder, setSortOrder] = useState<"new" | "old">("new")
   const [discountFilter, setDiscountFilter] = useState<"all" | "discount">(
@@ -83,18 +95,64 @@ export default function WishlistScreen({
     name: string
   } | null>(null)
 
+  const insets = useSafeAreaInsets()
+  // Palette from the centralized theme (slate spine + sky accent).
+  const t = getColors(isDarkMode)
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    border: isDarkMode ? "#334155" : "#e5e7eb",
-    card: isDarkMode ? "#1e293b" : Colors.white,
-    hint: isDarkMode ? "#1e293b" : "#f9fafb",
+    bg: t.bgSubtle,
+    text: t.text,
+    textSec: t.textSecondary,
+    border: t.border,
+    card: t.card,
+    hint: isDarkMode ? t.card : "#f9fafb",
   }
 
+  // Debounce the search box so we don't refetch on every keystroke.
   useEffect(() => {
-    setWishlist(wishlistItems)
-  }, [wishlistItems])
+    const id = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350)
+    return () => clearTimeout(id)
+  }, [searchInput])
+
+  // Server-side searchable + paginated wishlist (TanStack infinite query).
+  const {
+    items,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: queryLoading,
+    isRefetching,
+    refetch,
+  } = useInfiniteWishlist({ token, search: debouncedSearch })
+  const invalidateWishlistQuery = useInvalidateInfiniteWishlist()
+
+  // Refetch every time the Wishlist tab gains focus, so items added elsewhere
+  // (e.g. tapping hearts on the Shop screen) reliably show up here even if the
+  // add finished after the last refetch.
+  useFocusEffect(
+    useCallback(() => {
+      setRemovedIds(new Set())
+      refetch()
+      // refetch is stable across renders for this query instance.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  )
+
+  // Alias so existing handlers keep working; hide optimistically-removed items.
+  const wishlist = useMemo(
+    () => (items as WishlistItem[]).filter((i) => !removedIds.has(i.wishlist_id)),
+    [items, removedIds]
+  )
+
+  const handleRefresh = () => {
+    setRemovedIds(new Set())
+    refetch()
+    onRefresh?.()
+  }
+
+  const afterMutation = () => {
+    invalidateWishlistQuery()
+    onRefresh?.()
+  }
 
   const handleSelectItem = (wishlistId: number) => {
     const newSelected = new Set(selectedItems)
@@ -203,12 +261,9 @@ export default function WishlistScreen({
           }
         )
 
-        // Update local state to remove from wishlist
-        setWishlist(
-          wishlist.filter(
-            (item) => item.wishlist_id !== wishlistItem.wishlist_id
-          )
-        )
+        // Optimistically hide it, then refetch the wishlist.
+        setRemovedIds((prev) => new Set(prev).add(wishlistItem.wishlist_id))
+        afterMutation()
 
         Toast.show({
           type: "success",
@@ -304,12 +359,13 @@ export default function WishlistScreen({
         }
       }
 
-      // Update local state to remove from wishlist
-      setWishlist(
-        wishlist.filter(
-          (item) => !wishlistIdsToRemove.includes(item.wishlist_id)
-        )
-      )
+      // Optimistically hide them, then refetch the wishlist.
+      setRemovedIds((prev) => {
+        const next = new Set(prev)
+        wishlistIdsToRemove.forEach((id) => next.add(id))
+        return next
+      })
+      afterMutation()
 
       Toast.show({
         type: "success",
@@ -371,8 +427,9 @@ export default function WishlistScreen({
         })
       }
 
-      // Update local state
-      setWishlist(wishlist.filter((item) => item.wishlist_id !== wishlistId))
+      // Optimistically hide it, then refetch the wishlist.
+      setRemovedIds((prev) => new Set(prev).add(wishlistId))
+      afterMutation()
 
       Toast.show({
         type: "success",
@@ -396,87 +453,96 @@ export default function WishlistScreen({
     }
   }
 
-  const renderWishlistItem = ({ item }: { item: WishlistItem }) => (
-    <ItemList
-      wishlist_id={item.wishlist_id}
-      product_id={item.product_id}
-      product={item.product}
-      isSelected={selectedItems.has(item.wishlist_id)}
-      onProductPress={onProductPress}
-      onRemove={removeFromWishlist}
-      onSelect={handleSelectItem}
-      isDarkMode={isDarkMode}
-      onAddToCart={(wishlistId) => {
-        const product = wishlist.find((w) => w.wishlist_id === wishlistId)
-        if (product) {
-          setSelectedProduct(product)
-          setShowAddToCartModal(true)
-        }
-      }}
-    />
-  )
-
-  const renderHiddenItem = (data: { item: WishlistItem }) => {
-    const isDeleting = deletingIds.has(data.item.wishlist_id)
-
+  const renderWishlistItem = ({ item }: { item: WishlistItem }) => {
+    const isDeleting = deletingIds.has(item.wishlist_id)
     return (
-      <View style={styles.rowBack}>
-        <TouchableOpacity
-          style={[styles.backLeftBtn, styles.backLeftBtnLeft]}
-          onPress={() => {
-            setSelectedProduct(data.item)
-            setShowAddToCartModal(true)
+      <View
+        style={[
+          styles.rowWrap,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <ItemList
+          wishlist_id={item.wishlist_id}
+          product_id={item.product_id}
+          product={item.product}
+          isSelected={selectedItems.has(item.wishlist_id)}
+          onProductPress={onProductPress}
+          onRemove={removeFromWishlist}
+          onSelect={handleSelectItem}
+          isDarkMode={isDarkMode}
+          onAddToCart={(wishlistId) => {
+            const product = wishlist.find((w) => w.wishlist_id === wishlistId)
+            if (product) {
+              setSelectedProduct(product)
+              setShowAddToCartModal(true)
+            }
           }}
-        >
-          <View style={styles.cartActionInner}>
-            <Ionicons name="cart-outline" size={22} color={Colors.white} />
-            <Text style={styles.backTextWhite}>Add to Cart</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.backRightBtn, styles.backRightBtnRight]}
-          onPress={() => removeFromWishlist(data.item.wishlist_id)}
-          disabled={isDeleting}
-        >
-          <View style={styles.deleteActionInner}>
+        />
+        {/* Action buttons (replace the old swipe gesture) */}
+        <View style={[styles.rowActions, { borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={styles.rowActionCart}
+            onPress={() => {
+              setSelectedProduct(item)
+              setShowAddToCartModal(true)
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cart-outline" size={16} color={Colors.white} />
+            <Text style={styles.rowActionCartText}>Add to Cart</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.rowActionDelete, { borderColor: "#ef4444" }]}
+            onPress={() => removeFromWishlist(item.wishlist_id)}
+            disabled={isDeleting}
+            activeOpacity={0.8}
+          >
             {isDeleting ? (
-              <ActivityIndicator size="small" color={Colors.white} />
+              <ActivityIndicator size="small" color="#ef4444" />
             ) : (
-              <Ionicons name="trash-outline" size={22} color={Colors.white} />
+              <Ionicons name="trash-outline" size={16} color="#ef4444" />
             )}
-            <Text style={styles.backTextWhite}>
-              {isDeleting ? "Deleting..." : "Delete"}
+            <Text style={styles.rowActionDeleteText}>
+              {isDeleting ? "Deleting" : "Delete"}
             </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-    )
-  }
-
-  if (loading) {
-    return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.bg }]}>
-        <ActivityIndicator size="large" color={Colors.sky} />
-      </View>
-    )
-  }
-
-  if (wishlist.length === 0) {
-    return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
-        <Ionicons name="heart-outline" size={64} color={colors.textSec} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>
-          No items in your wishlist
-        </Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>
-          Add items to your wishlist to save them for later
-        </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
 
   const sortedWishlist = getSortedWishlist()
+
+  // Empty / loading state shown inside the list (keeps the search bar visible).
+  const renderEmpty = () => {
+    if (queryLoading) {
+      return (
+        <View style={styles.listStateBox}>
+          <ActivityIndicator size="large" color={Colors.sky} />
+        </View>
+      )
+    }
+    return (
+      <View style={styles.listStateBox}>
+        <Ionicons
+          name={debouncedSearch ? "search-outline" : "heart-outline"}
+          size={64}
+          color={colors.textSec}
+        />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          {debouncedSearch
+            ? `No results for "${debouncedSearch}"`
+            : "No items in your wishlist"}
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>
+          {debouncedSearch
+            ? "Try a different keyword"
+            : "Add items to your wishlist to save them for later"}
+        </Text>
+      </View>
+    )
+  }
 
   return (
     <View style={{ flex: 1, position: "relative" }}>
@@ -484,9 +550,55 @@ export default function WishlistScreen({
         <View
           style={[
             styles.header,
-            { backgroundColor: colors.card, borderBottomColor: colors.border },
+            {
+              backgroundColor: colors.card,
+              borderBottomColor: colors.border,
+              paddingTop: insets.top + 10,
+            },
           ]}
         >
+          <Text style={[styles.screenTitle, { color: colors.text }]}>
+            My Wishlist
+          </Text>
+
+          {/* Search within the wishlist (server-side via the infinite query) */}
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: colors.hint, borderColor: colors.border },
+              searchFocused && styles.searchBarFocused,
+            ]}
+          >
+            <Ionicons
+              name="search-outline"
+              size={18}
+              color={searchFocused ? Colors.sky : colors.textSec}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search your wishlist..."
+              placeholderTextColor={colors.textSec}
+              value={searchInput}
+              onChangeText={setSearchInput}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              selectionColor={Colors.sky}
+              returnKeyType="search"
+            />
+            {searchInput.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchInput("")}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={colors.textSec}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.headerTop}>
             <TouchableOpacity
               style={styles.selectAllBtn}
@@ -589,45 +701,28 @@ export default function WishlistScreen({
           </View>
         </View>
 
-        <View
-          style={[
-            styles.swipeHint,
-            { backgroundColor: colors.hint, borderBottomColor: colors.border },
-          ]}
-        >
-          <Ionicons
-            name="information-circle-outline"
-            size={14}
-            color={colors.textSec}
-          />
-          <Text style={[styles.swipeHintText, { color: colors.textSec }]}>
-            Swipe{" "}
-            <Text style={{ color: Colors.sky, fontWeight: "800" }}>right</Text>{" "}
-            to add to cart,{" "}
-            <Text style={{ color: "#ef4444", fontWeight: "800" }}>left</Text> to
-            delete
-          </Text>
-        </View>
-
-        <SwipeListView
+        <FlashList
           data={sortedWishlist}
           renderItem={renderWishlistItem}
-          renderHiddenItem={renderHiddenItem}
-          leftOpenValue={90}
-          rightOpenValue={-90}
-          swipeToOpenPercent={30}
-          swipeToClosePercent={30}
-          useNativeDriver={false}
           keyExtractor={(item) => item.wishlist_id.toString()}
-          contentContainerStyle={[
-            styles.listContent,
-            { backgroundColor: colors.bg },
-          ]}
-          scrollEnabled={true}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmpty}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage()
+          }}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={styles.listFooter}>
+                <ActivityIndicator size="small" color={Colors.sky} />
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
+              refreshing={isRefetching && !isFetchingNextPage}
+              onRefresh={handleRefresh}
               colors={[Colors.sky]}
               tintColor={isDarkMode ? "#fff" : Colors.sky}
             />

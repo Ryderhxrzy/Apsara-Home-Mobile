@@ -322,7 +322,11 @@ export default function PVEarnerScreen({
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <DailyCheckin isDarkMode={isDarkMode} onViewMore={onBack} />
+        <DailyCheckin
+          isDarkMode={isDarkMode}
+          token={token}
+          onViewMore={onBack}
+        />
         <MissionTasks isDarkMode={isDarkMode} />
 
         {/* Products Section */}

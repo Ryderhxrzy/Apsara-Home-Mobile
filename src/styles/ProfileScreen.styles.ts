@@ -1,17 +1,54 @@
 import { StyleSheet } from "react-native"
 import { Colors } from "../constants/colors"
+import { radius, shadow } from "../theme/theme"
 
 export const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
 
-  // ── Header ──
+  // ── Header (gradient hero with glass stats) ──
   headerBackground: {
-    position: "relative",
-    overflow: "hidden",
-    minHeight: 90,
-    borderBottomWidth: 1,
+    paddingBottom: 14,
+    gap: 14,
+    ...shadow.md,
+  },
+  heroStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 14,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  heroStatCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 3,
+  },
+  heroStatValue: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  heroStatValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  heroStatLabel: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  heroStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   headerBackgroundImage: {
     position: "absolute",
@@ -23,16 +60,10 @@ export const styles = StyleSheet.create({
     height: "100%",
   },
   headerContent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 2,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
   },
   header: {
     flexDirection: "row",
@@ -49,24 +80,24 @@ export const styles = StyleSheet.create({
     paddingRight: 8,
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e0f2fe",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.18)",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: Colors.sky,
+    borderColor: "rgba(255,255,255,0.6)",
   },
   headerAvatarImg: {
     width: "100%",
     height: "100%",
   },
   headerAvatarInitial: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.sky,
+    fontSize: 16,
+    fontWeight: "800",
+    color: Colors.white,
   },
   headerNameContainer: {
     flex: 1,
@@ -89,8 +120,8 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#f59e0b",
-    paddingHorizontal: 6,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
     overflow: "hidden",
@@ -138,12 +169,13 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   badge: {
     position: "absolute",
@@ -166,14 +198,63 @@ export const styles = StyleSheet.create({
     lineHeight: 11,
   },
 
-  // ── Body ──
+  // ── Body (starts cleanly below the hero; scrolled cards clip at its edge) ──
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 8,
-    gap: 8,
-    paddingBottom: 16,
+    padding: 10,
+    gap: 10,
+    paddingBottom: 20,
+  },
+
+  // ── Daily Check-In card ──
+  checkinCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    ...shadow.md,
+  },
+  checkinIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkinIcon: {
+    width: 26,
+    height: 26,
+  },
+  checkinInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  checkinTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  checkinSub: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  claimPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.sky,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+  },
+  claimPillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.white,
   },
 
   // ── Hero ──
@@ -244,6 +325,19 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: Colors.text,
+  },
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    flexShrink: 1,
+  },
+  cardHeaderChip: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
   },
   purchasesViewAll: {
     flexDirection: "row",
@@ -385,7 +479,7 @@ export const styles = StyleSheet.create({
     gap: 20,
   },
   qrCard: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     padding: 16,
     borderWidth: 1,
   },
@@ -491,9 +585,10 @@ export const styles = StyleSheet.create({
 
   // ── Menu ──
   section: {
-    borderRadius: 8,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: "hidden",
+    ...shadow.sm,
   },
   menuRow: {
     flexDirection: "row",
@@ -698,7 +793,7 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   walletCard: {
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     padding: 14,
     overflow: "hidden",
@@ -716,6 +811,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     flex: 1,
+  },
+  walletIconChip: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   walletCardTitleText: {
     fontSize: 14,
@@ -746,9 +848,10 @@ export const styles = StyleSheet.create({
 
   // ── PV Overview Section ──
   pvOverviewSection: {
-    borderRadius: 8,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: "hidden",
+    ...shadow.sm,
   },
   pvStatsRow: {
     flexDirection: "row",
@@ -825,7 +928,6 @@ export const styles = StyleSheet.create({
   walletCardIcon: {
     width: 20,
     height: 20,
-    marginRight: 8,
   },
   dailyCheckinClaimContainer: {
     flexDirection: "row",

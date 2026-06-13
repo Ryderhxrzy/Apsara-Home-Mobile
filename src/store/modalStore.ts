@@ -27,6 +27,11 @@ export type InfoPage =
 /** AF Wallet overlays — opened one-at-a-time from the wallet/profile menus. */
 export type WalletPage = "overview" | "voucher" | "rewards" | "network"
 
+export interface ReferralOtpData {
+  phone: string
+  verificationToken: string
+}
+
 interface ModalState {
   /** Currently-open info page overlay, or null when none is open. */
   infoPage: InfoPage | null
@@ -42,6 +47,23 @@ interface ModalState {
   historyOpen: boolean
   openHistory: () => void
   closeHistory: () => void
+
+  /**
+   * Referral signup flow (deep-link → intro → signup → OTP). The step booleans
+   * stack exactly like the originals (e.g. signup opens on top of intro). The
+   * shared deep-link data (referralCode/referrerProfile) stays in AppNavigator
+   * and is passed into ReferralSignupFlow as props.
+   */
+  referralIntroOpen: boolean
+  referralSignupOpen: boolean
+  referralOtpOpen: boolean
+  referralOtpData: ReferralOtpData | null
+  openReferralIntro: () => void
+  openReferralSignup: () => void
+  closeReferralSignup: () => void
+  openReferralOtp: (data: ReferralOtpData) => void
+  closeReferralOtp: () => void
+  resetReferralFlow: () => void
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -56,4 +78,34 @@ export const useModalStore = create<ModalState>((set) => ({
   historyOpen: false,
   openHistory: () => set({ historyOpen: true }),
   closeHistory: () => set({ historyOpen: false }),
+
+  referralIntroOpen: false,
+  referralSignupOpen: false,
+  referralOtpOpen: false,
+  referralOtpData: null,
+  openReferralIntro: () => set({ referralIntroOpen: true }),
+  // Signup opens on top of intro (intro stays mounted underneath, as before).
+  openReferralSignup: () => set({ referralSignupOpen: true }),
+  closeReferralSignup: () => set({ referralSignupOpen: false }),
+  openReferralOtp: (data) =>
+    set({
+      referralSignupOpen: false,
+      referralOtpData: data,
+      referralOtpOpen: true,
+    }),
+  // OTP back → returns to signup, clears OTP data.
+  closeReferralOtp: () =>
+    set({
+      referralOtpOpen: false,
+      referralOtpData: null,
+      referralSignupOpen: true,
+    }),
+  // Full reset (intro close / OTP success) — clears every step + OTP data.
+  resetReferralFlow: () =>
+    set({
+      referralIntroOpen: false,
+      referralSignupOpen: false,
+      referralOtpOpen: false,
+      referralOtpData: null,
+    }),
 }))

@@ -309,6 +309,44 @@ export const productService = {
     }
   },
 
+  /**
+   * Paginated + searchable wishlist (GET /wishlist?search=&page=&per_page=).
+   * Returns the page's items plus the server `meta` (current_page, last_page,
+   * total, …). Used by the infinite-query hook on the Wishlist screen.
+   */
+  async getWishlistPaged(
+    token: string,
+    opts: { search?: string; page?: number; perPage?: number } = {}
+  ): Promise<{ items: any[]; meta: any }> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    }
+    const params: Record<string, string | number> = {
+      page: opts.page ?? 1,
+      per_page: opts.perPage ?? 12,
+    }
+    if (opts.search && opts.search.trim()) params.search = opts.search.trim()
+
+    try {
+      const response = await api.get("/wishlist", { headers, params })
+      const body = response.data ?? {}
+      let items = body.data ?? []
+      if (items && typeof items === "object" && !Array.isArray(items)) {
+        items = Object.values(items)
+      }
+      const meta = body.meta ?? {
+        current_page: params.page,
+        last_page: 1,
+        per_page: params.perPage ?? 12,
+        total: Array.isArray(items) ? items.length : 0,
+      }
+      return { items, meta }
+    } catch (error) {
+      console.error("Error fetching wishlist (paged):", error)
+      throw error
+    }
+  },
+
   async getShopByRooms(token?: string): Promise<any[]> {
     const headers = {
       "Content-Type": "application/json",
@@ -443,14 +481,29 @@ export const productService = {
     return { products, totalPages, total }
   },
 
-  async getZqCachedProducts(token: string): Promise<any[]> {
+  async getZqCachedProducts(
+    token: string,
+    options: { page?: number; perPage?: number; search?: string } = {}
+  ): Promise<{ products: any[]; total: number; totalPages: number }> {
     const headers = { Authorization: `Bearer ${token}` }
+    const { page = 1, perPage = 16, search } = options
 
-    const response = await axios.get(
-      `${API_CONFIG.BASE_URL}/products/zq/cached`,
-      { headers }
-    )
-    return (response.data?.products ?? []) as any[]
+    const url = new URL(`${API_CONFIG.BASE_URL}/products/zq/cached`)
+    url.searchParams.set("page", String(page))
+    url.searchParams.set("per_page", String(perPage))
+    if (search?.trim()) url.searchParams.set("search", search.trim())
+
+    const response = await axios.get(url.toString(), { headers })
+
+    const products = response.data?.products ?? response.data?.data ?? []
+    const total =
+      response.data?.meta?.total ??
+      response.data?.total ??
+      response.data?.pagination?.total ??
+      products.length
+    const totalPages = Math.ceil(total / perPage) || 1
+
+    return { products: Array.isArray(products) ? products : [], total, totalPages }
   },
 
   /**

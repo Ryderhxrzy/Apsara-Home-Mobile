@@ -66,7 +66,7 @@ const BADGE_CONFIG = [
   },
 ] as const
 
-export default function FeaturedItems({
+function FeaturedItems({
   product,
   token,
   isDarkMode = false,
@@ -312,6 +312,10 @@ export default function FeaturedItems({
     </TouchableOpacity>
   )
 }
+
+// Memoized like ItemCard so the related-products row doesn't re-render on every
+// gallery swipe / variant tap of the parent screen.
+export default React.memo(FeaturedItems)
 
 const styles = StyleSheet.create({
   container: {

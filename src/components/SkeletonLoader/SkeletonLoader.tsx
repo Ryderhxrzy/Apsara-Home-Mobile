@@ -192,6 +192,125 @@ export function ProductDetailSkeleton({
   )
 }
 
+/**
+ * Mirrors a single ItemCard in the search/masonry grid: image block (height
+ * matches ItemCard's 200, but accepts an override so columns can stagger like a
+ * real masonry layout) → brand row → two-line product name → badge row → price.
+ */
+export function ItemCardSkeleton({
+  imageHeight = 200,
+  isDarkMode = false,
+}: {
+  imageHeight?: number
+  isDarkMode?: boolean
+}) {
+  const bg = isDarkMode ? "#1e293b" : "#f8f9fa"
+  const border = isDarkMode ? "#334155" : "#e5e7eb"
+  const imageBg = isDarkMode ? "#0f172a" : "#f1f5f9"
+  const block = isDarkMode ? "#334155" : "#e5e7eb"
+
+  return (
+    <View style={[styles.itemCardSkeleton, { backgroundColor: bg, borderColor: border }]}>
+      <Skeleton
+        width="100%"
+        height={imageHeight}
+        borderRadius={0}
+        style={{ backgroundColor: imageBg }}
+      />
+      <View style={[styles.itemCardBorder, { backgroundColor: border }]} />
+      <View style={styles.itemCardInfo}>
+        <Skeleton width="55%" height={10} style={{ backgroundColor: block }} />
+        <Skeleton width="92%" height={14} style={{ marginTop: 8, backgroundColor: block }} />
+        <Skeleton width="70%" height={14} style={{ marginTop: 6, backgroundColor: block }} />
+        <View style={styles.itemCardBadges}>
+          <Skeleton width={52} height={18} borderRadius={8} style={{ backgroundColor: block }} />
+          <Skeleton width={64} height={18} borderRadius={8} style={{ backgroundColor: block }} />
+        </View>
+        <Skeleton width="45%" height={18} style={{ marginTop: 6, backgroundColor: block }} />
+      </View>
+    </View>
+  )
+}
+
+/**
+ * Two-column masonry of ItemCardSkeletons matching SearchResultScreen's FlashList.
+ * Image heights stagger per column so the placeholder reads like real results.
+ */
+export function SearchResultsSkeleton({
+  isDarkMode = false,
+}: {
+  isDarkMode?: boolean
+}) {
+  const leftHeights = [200, 240, 180]
+  const rightHeights = [240, 180, 220]
+  return (
+    <View
+      style={[
+        styles.searchSkeletonContainer,
+        { backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" },
+      ]}
+    >
+      <View style={styles.searchSkeletonColumn}>
+        {leftHeights.map((h, i) => (
+          <ItemCardSkeleton key={`l-${i}`} imageHeight={h} isDarkMode={isDarkMode} />
+        ))}
+      </View>
+      <View style={styles.searchSkeletonColumn}>
+        {rightHeights.map((h, i) => (
+          <ItemCardSkeleton key={`r-${i}`} imageHeight={h} isDarkMode={isDarkMode} />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+/** One cart row placeholder: checkbox + image + 3 text lines + qty stepper. */
+function CartRowSkeleton({ isDarkMode }: { isDarkMode?: boolean }) {
+  const block = isDarkMode ? "#334155" : "#e5e7eb"
+  const imageBg = isDarkMode ? "#0f172a" : "#f1f5f9"
+  return (
+    <View style={styles.cartRow}>
+      <Skeleton width={20} height={20} borderRadius={4} style={{ backgroundColor: block }} />
+      <Skeleton
+        width={92}
+        height={92}
+        borderRadius={10}
+        style={{ backgroundColor: imageBg }}
+      />
+      <View style={styles.cartRowInfo}>
+        <Skeleton width="45%" height={10} style={{ backgroundColor: block }} />
+        <Skeleton width="85%" height={14} style={{ marginTop: 8, backgroundColor: block }} />
+        <Skeleton width="60%" height={14} style={{ marginTop: 6, backgroundColor: block }} />
+        <View style={styles.cartRowBottom}>
+          <Skeleton width={70} height={18} borderRadius={6} style={{ backgroundColor: block }} />
+          <Skeleton width={80} height={26} borderRadius={8} style={{ backgroundColor: block }} />
+        </View>
+      </View>
+    </View>
+  )
+}
+
+/** Full cart-list skeleton (a brand header + several rows). */
+export function CartSkeleton({ isDarkMode = false }: { isDarkMode?: boolean }) {
+  const block = isDarkMode ? "#334155" : "#e5e7eb"
+  return (
+    <View
+      style={[
+        styles.cartSkeleton,
+        { backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" },
+      ]}
+    >
+      <View style={styles.cartBrandHeader}>
+        <Skeleton width={20} height={20} borderRadius={4} style={{ backgroundColor: block }} />
+        <Skeleton width={120} height={14} style={{ backgroundColor: block }} />
+      </View>
+      {[1, 2, 3, 4].map((i) => (
+        <CartRowSkeleton key={i} isDarkMode={isDarkMode} />
+      ))}
+    </View>
+  )
+}
+
 export function HomeScreenSkeleton() {
   return (
     <View style={styles.container}>
@@ -310,5 +429,62 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  // Cart skeleton
+  cartSkeleton: {
+    flex: 1,
+  },
+  cartBrandHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  cartRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  cartRowInfo: {
+    flex: 1,
+  },
+  cartRowBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  // Search results skeleton (2-column masonry mirroring SearchResultScreen)
+  searchSkeletonContainer: {
+    flex: 1,
+    flexDirection: "row",
+    paddingHorizontal: 5,
+    paddingTop: 16,
+    gap: 6,
+  },
+  searchSkeletonColumn: {
+    flex: 1,
+    gap: 8,
+  },
+  itemCardSkeleton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+    width: "100%",
+  },
+  itemCardBorder: {
+    height: 1,
+  },
+  itemCardInfo: {
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  itemCardBadges: {
+    flexDirection: "row",
+    gap: 5,
+    marginTop: 10,
   },
 })

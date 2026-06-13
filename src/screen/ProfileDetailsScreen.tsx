@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { Colors } from "../constants/colors"
+import { getColors, gradients } from "../theme/theme"
 import { profileService } from "../services/profileService"
 import { useProfile } from "../hooks/query/useProfile"
 import { useQueryClient } from "@tanstack/react-query"
@@ -34,6 +35,8 @@ interface ProfileDetailsScreenProps {
   isDarkMode?: boolean
   /** Already-known user (from context) shown instantly while fresh data loads */
   placeholderUser?: UserProfile | null
+  /** Propagate profile changes (e.g. new avatar) to the global user + storage. */
+  onUserUpdate?: (patch: Record<string, any>) => void
 }
 
 type IconName = keyof typeof Ionicons.glyphMap
@@ -156,6 +159,7 @@ export default function ProfileDetailsScreen({
   onEditProfile,
   isDarkMode = false,
   placeholderUser = null,
+  onUserUpdate,
 }: ProfileDetailsScreenProps) {
   const insets = useSafeAreaInsets()
   const {
@@ -167,20 +171,24 @@ export default function ProfileDetailsScreen({
   const queryClient = useQueryClient()
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
+  // Palette sourced from the centralized theme (slate spine + sky accent),
+  // matching the app header / website. Same keys the render already uses.
+  const t = getColors(isDarkMode)
   const c = {
-    bg: isDarkMode ? "#0b1220" : "#f0f9ff",
-    card: isDarkMode ? "#1e293b" : Colors.white,
-    cardAlt: isDarkMode ? "#0f172a" : "#f9fafb",
-    border: isDarkMode ? "#334155" : "#e8eef4",
-    text: isDarkMode ? "#f8fafc" : Colors.text,
-    textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
-    iconBg: isDarkMode ? "#0c4a6e" : "#e0f2fe",
-    chipNeutral: isDarkMode ? "#0f172a" : "#f1f5f9",
-    track: isDarkMode ? "#334155" : "#e5e7eb",
+    bg: t.bgSubtle,
+    card: t.card,
+    cardAlt: isDarkMode ? t.bg : "#f9fafb",
+    border: t.border,
+    text: t.text,
+    textSec: t.textSecondary,
+    iconBg: t.primarySoft,
+    chipNeutral: isDarkMode ? t.bg : t.surface,
+    track: isDarkMode ? t.surface : "#e5e7eb",
   }
+  // Same gradient as the app header / Home so the whole app reads as one.
   const coverColors: [string, string] = isDarkMode
-    ? ["#075985", "#0c4a6e"]
-    : [Colors.sky, Colors.skyDark]
+    ? ["#0f172a", "#1e293b"]
+    : [...gradients.primary]
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -220,15 +228,22 @@ export default function ProfileDetailsScreen({
       if (result.canceled || !token) return
 
       setUploadingAvatar(true)
-      const newAvatarUrl = await profileService.uploadAvatar(
+      const uploaded = await profileService.uploadAvatar(
         token,
         result.assets[0].uri
       )
-      if (newAvatarUrl) {
-        queryClient.setQueryData<UserProfile | null>(
-          ["profile", token],
-          (prev) => (prev ? { ...prev, avatar_url: newAvatarUrl } : prev)
+      if (uploaded.avatarUrl) {
+        const avatarPatch = {
+          avatar_url: uploaded.avatarUrl,
+          avatar_original_url: uploaded.avatarOriginalUrl || uploaded.avatarUrl,
+        }
+        // Update this screen's profile cache (merge the echoed user too).
+        queryClient.setQueryData<UserProfile | null>(["profile", token], (prev) =>
+          prev ? { ...prev, ...(uploaded.user || {}), ...avatarPatch } : prev
         )
+        // Propagate to the GLOBAL user so every header (AppHeader, Profile,
+        // Profile Details) updates immediately and it persists across reloads.
+        onUserUpdate?.(avatarPatch)
         Toast.show({
           type: "success",
           text1: "Success",
@@ -291,6 +306,22 @@ export default function ProfileDetailsScreen({
 
   const ma = userProfile?.monthly_activation
 
+  // Display name = First Last, each with its first letter capitalized
+  // (falls back to the raw name only if first/last are both missing).
+  const cap = (s?: string | null) =>
+    s ? s.trim().charAt(0).toUpperCase() + s.trim().slice(1).toLowerCase() : ""
+  const displayName =
+    [cap(userProfile?.first_name), cap(userProfile?.last_name)]
+      .filter(Boolean)
+      .join(" ") ||
+    userProfile?.name ||
+    "—"
+  const avatarInitial = (
+    cap(userProfile?.first_name).charAt(0) ||
+    userProfile?.name?.charAt(0) ||
+    "?"
+  ).toUpperCase()
+
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {loading ? (
@@ -347,39 +378,45 @@ export default function ProfileDetailsScreen({
               accessibilityRole="button"
               accessibilityLabel="Change profile picture"
             >
-              <View style={[styles.avatar, { backgroundColor: c.iconBg, borderColor: c.bg }]}>
-                {userProfile.avatar_url ? (
-                  <Image
-                    source={{ uri: userProfile.avatar_url }}
-                    style={styles.avatarImage}
-                    transition={200}
-                  />
-                ) : (
-                  <Text style={styles.avatarInitial}>
-                    {userProfile.name?.charAt(0).toUpperCase() || "?"}
-                  </Text>
-                )}
-                {uploadingAvatar ? (
-                  <View style={styles.avatarLoadingOverlay}>
-                    <ActivityIndicator size="small" color={Colors.white} />
-                  </View>
-                ) : null}
-              </View>
+              {/* Gradient ring around the avatar */}
+              <LinearGradient
+                colors={gradients.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatarRing}
+              >
+                <View style={[styles.avatar, { backgroundColor: c.card, borderColor: c.bg }]}>
+                  {userProfile.avatar_url ? (
+                    <Image
+                      source={{ uri: userProfile.avatar_url }}
+                      style={styles.avatarImage}
+                      transition={200}
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+                  )}
+                  {uploadingAvatar ? (
+                    <View style={styles.avatarLoadingOverlay}>
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    </View>
+                  ) : null}
+                </View>
+              </LinearGradient>
               <View style={styles.avatarEditIcon}>
                 <Ionicons name="camera" size={14} color={Colors.white} />
               </View>
             </TouchableOpacity>
 
             <Text style={[styles.nameText, { color: c.text }]} numberOfLines={1}>
-              {userProfile.name}
+              {displayName}
             </Text>
 
             {userProfile.username ? (
               <Text style={styles.usernameText}>@{userProfile.username}</Text>
             ) : null}
 
-            {userProfile.badge_image || userProfile.badge_name ? (
-              <View style={styles.chipRow}>
+            <View style={styles.chipRow}>
+              {userProfile.badge_image || userProfile.badge_name ? (
                 <View style={[styles.chip, styles.chipBadge]}>
                   {userProfile.badge_image ? (
                     <Image
@@ -388,14 +425,36 @@ export default function ProfileDetailsScreen({
                       transition={200}
                     />
                   ) : (
-                    <Ionicons name="shield-checkmark" size={13} color={Colors.white} />
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={13}
+                      color={Colors.white}
+                    />
                   )}
                   <Text style={styles.chipText}>
                     {userProfile.badge_name || "Member"}
                   </Text>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
+              {hasCompletion ? (
+                <View
+                  style={[
+                    styles.chip,
+                    styles.chipOutline,
+                    { borderColor: c.border, backgroundColor: c.card },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={13}
+                    color={completion >= 100 ? STATUS_GREEN : Colors.sky}
+                  />
+                  <Text style={[styles.chipOutlineText, { color: c.textSec }]}>
+                    {completion}% complete
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
 
           {/* Body */}
