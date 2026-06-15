@@ -151,6 +151,8 @@ export interface AppContextType {
   setPurchasesStatus: (status: any) => void
   purchasesInitialOrderId: string | undefined
   setPurchasesInitialOrderId: (id: string | undefined) => void
+  /** Open/close the MyPurchases modal (e.g. from a notification tap). */
+  setShowPurchases: (show: boolean) => void
 
   // Linked Accounts
   linkedAccountsRefreshTrigger: number

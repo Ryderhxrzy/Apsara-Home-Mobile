@@ -10,7 +10,7 @@ import {
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 import { gradients, palette, radius, shadow } from "../../theme/theme"
 import { productService } from "../../services/productService"

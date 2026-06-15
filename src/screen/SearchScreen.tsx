@@ -13,7 +13,7 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import axios from "axios"
 import {
   useAudioRecorder,

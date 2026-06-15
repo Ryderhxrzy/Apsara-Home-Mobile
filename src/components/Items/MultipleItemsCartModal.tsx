@@ -12,7 +12,7 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
 

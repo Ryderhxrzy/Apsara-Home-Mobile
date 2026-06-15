@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useRef, useEffect } from "react"
+import React, { useRef, useEffect, useState } from "react"
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
+import ZoomableImage from "../ZoomableImage/ZoomableImage"
 import { Colors } from "../../constants/colors"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
@@ -98,6 +99,9 @@ export default function ImageViewerModal({
 }: ImageViewerModalProps) {
   const insets = useSafeAreaInsets()
   const imageViewerScrollRef = useRef<ScrollView>(null)
+  // While an image is pinch-zoomed, disable horizontal paging so one-finger pans
+  // move the image instead of swiping to the next photo.
+  const [zoomed, setZoomed] = useState(false)
 
   useEffect(() => {
     if (visible && imageViewerScrollRef.current && images.length > 0) {
@@ -216,6 +220,7 @@ export default function ImageViewerModal({
           ref={imageViewerScrollRef}
           horizontal
           pagingEnabled
+          scrollEnabled={!zoomed}
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
           onMomentumScrollEnd={(e) => {
@@ -235,13 +240,8 @@ export default function ImageViewerModal({
         >
           {images.map((img, i) => (
             <View key={i} style={styles.slideshowImageContainer}>
-              {/* Image */}
-              <Image
-                source={{ uri: img }}
-                style={styles.slideshowImage}
-                contentFit="contain"
-                transition={200}
-              />
+              {/* Pinch-to-zoom + double-tap + pan */}
+              <ZoomableImage uri={img} onZoomChange={setZoomed} />
             </View>
           ))}
         </ScrollView>

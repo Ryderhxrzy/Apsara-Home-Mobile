@@ -11,7 +11,7 @@ import {
 } from "react-native"
 import { FlashList } from "@shopify/flash-list"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { getColors } from "../theme/theme"
 import Toast from "react-native-toast-message"

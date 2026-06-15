@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react"
 import { Animated, Pressable, StyleSheet } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 
 interface ScrollToTopButtonProps {

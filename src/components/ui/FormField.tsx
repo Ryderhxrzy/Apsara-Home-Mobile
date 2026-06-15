@@ -8,10 +8,10 @@ import {
   TextInputProps,
   ViewStyle,
 } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "./Icon"
 import { getColors, radius } from "../../theme/theme"
 
-type IconName = keyof typeof Ionicons.glyphMap
+type IconName = string
 
 export interface FormFieldProps extends TextInputProps {
   label?: string

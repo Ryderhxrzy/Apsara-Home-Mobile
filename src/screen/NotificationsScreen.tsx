@@ -9,7 +9,7 @@ import {  View,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { getColors } from "../theme/theme"
 import { API_CONFIG } from "../config/api"
@@ -241,48 +241,70 @@ export default function NotificationsScreen({
       }
     }
 
-    if (!href) return
-
-    // Parse deep link format: purchases://status or purchases://status/mobile-order-id
+    // Prefer an explicit deep link (purchases://status[/order-id]); otherwise
+    // fall back to the notification's own order status so order notifications
+    // ("Order: Delivered", "Out for delivery", …) still open the right tab.
     const deepLinkRegex = /^purchases:\/\/([^\/]+)(?:\/(.+))?$/
-    const match = href.match(deepLinkRegex)
+    const match = typeof href === "string" ? href.match(deepLinkRegex) : null
 
     console.log("[NotificationsScreen] Deep link match:", match)
 
     if (match && match[1]) {
-      const status = match[1]
-      const parsedOrderId = match[2] || orderId
-      console.log("[NotificationsScreen] Calling onNavigateToPurchases with:", {
-        status,
-        parsedOrderId,
-      })
-      onNavigateToPurchases?.(status, parsedOrderId)
+      onNavigateToPurchases?.(match[1], match[2] || orderId)
+      return
+    }
+
+    const status = getNotificationStatus(item)
+    if (status) {
+      console.log("[NotificationsScreen] Navigating via status:", status)
+      onNavigateToPurchases?.(status, orderId)
     }
   }
 
-  const getNotificationStatus = (item: any): string | null => {
-    const rawStatus = item?.status || item?.order_status
-    if (typeof rawStatus === "string" && rawStatus.trim()) {
-      const s = rawStatus
-        .trim()
-        .toLowerCase()
-        .replace(/-/g, "_")
-        .replace(/\s+/g, "_")
-      if (s === "out_for_delivery") return "to_receive"
-      if (s === "to_ship") return "shipped"
-      return s
-    }
-    if (typeof item?.href !== "string") return null
-    const deepLinkRegex = /^purchases:\/\/([^\/]+)(?:\/(.+))?$/
-    const match = item.href.match(deepLinkRegex)
-    if (!match?.[1]) return null
-    const s = String(match[1])
-      .toLowerCase()
-      .replace(/-/g, "_")
-      .replace(/\s+/g, "_")
+  // Normalize a raw status token to a PurchasesScreen tab key.
+  const mapStatusToken = (raw: string): string => {
+    const s = raw.trim().toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_")
     if (s === "out_for_delivery") return "to_receive"
     if (s === "to_ship") return "shipped"
     return s
+  }
+
+  const getNotificationStatus = (item: any): string | null => {
+    // 1) Explicit status field.
+    const rawStatus = item?.status || item?.order_status
+    if (typeof rawStatus === "string" && rawStatus.trim()) {
+      return mapStatusToken(rawStatus)
+    }
+    // 2) Deep link: purchases://status[/order-id].
+    if (typeof item?.href === "string") {
+      const match = item.href.match(/^purchases:\/\/([^\/]+)(?:\/(.+))?$/)
+      if (match?.[1]) return mapStatusToken(match[1])
+    }
+    // 3) Keyword scan of the title/message — but only for order-related
+    // notifications (has order_id or mentions an order/shipment), so promo
+    // notifications don't get a bogus status badge / redirect.
+    const text = `${item?.title ?? ""} ${item?.message ?? ""} ${item?.body ?? ""} ${item?.description ?? ""}`.toLowerCase()
+    const isOrderNotif =
+      !!item?.order_id || /order|purchase|delivery|shipment|parcel|package/.test(text)
+    if (isOrderNotif) {
+      if (text.includes("out for delivery")) return "to_receive"
+      if (text.includes("delivered")) return "delivered"
+      if (text.includes("to receive")) return "to_receive"
+      if (
+        text.includes("to ship") ||
+        text.includes("shipped") ||
+        text.includes("shipping")
+      )
+        return "shipped"
+      if (text.includes("processing")) return "processing"
+      if (text.includes("cancel")) return "cancelled"
+      if (text.includes("return") || text.includes("refund")) return "return"
+      if (text.includes("paid") || text.includes("payment confirmed"))
+        return "paid"
+      if (text.includes("pending") || text.includes("awaiting payment"))
+        return "pending"
+    }
+    return null
   }
 
   const getStatusBadgeConfig = (status: string | null, dark: boolean) => {

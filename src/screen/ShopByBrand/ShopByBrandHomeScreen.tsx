@@ -10,7 +10,7 @@ import {
   NativeSyntheticEvent,
 } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../../components/ui/Icon"
 import { Colors } from "../../constants/colors"
 import FeaturedItems from "../../components/Items/FeaturedItems"
 import Toast from "react-native-toast-message"

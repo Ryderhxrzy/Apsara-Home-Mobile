@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
 } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { VideoView, useVideoPlayer } from "expo-video"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../constants/colors"
@@ -34,6 +34,9 @@ import {
 } from "../components/SkeletonLoader/SkeletonLoader"
 import { usePrefetchProducts } from "../hooks/usePrefetchProducts"
 import { useCartCount } from "../hooks/query/useCartCount"
+import { useShowcaseProducts } from "../hooks/query/useShowcaseProducts"
+import { useBehaviorRecommendations } from "../hooks/query/useBehaviorRecommendations"
+import HomeProductRail from "../components/HomeProductRail/HomeProductRail"
 import { ChatBotIcon } from "../components/ChatBot"
 import { FlashList } from "@shopify/flash-list"
 import styles, { BANNER_HEIGHT } from "../styles/HomeScreen.styles"
@@ -427,9 +430,31 @@ function HomeScreen({
   const { data: cartCountData } = useCartCount({ token })
   const totalCart = cartCountData?.count ?? 0
 
+  // Randomized product feed that fills the home rails (Popular Picks / Just For
+  // You) so the page doesn't feel empty. One fetch of up to 200 active products,
+  // shuffled; refetch surfaces a fresh set.
+  const {
+    data: showcaseProducts = [],
+    isLoading: showcaseLoading,
+    refetch: refetchShowcase,
+  } = useShowcaseProducts({ token, count: 24 })
+
+  // Personalized feed from the user's behavior. Empty for new users (no history)
+  // → the "Just For You" rail falls back to the random showcase slice below.
+  const { data: behaviorRecs = [], refetch: refetchBehaviorRecs } =
+    useBehaviorRecommendations({ token, limit: 12 })
+
+  const hasBehaviorRecs = behaviorRecs.length > 0
+  const justForYouProducts = useMemo(
+    () => (hasBehaviorRecs ? behaviorRecs : showcaseProducts.slice(12)),
+    [hasBehaviorRecs, behaviorRecs, showcaseProducts]
+  )
+
   const handleRefresh = () => {
     console.log("🔄 [HOMESCREEN] PULL-TO-REFRESH TRIGGERED")
     setRefreshing(true)
+    refetchShowcase()
+    refetchBehaviorRecs()
     Promise.resolve(onRefreshProp?.()).finally(() => setRefreshing(false))
   }
 
@@ -887,6 +912,24 @@ function HomeScreen({
           </View>
         </View>
 
+        {/* Popular Picks — randomized product rail so the page feels alive */}
+        <HomeProductRail
+          title="Popular Picks"
+          icon="sparkles"
+          products={showcaseProducts}
+          offset={0}
+          limit={12}
+          loading={showcaseLoading}
+          token={token}
+          isDarkMode={isDarkMode}
+          wishlistItems={wishlistItems}
+          onProductPress={onProductPress}
+          onWishlistChange={onWishlistChange}
+          actionLabel="Shuffle"
+          onAction={() => refetchShowcase()}
+          containerStyle={[styles.section, { backgroundColor: colors.bg }]}
+        />
+
         <View style={[styles.section, { backgroundColor: colors.bg }]}>
           <SectionHeader
             title="Shop by Rooms"
@@ -1048,6 +1091,20 @@ function HomeScreen({
           )}
         </View>
 
+        {/* Recommended for you — personalized via user-behavior recommendations;
+            falls back to the random showcase slice for new users (no history) */}
+        <HomeProductRail
+          title="Recommended for you"
+          icon="sparkles"
+          products={justForYouProducts}
+          loading={showcaseLoading}
+          token={token}
+          isDarkMode={isDarkMode}
+          wishlistItems={wishlistItems}
+          onProductPress={onProductPress}
+          onWishlistChange={onWishlistChange}
+          containerStyle={[styles.sectionEven, { backgroundColor: colors.bg }]}
+        />
       </ScrollView>
 
       {/* Chat Bot Icon */}

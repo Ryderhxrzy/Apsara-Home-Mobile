@@ -11,7 +11,7 @@ import {  View,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import Toast from "react-native-toast-message"
 import { Colors } from "../constants/colors"
 import { ReferralTree, ReferralUser } from "../services/referralService"

@@ -16,7 +16,7 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { CameraView, useCameraPermissions } from "expo-camera"
 import * as Location from "expo-location"
 import { Colors } from "../constants/colors"

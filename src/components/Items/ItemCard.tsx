@@ -9,7 +9,7 @@ import {
   Animated,
 } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
 import type { ProductCard } from "../../services/productService"
@@ -361,16 +361,19 @@ function ItemCard({
 
         {/* Badges Row */}
         <View style={styles.badgesRow}>
-          {/* PV badge */}
-          <LinearGradient
-            colors={[Colors.sky, Colors.skyDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badge}
-          >
-            <Ionicons name="trending-up" size={9} color={Colors.white} />
-            <Text style={styles.badgeLabel}>PV {product.pv}</Text>
-          </LinearGradient>
+          {/* PV badge — only when the product carries PV (recommendation feeds
+              may omit it; "PV 0" would be misleading) */}
+          {Number(product.pv) > 0 && (
+            <LinearGradient
+              colors={[Colors.sky, Colors.skyDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badge}
+            >
+              <Ionicons name="trending-up" size={9} color={Colors.white} />
+              <Text style={styles.badgeLabel}>PV {product.pv}</Text>
+            </LinearGradient>
+          )}
 
           {/* Variants badge */}
           {product.variantCount > 0 && (

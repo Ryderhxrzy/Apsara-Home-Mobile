@@ -10,7 +10,7 @@ import {
 } from "react-native"
 import { WebView } from "react-native-webview"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 import { getColors, spacing, type as typo } from "../../theme/theme"
 

@@ -1,7 +1,7 @@
 import React from "react"
 import { View, Text, Pressable, StyleSheet } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 
 export interface StripVariant {

@@ -11,7 +11,7 @@ import {  View,
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { getColors, palette } from "../theme/theme"
 import { API_CONFIG } from "../config/api"

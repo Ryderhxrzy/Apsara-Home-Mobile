@@ -1,6 +1,6 @@
 import React from "react"
 import { View, Text, StyleSheet } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { useWatch, Control, FieldValues, Path } from "react-hook-form"
 import { PASSWORD_RULES } from "../../schemas/authSchemas"
 

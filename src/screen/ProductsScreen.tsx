@@ -7,7 +7,7 @@ import {  View,
   Dimensions,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { Product } from "../services/productService"
 import { useFilteredProducts } from "../hooks/query/useFilteredProducts"

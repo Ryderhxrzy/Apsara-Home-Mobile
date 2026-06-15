@@ -9,7 +9,7 @@ import {
   StyleProp,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "./Icon"
 import { getColors, gradients, radius, spacing, type, shadow } from "../../theme/theme"
 
 type Variant = "primary" | "solid" | "outline" | "ghost" | "danger"
@@ -20,8 +20,8 @@ interface ButtonProps {
   onPress?: () => void
   variant?: Variant
   size?: Size
-  icon?: keyof typeof Ionicons.glyphMap
-  iconRight?: keyof typeof Ionicons.glyphMap
+  icon?: string
+  iconRight?: string
   loading?: boolean
   disabled?: boolean
   fullWidth?: boolean

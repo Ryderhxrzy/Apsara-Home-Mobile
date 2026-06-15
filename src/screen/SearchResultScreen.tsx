@@ -8,7 +8,7 @@ import {
 } from "react-native"
 import { FlashList } from "@shopify/flash-list"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import ItemCard from "../components/Items/ItemCard"
 import Toast from "react-native-toast-message"

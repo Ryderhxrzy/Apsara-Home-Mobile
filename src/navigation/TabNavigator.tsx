@@ -14,7 +14,7 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { useAppContext } from "../context/AppContext"
 
@@ -328,6 +328,7 @@ function NotificationTabScreen() {
     purchasesStatus,
     setPurchasesStatus,
     setPurchasesInitialOrderId,
+    setShowPurchases,
   } = useAppContext()
 
   return (
@@ -360,6 +361,8 @@ function NotificationTabScreen() {
             normalized = s
           setPurchasesStatus(normalized)
           setPurchasesInitialOrderId(orderId)
+          // Actually open the MyPurchases modal on the matching status tab.
+          setShowPurchases(true)
         }}
       />
     </>

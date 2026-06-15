@@ -12,7 +12,7 @@ import {  View,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import * as Application from "expo-application"
 import axios from "axios"
 import { LinearGradient } from "expo-linear-gradient"
@@ -21,6 +21,10 @@ import { API_CONFIG } from "../config/api"
 import Toast from "react-native-toast-message"
 import { useAddresses } from "../hooks/query/useAddresses"
 import styles from "../styles/CheckoutScreen.styles"
+import {
+  paymentService,
+  type VoucherValidation,
+} from "../services/paymentService"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
@@ -155,6 +159,11 @@ export default function CheckoutScreen({
   >(null)
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null)
   const [voucherCode, setVoucherCode] = useState("")
+  // The validated voucher (from POST /payments/validate-voucher) once applied.
+  const [appliedVoucher, setAppliedVoucher] = useState<VoucherValidation | null>(
+    null
+  )
+  const [validatingVoucher, setValidatingVoucher] = useState(false)
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
     null
@@ -212,8 +221,6 @@ export default function CheckoutScreen({
       badge: "Bank Transfer",
     },
   ]
-
-  const vouchers: any[] = []
 
   // Fetch shipping rates based on selected address
   const fetchShippingRates = async (address?: UserAddress) => {
@@ -326,19 +333,78 @@ export default function CheckoutScreen({
     const srpPrice = i.product_price_srp || i.product_price_member
     return sum + srpPrice * (i.quantity || 1)
   }, 0)
-  const voucherDiscount = selectedVoucher
-    ? (vouchers.find((v) => v.id === selectedVoucher)?.discount || 0) * subtotal
-    : 0
   const memberTotal = checkoutItems.reduce(
     (sum, i) => sum + i.product_price_member * (i.quantity || 1),
     0
   )
+  // Absolute peso discount from the validated voucher, clamped so it can't
+  // exceed the order total.
+  const voucherDiscount = Math.min(appliedVoucher?.discount ?? 0, memberTotal)
   // const shippingCost = shippingMethods.length > 0 ? shippingMethods[0].fee : 0;
   const shippingCost = 0 // Testing: disabled shipping fees
   const selectedShippingMethod =
     shippingMethods.length > 0 ? shippingMethods[0] : null
   const shopDiscount = subtotal - memberTotal
   const total = memberTotal - voucherDiscount + shippingCost
+
+  // Validate the typed voucher against the cart (POST /payments/validate-voucher).
+  const handleApplyVoucher = async () => {
+    const code = voucherCode.trim()
+    if (!code) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Please enter a voucher code",
+      })
+      return
+    }
+    if (!token) return
+
+    setValidatingVoucher(true)
+    try {
+      const productIds = checkoutItems
+        .map((i) => i.product_id)
+        .filter(Boolean) as number[]
+      const result = await paymentService.validateVoucher(token, {
+        code,
+        amount: subtotal,
+        productIds,
+      })
+
+      if (result?.valid) {
+        setAppliedVoucher(result)
+        Toast.show({
+          type: "success",
+          text1: "Voucher applied",
+          text2: `You saved ₱${Number(result.discount || 0).toLocaleString()}`,
+        })
+      } else {
+        setAppliedVoucher(null)
+        Toast.show({
+          type: "error",
+          text1: "Invalid voucher",
+          text2: result?.message || "Voucher code is invalid or expired.",
+        })
+      }
+    } catch (error: any) {
+      setAppliedVoucher(null)
+      Toast.show({
+        type: "error",
+        text1: "Invalid voucher",
+        text2:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Voucher code is invalid or expired.",
+      })
+    } finally {
+      setValidatingVoucher(false)
+    }
+  }
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null)
+    setVoucherCode("")
+  }
 
   const handlePlaceOrder = async () => {
     console.log("[CheckoutScreen] ====== PLACE ORDER CLICKED ======")
@@ -551,12 +617,10 @@ export default function CheckoutScreen({
         subtotal: Math.round(memberTotal * 100) / 100,
       })
 
-      // Voucher (optional)
-      if (selectedVoucher) {
-        const voucherCode = vouchers.find((v) => v.id === selectedVoucher)?.code
-        if (voucherCode) {
-          paymentPayload.voucher_code = voucherCode
-        }
+      // Voucher (optional) — send the validated code so the server applies the
+      // same discount it returned from /payments/validate-voucher.
+      if (appliedVoucher?.voucher?.code) {
+        paymentPayload.voucher_code = appliedVoucher.voucher.code
       }
 
       console.log(
@@ -1401,97 +1465,72 @@ export default function CheckoutScreen({
             Vouchers
           </Text>
 
-          {/* Voucher Input Field */}
-          <View style={styles.voucherInputContainer}>
-            <TextInput
-              placeholder="Enter voucher code"
-              placeholderTextColor={colors.textSec}
-              value={voucherCode}
-              onChangeText={setVoucherCode}
+          {appliedVoucher ? (
+            /* Applied voucher card */
+            <View
               style={[
-                styles.voucherInput,
+                styles.voucherCard,
                 {
-                  backgroundColor: colors.borderLight,
-                  borderColor: colors.border,
-                  color: colors.text,
+                  backgroundColor: `${Colors.sky}12`,
+                  borderColor: Colors.sky,
                 },
               ]}
-            />
-            <TouchableOpacity
-              style={[
-                styles.applyVoucherButton,
-                { backgroundColor: Colors.sky },
-              ]}
-              onPress={() => {
-                if (voucherCode.trim()) {
-                  Toast.show({
-                    type: "info",
-                    text1: "Voucher Code",
-                    text2: `Applied: ${voucherCode}`,
-                  })
-                  setVoucherCode("")
-                } else {
-                  Toast.show({
-                    type: "error",
-                    text1: "Error",
-                    text2: "Please enter a voucher code",
-                  })
-                }
-              }}
             >
-              <Text style={styles.applyVoucherButtonText}>Apply</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.voucherList}>
-            {vouchers.length === 0 ? (
-              <Text style={[styles.noVouchersText, { color: colors.textSec }]}>
-                No available vouchers
-              </Text>
-            ) : (
-              vouchers.map((voucher) => (
-                <TouchableOpacity
-                  key={voucher.id}
-                  style={[
-                    styles.voucherCard,
-                    {
-                      backgroundColor:
-                        selectedVoucher === voucher.id
-                          ? `${Colors.sky}15`
-                          : colors.borderLight,
-                      borderColor:
-                        selectedVoucher === voucher.id
-                          ? Colors.sky
-                          : colors.border,
-                    },
-                  ]}
-                  onPress={() =>
-                    setSelectedVoucher(
-                      selectedVoucher === voucher.id ? null : voucher.id
-                    )
-                  }
-                >
-                  <View style={styles.voucherContent}>
-                    <Text style={[styles.voucherCode, { color: Colors.sky }]}>
-                      {voucher.code}
-                    </Text>
-                    <Text
-                      style={[styles.voucherDesc, { color: colors.textSec }]}
-                    >
-                      {voucher.description}
-                    </Text>
-                  </View>
-                  {selectedVoucher === voucher.id && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color={Colors.sky}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
+              <Ionicons name="pricetag" size={20} color={Colors.sky} />
+              <View style={[styles.voucherContent, { marginLeft: 10 }]}>
+                <Text style={[styles.voucherCode, { color: Colors.sky }]}>
+                  {appliedVoucher.voucher?.code}
+                </Text>
+                <Text style={[styles.voucherDesc, { color: colors.textSec }]}>
+                  You saved ₱
+                  {Number(appliedVoucher.discount || 0).toLocaleString()}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={handleRemoveVoucher} hitSlop={8}>
+                <Text style={styles.removeVoucherText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Voucher Input Field */
+            <View style={styles.voucherInputContainer}>
+              <TextInput
+                placeholder="Enter voucher code"
+                placeholderTextColor={colors.textSec}
+                value={voucherCode}
+                onChangeText={setVoucherCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!validatingVoucher}
+                onSubmitEditing={handleApplyVoucher}
+                returnKeyType="done"
+                style={[
+                  styles.voucherInput,
+                  {
+                    backgroundColor: colors.borderLight,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.applyVoucherButton,
+                  {
+                    backgroundColor: Colors.sky,
+                    opacity: validatingVoucher ? 0.6 : 1,
+                  },
+                ]}
+                onPress={handleApplyVoucher}
+                disabled={validatingVoucher}
+              >
+                {validatingVoucher ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Text style={styles.applyVoucherButtonText}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Price Summary Section */}

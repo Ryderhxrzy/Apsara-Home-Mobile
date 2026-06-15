@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
 import axios from "axios"
@@ -252,22 +252,25 @@ function FeaturedItems({
 
         {/* Badges Row */}
         <View style={styles.badgesRow}>
-          {/* PV badge */}
-          <LinearGradient
-            colors={[Colors.sky, Colors.skyDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badge}
-          >
-            <Ionicons name="trending-up" size={9} color={Colors.white} />
-            <Text
-              style={styles.badgeLabel}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+          {/* PV badge — only when the product carries PV (recommendation feeds
+              may omit it; "PV 0" would be misleading) */}
+          {pv > 0 && (
+            <LinearGradient
+              colors={[Colors.sky, Colors.skyDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badge}
             >
-              PV {pv}
-            </Text>
-          </LinearGradient>
+              <Ionicons name="trending-up" size={9} color={Colors.white} />
+              <Text
+                style={styles.badgeLabel}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                PV {pv}
+              </Text>
+            </LinearGradient>
+          )}
 
           {/* Save amount badge */}
           {hasDiscount && (

@@ -12,7 +12,7 @@ import {
   RefreshControl,
 } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../../components/ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
 import ItemCard from "../../components/Items/ItemCard"

@@ -13,7 +13,7 @@ import {
 } from "react-native"
 import { Image, ImageBackground } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { CategoryItem } from "../services/authService"
 import { useBrandProducts } from "../hooks/query/useBrandProducts"

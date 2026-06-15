@@ -8,7 +8,7 @@ import {
   TextStyle,
   View,
 } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 
 interface OutlineButtonProps {
   title: string

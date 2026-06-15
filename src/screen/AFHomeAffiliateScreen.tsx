@@ -6,7 +6,7 @@ import {  View,
   BackHandler,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import styles from "../styles/AFHomeAffiliateScreen.styles"
 

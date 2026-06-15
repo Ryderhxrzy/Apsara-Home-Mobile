@@ -16,7 +16,7 @@ import {  View,
 import { Image } from "expo-image"
 import { SwipeListView } from "react-native-swipe-list-view"
 import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"

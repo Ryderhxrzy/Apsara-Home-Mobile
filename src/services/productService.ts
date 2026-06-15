@@ -210,6 +210,42 @@ export const productService = {
     }
   },
 
+  /**
+   * Fetch a batch of active products and return a RANDOM selection mapped to
+   * ProductCard — used to fill the home screen's product rails so it doesn't
+   * feel empty. Shuffled per fetch, so a refetch (pull-to-refresh / shuffle)
+   * surfaces a fresh set. Hits /products?page&per_page&status=1.
+   */
+  async getShowcaseProducts(
+    token?: string,
+    opts: { perPage?: number; page?: number; count?: number } = {}
+  ): Promise<ProductCard[]> {
+    const { perPage = 200, page = 1, count = 24 } = opts
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const response = await api.get(
+      `/products?page=${page}&per_page=${perPage}&status=1`,
+      { headers }
+    )
+
+    const data = response.data
+    let products: Product[] = []
+    if (Array.isArray(data)) products = data
+    else if (Array.isArray(data?.data)) products = data.data
+    else if (Array.isArray(data?.products)) products = data.products
+    else if (Array.isArray(data?.items)) products = data.items
+
+    // Keep only purchasable items with an image, then Fisher–Yates shuffle and
+    // take `count`.
+    const usable = products.filter((p) => p && p.image)
+    for (let i = usable.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[usable[i], usable[j]] = [usable[j], usable[i]]
+    }
+    return usable.slice(0, count).map(toProductCard)
+  },
+
   async getProductById(id: number, token?: string): Promise<Product> {
     const headers: Record<string, string> = {}
     if (token) {
@@ -321,9 +357,11 @@ export const productService = {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
     }
+    // Backend caps per_page at 1–100 (default 12).
+    const perPage = Math.min(100, Math.max(1, opts.perPage ?? 12))
     const params: Record<string, string | number> = {
-      page: opts.page ?? 1,
-      per_page: opts.perPage ?? 12,
+      page: Math.max(1, opts.page ?? 1),
+      per_page: perPage,
     }
     if (opts.search && opts.search.trim()) params.search = opts.search.trim()
 
@@ -337,13 +375,94 @@ export const productService = {
       const meta = body.meta ?? {
         current_page: params.page,
         last_page: 1,
-        per_page: params.perPage ?? 12,
+        per_page: perPage,
         total: Array.isArray(items) ? items.length : 0,
       }
       return { items, meta }
     } catch (error) {
       console.error("Error fetching wishlist (paged):", error)
       throw error
+    }
+  },
+
+  /**
+   * Wishlist-seeded product recommendations
+   * (GET /wishlist/recommendations?limit=, auth: customer, limit 1–50, default 12).
+   * The backend returns the same product DTO as GET /wishlist, plus a
+   * `meta.source` of "wishlist" (personalized) or "popular" (cold-start
+   * fallback, e.g. empty wishlist / guest-less). Already excludes items the user
+   * has wishlisted. We map to ProductCard so the standard product cards render it.
+   */
+  async getWishlistRecommendations(
+    token: string,
+    limit: number = 12
+  ): Promise<{
+    products: ProductCard[]
+    source: "wishlist" | "popular"
+    meta: any
+  }> {
+    const headers = { Authorization: `Bearer ${token}` }
+    const lim = Math.min(50, Math.max(1, limit))
+    try {
+      const response = await api.get(
+        `/wishlist/recommendations?limit=${lim}`,
+        { headers }
+      )
+      const body = response.data ?? {}
+      const raw = Array.isArray(body.data) ? body.data : []
+      const products = raw.map((p: any) => toProductCard(p as Product))
+      const source = body.meta?.source === "wishlist" ? "wishlist" : "popular"
+      return { products, source, meta: body.meta ?? {} }
+    } catch (error) {
+      console.error("Error fetching wishlist recommendations:", error)
+      throw error
+    }
+  },
+
+  /**
+   * Server-ranked related products for a product detail page
+   * (GET /products/{id}/related?limit=, NO auth required — works for guests).
+   * Response items already match the card shape; we normalize `discountedPrice`
+   * → `memberPrice` and return ProductCard[] so the standard card renders them.
+   */
+  async getRelatedProducts(
+    productId: number,
+    limit: number = 8,
+    token?: string
+  ): Promise<ProductCard[]> {
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    const lim = Math.min(20, Math.max(1, limit))
+    try {
+      const response = await api.get(
+        `/products/${productId}/related?limit=${lim}`,
+        { headers }
+      )
+      const raw = response.data?.products ?? response.data?.data ?? []
+      if (!Array.isArray(raw)) return []
+      return raw.map(
+        (p: any): ProductCard => ({
+          id: p.id,
+          name: p.name,
+          image: p.image,
+          soldCount: p.soldCount ?? 0,
+          originalPrice: p.originalPrice ?? 0,
+          memberPrice: p.discountedPrice ?? p.memberPrice ?? p.originalPrice ?? 0,
+          pv: p.pv ?? 0,
+          brandName: p.brandName ?? "",
+          variantCount: p.variantCount ?? 0,
+          categoryId: p.categoryId,
+          brandId: p.brandId,
+          badges: {
+            musthave: !!p.badges?.musthave,
+            bestseller: !!p.badges?.bestseller,
+            salespromo: !!p.badges?.salespromo,
+          },
+        })
+      )
+    } catch (error) {
+      console.error("Error fetching related products:", error)
+      return []
     }
   },
 
@@ -413,15 +532,23 @@ export const productService = {
       const response = await api.get(`/search/recommendations?limit=${limit}`, {
         headers,
       })
-      if (response.data?.success && Array.isArray(response.data?.data)) {
-        const seen = new Set<number>()
-        return response.data.data.filter((item: any) => {
-          if (seen.has(item.id)) return false
-          seen.add(item.id)
-          return true
-        })
-      }
-      return []
+      // Accept any of: { data }, { recommendations }, { products }, or a raw
+      // array — and don't require a `success` flag (the live endpoint returns
+      // { data } without it, which previously made this silently return []).
+      const body = response.data ?? {}
+      const raw: any[] = Array.isArray(body)
+        ? body
+        : (body.data ?? body.recommendations ?? body.products ?? [])
+      if (!Array.isArray(raw)) return []
+
+      // De-dupe by id (keep entries without an id, e.g. category suggestions).
+      const seen = new Set<number>()
+      return raw.filter((item: any) => {
+        if (item?.id == null) return true
+        if (seen.has(item.id)) return false
+        seen.add(item.id)
+        return true
+      })
     } catch (error) {
       console.error("Error fetching search recommendations:", error)
       return []

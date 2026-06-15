@@ -1,7 +1,7 @@
 import React from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
 import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../../components/ui/Icon"
 import { Colors } from "../../constants/colors"
 
 interface Category {

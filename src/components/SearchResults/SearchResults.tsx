@@ -1,6 +1,6 @@
 import React from "react"
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 
 const PLACEHOLDER_RESULTS = [

@@ -1,6 +1,6 @@
 import React from "react"
 import { View, Text, Pressable, StyleSheet } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "./Icon"
 import { getColors, spacing, type } from "../../theme/theme"
 
 interface SectionHeaderProps {
@@ -8,7 +8,7 @@ interface SectionHeaderProps {
   /** Small uppercase eyebrow above the title (optional). */
   eyebrow?: string
   /** Ionicons name rendered in a tinted square before the title. */
-  icon?: keyof typeof Ionicons.glyphMap
+  icon?: string
   actionLabel?: string
   onAction?: () => void
   isDarkMode?: boolean

@@ -14,9 +14,8 @@ import {  View,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
-import RenderHtml from "react-native-render-html"
 import { Colors } from "../constants/colors"
 import {
   productService,
@@ -27,40 +26,25 @@ import {
 import { authService } from "../services/authService"
 import { userBehaviorService } from "../services/userBehaviorService"
 import { useProductDetail } from "../hooks/query/useProductDetail"
-import ItemCard from "../components/Items/ItemCard"
-import FeaturedItems from "../components/Items/FeaturedItems"
+import { useRelatedProducts } from "../hooks/query/useRelatedProducts"
 import ImageViewerModal from "../components/Items/ImageViewerModal"
 import BuyNowModal from "../components/Items/BuyNowModal"
 import AddToCartModal from "../components/Items/AddToCartModal"
 import { ProductDetailSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
 import ProductVariantStrip from "../components/ProductVariantStrip/ProductVariantStrip"
 import VariantImageViewer from "../components/VariantImageViewer/VariantImageViewer"
-import GalleryThumbnails from "../components/GalleryThumbnails/GalleryThumbnails"
+import ProductGallery, {
+  type ProductGalleryHandle,
+} from "../components/ProductGallery/ProductGallery"
+import ProductDescription from "../components/ProductDescription/ProductDescription"
+import YouMayAlsoLike from "../components/YouMayAlsoLike/YouMayAlsoLike"
+import RelatedProducts from "../components/RelatedProducts/RelatedProducts"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
 import Toast from "react-native-toast-message"
 import styles from "../styles/ProductDetailScreen.styles"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
-
-// Backend descriptions can arrive entity-encoded (e.g. "&lt;p&gt;" shows the
-// literal <p> tag) and carry inline CSS (style="font-size:16px") that fights the
-// app's own typography. Decode entities and strip inline style/class so our
-// tagsStyles fully control the look — consistent, theme-matched HTML rendering.
-const toRenderableHtml = (raw?: string | null): string => {
-  if (!raw || !raw.trim()) return "<p>No description available</p>"
-  return raw
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\sstyle="[^"]*"/gi, "") // drop inline CSS (font-size, colors, etc.)
-    .replace(/\sclass="[^"]*"/gi, "") // drop classes (no effect in RN anyway)
-    .trim()
-}
 
 interface WishlistItem {
   wishlist_id: number
@@ -178,11 +162,21 @@ export default function ProductDetailScreen({
     isLoading: loading,
   } = useProductDetail({ productId, token, isZq })
 
-  const [relatedProducts, setRelatedProducts] = useState<ProductCard[]>([])
+  // Server-ranked related products (GET /products/{id}/related) — public, cached
+  // per product id. Replaces the old brand-shuffle fetch in the effect below.
+  const { data: relatedProducts = [], isLoading: relatedLoading } =
+    useRelatedProducts({
+      productId,
+      token,
+      limit: 8,
+    })
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null)
   const [productReviews, setProductReviews] =
     useState<ProductReviewsResponse | null>(null)
-  const [activeImage, setActiveImage] = useState(0)
+  // The focused image URL for the fly-to-cart animation overlay. The gallery's
+  // active index itself now lives inside ProductGallery (so swiping doesn't
+  // re-render this screen); we only capture the image when the animation starts.
+  const [animImage, setAnimImage] = useState<string | null>(null)
   // Expanded by default — the description drives purchase decisions, so show it
   // immediately (the header still toggles collapse for users who want it hidden).
   const [descriptionExpanded, setDescriptionExpanded] = useState(true)
@@ -194,15 +188,10 @@ export default function ProductDetailScreen({
   const [imageViewerIndex, setImageViewerIndex] = useState(0)
   const [showVariantViewer, setShowVariantViewer] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
-  const galleryScrollRef = useRef<ScrollView>(null)
-  const imageViewerScrollRef = useRef<ScrollView>(null)
-
-  // Tracks the gallery image currently in view, so the focus logic only runs
-  // when the index actually changes (avoids per-frame re-renders during scroll).
-  const lastGalleryIndexRef = useRef(0)
-  // True while an animated scrollTo (thumbnail/variant tap) is in flight, so
-  // live onScroll tracking ignores the intermediate pages it passes through.
-  const isProgrammaticScrollRef = useRef(false)
+  const galleryRef = useRef<ProductGalleryHandle>(null)
+  // Latest focused gallery index, updated via ProductGallery's onIndexChange
+  // (ref-only, no re-render) — read when starting the fly-to-cart animation.
+  const currentImageIndexRef = useRef(0)
   const [showHeaderOnScroll, setShowHeaderOnScroll] = useState(false)
   const headerTranslateY = useState(() => new Animated.Value(-100))[0]
   const headerOpacity = useState(() => new Animated.Value(0))[0]
@@ -245,11 +234,9 @@ export default function ProductDetailScreen({
   const [prevProductId, setPrevProductId] = useState(productId)
   if (productId !== prevProductId) {
     setPrevProductId(productId)
-    setRelatedProducts([])
     setYouMayAlsoLike([])
     setVisibleYouMayAlsoLikeCount(8)
     setBrandProfile(null)
-    setActiveImage(0)
     setDescriptionExpanded(true)
     setSpecificationsExpanded(false)
     setSelectedVariant(null)
@@ -300,7 +287,6 @@ export default function ProductDetailScreen({
   // changes — external-system sync, correct to keep in an effect. The React
   // state resets are handled during render above (prevProductId).
   useEffect(() => {
-    lastGalleryIndexRef.current = 0
     headerTranslateY.setValue(-100)
     headerOpacity.setValue(0)
     scrollRef.current?.scrollTo({ y: 0, animated: false })
@@ -356,20 +342,8 @@ export default function ProductDetailScreen({
         .catch(() => {})
     }
 
-    // Fetch related products by brand type
-    if (data.brandType && token) {
-      productService
-        .getProductsByBrand(data.brandType, token)
-        .then((items) => {
-          if (!active) return
-          const filteredItems = items.filter((p) => p.id !== productId)
-          // Shuffle the array and take 8 items
-          const shuffled = filteredItems.sort(() => Math.random() - 0.5)
-          const cards = shuffled.slice(0, 8).map(toProductCard)
-          setRelatedProducts(cards)
-        })
-        .catch(() => {})
-    }
+    // Related products now come from GET /products/{id}/related via
+    // useRelatedProducts (cached, public) — no brand-shuffle fetch here.
 
     // Fetch "You May Also Like" products
     if (token) {
@@ -444,34 +418,20 @@ export default function ProductDetailScreen({
   // live from onScroll so the strip tracks the swipe with no lag, guarded so it
   // fires once per image crossing (not every frame). The variant strip centers
   // itself off the selectedVariant prop, so no imperative call is needed here.
-  const focusGalleryImage = (index: number) => {
-    if (index < 0 || index >= images.length) return
-    if (index === lastGalleryIndexRef.current) return
-    lastGalleryIndexRef.current = index
-    setActiveImage(index)
-    const item = imagesWithVariants[index]
-    if (item && item.variantId !== null) {
-      setSelectedVariant(item.variantId)
-    }
+  // Variant focus coming FROM the gallery (a swipe landed on a variant image).
+  // Updating selectedVariant here keeps the price + variant strip in sync.
+  const handleVariantFocus = (variantId: number) => {
+    setSelectedVariant(variantId)
   }
 
-  // Select a variant from the strip: update selection and scroll the gallery to
-  // that variant's image. Plain function — React Compiler caches it, so the
-  // ProductVariantStrip child still receives a stable prop and won't re-render.
+  // Select a variant from the strip: update selection and drive the gallery to
+  // that variant's image via its imperative handle (gallery owns its own scroll).
   const handleSelectVariant = (variantId: number) => {
     setSelectedVariant(variantId)
     const idx = imagesWithVariants.findIndex(
       (item) => item.variantId === variantId
     )
-    if (idx >= 0) {
-      lastGalleryIndexRef.current = idx
-      setActiveImage(idx)
-      isProgrammaticScrollRef.current = true
-      galleryScrollRef.current?.scrollTo({
-        x: idx * SCREEN_WIDTH,
-        animated: true,
-      })
-    }
+    if (idx >= 0) galleryRef.current?.scrollToIndex(idx)
   }
 
   // Tap the Selected-variation thumbnail: open the variant-only swipable popup
@@ -491,23 +451,11 @@ export default function ProductDetailScreen({
     }
   }
 
-  // Tap a gallery thumbnail: scroll the gallery to that exact image and sync the
-  // active index + matching variant. We set lastGalleryIndexRef so the gallery's
-  // onMomentumScrollEnd (fired by this animated scroll) is a no-op, avoiding a
-  // double update.
-  const handleSelectImage = (index: number) => {
-    if (index < 0 || index >= images.length) return
-    lastGalleryIndexRef.current = index
-    setActiveImage(index)
-    isProgrammaticScrollRef.current = true
-    galleryScrollRef.current?.scrollTo({
-      x: index * SCREEN_WIDTH,
-      animated: true,
-    })
-    const item = imagesWithVariants[index]
-    if (item && item.variantId !== null) {
-      setSelectedVariant(item.variantId)
-    }
+  // Tap a gallery image: open the full-screen viewer at that index. (The gallery
+  // itself handles scrolling/variant-sync for the tapped image internally.)
+  const handleOpenViewer = (index: number) => {
+    setImageViewerIndex(index)
+    setShowImageViewer(true)
   }
 
   const hasDiscount = product
@@ -618,9 +566,16 @@ export default function ProductDetailScreen({
         console.log("Item added to cart successfully")
         setShowAddToCartModal(false)
 
-        // Track cart add behavior
+        // Track cart add behavior — include category/brand so it boosts the
+        // user-behavior recommendation feed (the "golden rule").
         userBehaviorService
-          .trackBehavior(token, "cart_add", cartData.product_id)
+          .trackBehavior(
+            token,
+            "cart_add",
+            cartData.product_id,
+            product?.catid,
+            product?.brandType
+          )
           .catch(() => {})
 
         onCartUpdate?.()
@@ -684,6 +639,9 @@ export default function ProductDetailScreen({
     // Optimistic update - increment cart count immediately
     setOptimisticCartCount((prev) => prev + 1)
 
+    // Capture the currently-focused gallery image for the fly-to-cart overlay
+    // (the live index is tracked in a ref by ProductGallery — no re-render).
+    setAnimImage(images[currentImageIndexRef.current] || images[0] || null)
     // Show animated image overlay
     setShowAnimatedImage(true)
 
@@ -936,112 +894,22 @@ export default function ProductDetailScreen({
             onScroll={handleScrollEvent}
             scrollEventThrottle={16}
           >
-            {/* Image Gallery */}
-            <View
-              style={[
-                styles.galleryWrap,
-                {
-                  backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5",
-                  borderBottomColor: colors.divider,
-                },
-              ]}
-            >
-              <ScrollView
-                ref={galleryScrollRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                disableIntervalMomentum
-                scrollEventThrottle={16}
-                style={{ backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" }}
-                // A user touch always means a user-driven scroll — re-enable
-                // live tracking even if a programmatic scroll was in flight.
-                onScrollBeginDrag={() => {
-                  isProgrammaticScrollRef.current = false
+            {/* Image Gallery — pager + counter + thumbnails own activeImage
+                internally, so swiping re-renders only ProductGallery (not this
+                whole screen). key={product.id} resets it on product change. */}
+            <View style={{ position: "relative" }}>
+              <ProductGallery
+                ref={galleryRef}
+                key={product.id}
+                images={images}
+                imagesWithVariants={imagesWithVariants}
+                isDarkMode={isDarkMode}
+                onVariantFocus={handleVariantFocus}
+                onOpenViewer={handleOpenViewer}
+                onIndexChange={(i) => {
+                  currentImageIndexRef.current = i
                 }}
-                // Live tracking for USER swipes only: the index commits as the
-                // page crosses halfway (feels instant), and the ref guard in
-                // focusGalleryImage means one state update per page. Animated
-                // scrollTo from thumbnail/variant taps is ignored here so the
-                // pages it passes through don't flash the UI.
-                onScroll={(e) => {
-                  if (isProgrammaticScrollRef.current) return
-                  focusGalleryImage(
-                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
-                  )
-                }}
-                // Final settle for both user and programmatic scrolls — lands on
-                // the exact page and re-arms live tracking.
-                onMomentumScrollEnd={(e) => {
-                  isProgrammaticScrollRef.current = false
-                  focusGalleryImage(
-                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
-                  )
-                }}
-                // Fallback for slow drags with no momentum (esp. Android), where
-                // onMomentumScrollEnd may not fire. A fling still lands via the
-                // momentum handler above; the index guard skips the duplicate.
-                onScrollEndDrag={(e) => {
-                  focusGalleryImage(
-                    Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
-                  )
-                }}
-              >
-                {images.length > 0 ? (
-                  images.map((img, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      activeOpacity={0.95}
-                      onPress={() => {
-                        // Set active image and scroll gallery to this image
-                        setActiveImage(i)
-                        setImageViewerIndex(i)
-                        setShowImageViewer(true)
-                        galleryScrollRef.current?.scrollTo({
-                          x: i * SCREEN_WIDTH,
-                          animated: true,
-                        })
-                        // Auto-select variant based on image index
-                        if (
-                          imagesWithVariants.length > i &&
-                          imagesWithVariants[i].variantId !== null
-                        ) {
-                          setSelectedVariant(imagesWithVariants[i].variantId)
-                        }
-                      }}
-                      style={[
-                        styles.galleryImageContainer,
-                        { backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" },
-                      ]}
-                    >
-                      <Image
-                        source={{ uri: img }}
-                        style={styles.galleryImage}
-                        contentFit="contain"
-                        transition={200}
-                      />
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <View
-                    style={[
-                      styles.galleryImageContainer,
-                      styles.galleryFallback,
-                      { backgroundColor: isDarkMode ? "#0f172a" : "#f5f5f5" },
-                    ]}
-                  >
-                    <Ionicons name="image-outline" size={48} color="#d1d5db" />
-                  </View>
-                )}
-              </ScrollView>
-              {/* Page Counter */}
-              {images.length > 0 && (
-                <View style={styles.galleryPageCounter}>
-                  <Text style={styles.galleryPageCounterText}>
-                    {activeImage + 1}/{images.length}
-                  </Text>
-                </View>
-              )}
+              />
               {/* Back Button */}
               <TouchableOpacity
                 onPress={() => {
@@ -1150,14 +1018,6 @@ export default function ProductDetailScreen({
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Gallery thumbnails — tap to jump, auto-centers on swipe */}
-            <GalleryThumbnails
-              images={images}
-              activeIndex={activeImage}
-              isDarkMode={isDarkMode}
-              onSelectIndex={handleSelectImage}
-            />
 
             {/* Variations — text buttons + Selected card (tap image → viewer) */}
             {product.variants && product.variants.length > 0 && (
@@ -1450,181 +1310,15 @@ export default function ProductDetailScreen({
                   { backgroundColor: colors.card, borderColor: colors.divider },
                 ]}
               >
-                {/* Description */}
+                {/* Description (memoized component — RenderHtml no longer
+                    rebuilds on every swipe/variant change). */}
                 {!!product.description && (
-                  <View
-                    style={[
-                      styles.descriptionSection,
-                      {
-                        backgroundColor: colors.card,
-                        borderBottomColor: colors.divider,
-                        borderTopColor: colors.divider,
-                      },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.descriptionHeader,
-                        { backgroundColor: isDarkMode ? "#111827" : "#f9fafb" },
-                      ]}
-                      onPress={() =>
-                        setDescriptionExpanded(!descriptionExpanded)
-                      }
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.descriptionTitle,
-                          { color: colors.text },
-                        ]}
-                      >
-                        Description
-                      </Text>
-                      <Ionicons
-                        name={
-                          descriptionExpanded ? "chevron-up" : "chevron-down"
-                        }
-                        size={20}
-                        color={colors.text}
-                      />
-                    </TouchableOpacity>
-                    {descriptionExpanded && (
-                      <View
-                        style={[
-                          styles.descriptionContent,
-                          { backgroundColor: colors.card },
-                        ]}
-                      >
-                        <View style={styles.descriptionContentInner}>
-                          {(() => {
-                            try {
-                              // Renders HTML descriptions (incl. ZQ products,
-                              // whose description is an HTML spec table).
-                              return (
-                                <RenderHtml
-                                  source={{
-                                    html: toRenderableHtml(product.description),
-                                  }}
-                                  contentWidth={SCREEN_WIDTH - 32}
-                                  defaultTextProps={{ selectable: true }}
-                                  enableExperimentalMarginCollapsing
-                                  baseStyle={{
-                                    color: colors.text,
-                                    fontSize: 14,
-                                    lineHeight: 22,
-                                  }}
-                                  tagsStyles={{
-                                    body: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      lineHeight: 22,
-                                    },
-                                    div: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      lineHeight: 22,
-                                    },
-                                    span: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      lineHeight: 22,
-                                    },
-                                    h1: {
-                                      color: colors.text,
-                                      fontSize: 20,
-                                      fontWeight: "800",
-                                      marginTop: 12,
-                                      marginBottom: 6,
-                                    },
-                                    h2: {
-                                      color: colors.text,
-                                      fontSize: 18,
-                                      fontWeight: "800",
-                                      marginTop: 12,
-                                      marginBottom: 6,
-                                    },
-                                    h3: {
-                                      color: colors.text,
-                                      fontSize: 16,
-                                      fontWeight: "700",
-                                      marginTop: 12,
-                                      marginBottom: 6,
-                                    },
-                                    h4: {
-                                      color: colors.text,
-                                      fontSize: 15,
-                                      fontWeight: "600",
-                                      marginTop: 10,
-                                      marginBottom: 6,
-                                    },
-                                    h5: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      fontWeight: "600",
-                                      marginTop: 8,
-                                      marginBottom: 4,
-                                    },
-                                    h6: {
-                                      color: colors.text,
-                                      fontSize: 13,
-                                      fontWeight: "600",
-                                      marginTop: 8,
-                                      marginBottom: 4,
-                                    },
-                                    p: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      lineHeight: 22,
-                                      marginBottom: 10,
-                                    },
-                                    ul: { marginLeft: 20, marginBottom: 10 },
-                                    ol: { marginLeft: 20, marginBottom: 10 },
-                                    li: {
-                                      color: colors.text,
-                                      fontSize: 14,
-                                      lineHeight: 22,
-                                      marginBottom: 6,
-                                    },
-                                    hr: {
-                                      backgroundColor: colors.divider,
-                                      marginVertical: 12,
-                                    },
-                                    strong: { fontWeight: "700" },
-                                    b: { fontWeight: "700" },
-                                    em: { fontStyle: "italic" },
-                                    i: { fontStyle: "italic" },
-                                    u: { textDecorationLine: "underline" },
-                                    br: { marginVertical: 2 },
-                                    a: {
-                                      color: Colors.sky,
-                                      textDecorationLine: "underline",
-                                    },
-                                  }}
-                                />
-                              )
-                            } catch (error) {
-                              console.error(
-                                "❌ [RenderHtml] Error rendering description:",
-                                error
-                              )
-                              return (
-                                <View
-                                  style={[
-                                    styles.descriptionContentInner,
-                                    { padding: 12 },
-                                  ]}
-                                >
-                                  <Text style={{ color: colors.text }}>
-                                    Unable to display description
-                                  </Text>
-                                </View>
-                              )
-                            }
-                          })()}
-                        </View>
-                      </View>
-                    )}
-                  </View>
+                  <ProductDescription
+                    description={product.description}
+                    isDarkMode={isDarkMode}
+                    expanded={descriptionExpanded}
+                    onToggle={() => setDescriptionExpanded(!descriptionExpanded)}
+                  />
                 )}
 
                 {/* Specifications */}
@@ -2187,162 +1881,28 @@ export default function ProductDetailScreen({
             {/* Gray Gap Separator */}
             <View style={{ height: 0, backgroundColor: "#ffffff" }} />
 
-            {/* Related Products */}
-            {relatedProducts.length > 0 ? (
-              <View
-                style={[
-                  styles.relatedSection,
-                  { backgroundColor: colors.card },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.relatedHeader,
-                    { borderBottomColor: colors.divider },
-                  ]}
-                >
-                  <Ionicons name="grid-outline" size={15} color={Colors.sky} />
-                  <Text style={[styles.relatedTitle, { color: colors.text }]}>
-                    Related Products
-                  </Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.relatedScroll}
-                >
-                  <View style={styles.relatedRow}>
-                    {relatedProducts.map((p) => (
-                      <View key={p.id} style={styles.relatedCard}>
-                        <FeaturedItems
-                          product={{
-                            id: p.id,
-                            name: p.name,
-                            image: p.image,
-                            price: p.memberPrice,
-                            priceMember: p.memberPrice,
-                            priceDp: p.memberPrice,
-                            prodpv: p.pv,
-                            original_price: p.originalPrice,
-                            discounted_price: p.memberPrice,
-                            musthave: p.badges?.musthave || false,
-                            bestseller: p.badges?.bestseller || false,
-                            salespromo: p.badges?.salespromo || false,
-                          }}
-                          token={token}
-                          isWishlisted={
-                            wishlistItems?.some(
-                              (item) => item.product_id === p.id
-                            ) || false
-                          }
-                          onPress={(id) => onProductPress?.(id)}
-                          onWishlistToggle={onWishlistToggle}
-                          isDarkMode={isDarkMode}
-                        />
-                      </View>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.relatedSection,
-                  {
-                    backgroundColor: colors.card,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    paddingVertical: 16,
-                  },
-                ]}
-              >
-                <Text style={[{ color: colors.textSec, fontSize: 14 }]}>
-                  No related products found
-                </Text>
-              </View>
-            )}
+            {/* Related Products (memoized — won't re-render on swipe) */}
+            <RelatedProducts
+              products={relatedProducts}
+              loading={relatedLoading}
+              token={token}
+              wishlistItems={wishlistItems}
+              isDarkMode={isDarkMode}
+              onProductPress={onProductPress}
+              onWishlistToggle={onWishlistToggle}
+            />
 
-            {/* You May Also Like Section - With Lazy Loading */}
-            {youMayAlsoLike.length > 0 && (
-              <View
-                style={[
-                  styles.youMayAlsoLikeSection,
-                  { backgroundColor: colors.card },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.youMayAlsoLikeHeader,
-                    {
-                      borderTopColor: colors.divider,
-                      borderBottomColor: colors.divider,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.youMayAlsoLikeBorder,
-                      { backgroundColor: colors.divider },
-                    ]}
-                  />
-                  <Text
-                    style={[styles.youMayAlsoLikeTitle, { color: colors.text }]}
-                  >
-                    You May Also Like
-                  </Text>
-                  <View
-                    style={[
-                      styles.youMayAlsoLikeBorder,
-                      { backgroundColor: colors.divider },
-                    ]}
-                  />
-                </View>
-                <View style={styles.youMayAlsoLikeMasonryGrid}>
-                  <View style={styles.youMayAlsoLikeMasonryColumn}>
-                    {youMayAlsoLike
-                      .slice(0, visibleYouMayAlsoLikeCount)
-                      .filter((_, i) => i % 2 === 0)
-                      .map((p) => (
-                        <View key={p.id} style={styles.youMayAlsoLikeItem}>
-                          <ItemCard
-                            product={p}
-                            token={token}
-                            isWishlisted={
-                              wishlistItems?.some(
-                                (item) => item.product_id === p.id
-                              ) || false
-                            }
-                            onPress={(item) => onProductPress?.(item.id)}
-                            onWishlistToggle={onWishlistToggle}
-                            isDarkMode={isDarkMode}
-                          />
-                        </View>
-                      ))}
-                  </View>
-                  <View style={styles.youMayAlsoLikeMasonryColumn}>
-                    {youMayAlsoLike
-                      .slice(0, visibleYouMayAlsoLikeCount)
-                      .filter((_, i) => i % 2 === 1)
-                      .map((p) => (
-                        <View key={p.id} style={styles.youMayAlsoLikeItem}>
-                          <ItemCard
-                            product={p}
-                            token={token}
-                            isWishlisted={
-                              wishlistItems?.some(
-                                (item) => item.product_id === p.id
-                              ) || false
-                            }
-                            onPress={(item) => onProductPress?.(item.id)}
-                            onWishlistToggle={onWishlistToggle}
-                            isDarkMode={isDarkMode}
-                          />
-                        </View>
-                      ))}
-                  </View>
-                </View>
-              </View>
-            )}
+            {/* You May Also Like (memoized — won't re-render on swipe; the
+                slice + wishlist lookup are computed inside on stable props). */}
+            <YouMayAlsoLike
+              products={youMayAlsoLike}
+              visibleCount={visibleYouMayAlsoLikeCount}
+              token={token}
+              wishlistItems={wishlistItems}
+              isDarkMode={isDarkMode}
+              onProductPress={onProductPress}
+              onWishlistToggle={onWishlistToggle}
+            />
           </ScrollView>
 
           {/* Buy Now Button - Fixed Bottom */}
@@ -2462,305 +2022,6 @@ export default function ProductDetailScreen({
         />
       )}
 
-      {/* Old slideshow code is now in ImageViewerModal component - removed for clarity */}
-      {false && (
-        <View>
-          {/* Header with Brand Info and Close */}
-          <LinearGradient
-            colors={["rgba(14,165,233,0.18)", "rgba(255,255,255,0)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[styles.slideshowHeader, { paddingTop: insets.top + 8 }]}
-          >
-            <TouchableOpacity
-              onPress={() => setShowImageViewer(false)}
-              activeOpacity={0.7}
-              style={styles.slideshowCloseBtn}
-            >
-              <Ionicons name="arrow-back" size={24} color={Colors.text} />
-            </TouchableOpacity>
-
-            {/* Brand/Seller Info */}
-            <View style={styles.slideshowBrandInfo}>
-              <Image
-                source={{
-                  uri:
-                    brandProfile?.profile_picture ||
-                    "https://via.placeholder.com/32",
-                }}
-                style={styles.slideshowBrandImage}
-                contentFit="contain"
-                transition={200}
-              />
-              <View style={styles.slideshowBrandText}>
-                <Text style={styles.slideshowBrandName} numberOfLines={1}>
-                  {product.brand || "Store"}
-                </Text>
-                {brandProfile && (
-                  <View style={styles.slideshowRatingRow}>
-                    <Ionicons name="star" size={12} color="#fbbf24" />
-                    <Text style={styles.slideshowRating}>
-                      {(brandProfile.overall_rating || 0).toFixed(1)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Share Button */}
-            <TouchableOpacity
-              style={styles.slideshowShareBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                console.log("Share product")
-              }}
-            >
-              <Ionicons
-                name="share-social-outline"
-                size={22}
-                color={Colors.text}
-              />
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* Main Image Carousel */}
-          <View style={styles.slideshowImageWrapper}>
-            <ScrollView
-              ref={imageViewerScrollRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(
-                  e.nativeEvent.contentOffset.x / SCREEN_WIDTH
-                )
-                setImageViewerIndex(index)
-                // Auto-select variant based on image index
-                if (imagesWithVariants.length > index) {
-                  const item = imagesWithVariants[index]
-                  if (item.variantId !== null) {
-                    setSelectedVariant(item.variantId)
-                  }
-                }
-              }}
-              style={styles.slideshowImageScroll}
-            >
-              {images.map((img, i) => (
-                <View key={i} style={styles.slideshowImageContainer}>
-                  {/* Image */}
-                  <Image
-                    source={{ uri: img }}
-                    style={styles.slideshowImage}
-                    contentFit="contain"
-                    transition={200}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-
-            {/* Page Indicator */}
-            <View style={styles.slideshowPageIndicator}>
-              <Text style={styles.slideshowPageText}>
-                {imageViewerIndex + 1}/{images.length}
-              </Text>
-            </View>
-          </View>
-
-          {/* Bottom Product Card */}
-          <LinearGradient
-            colors={["rgba(255, 255, 255, 0)", Colors.white]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[
-              styles.slideshowProductCard,
-              { paddingBottom: insets.bottom + 12 },
-            ]}
-          >
-            {/* Product Image Thumbnail and Info */}
-            <View style={styles.slideshowCardContent}>
-              {/* Thumbnail */}
-              <Image
-                source={{ uri: images[imageViewerIndex] }}
-                style={styles.slideshowCardImage}
-                contentFit="cover"
-                transition={200}
-              />
-
-              {/* Product Details */}
-              <View style={styles.slideshowCardDetails}>
-                <Text style={styles.slideshowCardName} numberOfLines={2}>
-                  {product.name}
-                </Text>
-
-                {/* Variant Label */}
-                {selectedVariant && product.variants && (
-                  <Text
-                    style={styles.slideshowVariantLabelText}
-                    numberOfLines={1}
-                  >
-                    {product.variants.find((v) => v.id === selectedVariant)
-                      ?.color ||
-                      product.variants.find((v) => v.id === selectedVariant)
-                        ?.name ||
-                      "Variant"}
-                  </Text>
-                )}
-
-                {/* Pricing */}
-                <View style={styles.slideshowCardPricing}>
-                  <Text style={styles.slideshowCardPrice}>
-                    ₱
-                    {(selectedVariant
-                      ? (product.variants?.find((v) => v.id === selectedVariant)
-                          ?.priceMember ?? product.priceMember)
-                      : product.priceMember
-                    ).toLocaleString()}
-                  </Text>
-                  {(selectedVariant
-                    ? (product.variants?.find((v) => v.id === selectedVariant)
-                        ?.priceSrp ?? 0)
-                    : product.priceSrp) >
-                    (selectedVariant
-                      ? (product.variants?.find((v) => v.id === selectedVariant)
-                          ?.priceMember ?? 0)
-                      : product.priceMember) && (
-                    <Text style={styles.slideshowCardOriginalPrice}>
-                      ₱
-                      {(selectedVariant
-                        ? (product.variants?.find(
-                            (v) => v.id === selectedVariant
-                          )?.priceSrp ?? 0)
-                        : product.priceSrp
-                      ).toLocaleString()}
-                    </Text>
-                  )}
-                </View>
-
-                {/* PV and Sold Count */}
-                <View style={styles.slideshowCardMetaRow}>
-                  {product.prodpv > 0 && (
-                    <View style={styles.slideshowCardMeta}>
-                      <Ionicons name="star" size={12} color={Colors.sky} />
-                      <Text style={styles.slideshowCardMetaText}>
-                        PV {product.prodpv}
-                      </Text>
-                    </View>
-                  )}
-                  {product.soldCount > 0 && (
-                    <View style={styles.slideshowCardMeta}>
-                      <Ionicons
-                        name="bag-check-outline"
-                        size={12}
-                        color={Colors.textSecondary}
-                      />
-                      <Text style={styles.slideshowCardMetaText}>
-                        {product.soldCount} sold
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {/* Variants Section */}
-            {product.variants && product.variants.length > 0 && (
-              <View style={styles.slideshowVariantsSection}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.slideshowVariantsScroll}
-                >
-                  {product.variants.map((variant, idx) => (
-                    <TouchableOpacity
-                      key={variant.id}
-                      style={[
-                        styles.slideshowVariantOption,
-                        selectedVariant === variant.id &&
-                          styles.slideshowVariantOptionSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedVariant(variant.id)
-                        // Scroll to the variant's image in the gallery
-                        const variantIndex = imagesWithVariants.findIndex(
-                          (item) => item.variantId === variant.id
-                        )
-                        if (variantIndex >= 0) {
-                          setImageViewerIndex(variantIndex)
-                          imageViewerScrollRef.current?.scrollTo({
-                            x: variantIndex * SCREEN_WIDTH,
-                            animated: true,
-                          })
-                        }
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      {variant.images && variant.images.length > 0 ? (
-                        <Image
-                          source={{ uri: variant.images[0] }}
-                          style={styles.slideshowVariantImage}
-                          contentFit="cover"
-                          transition={200}
-                        />
-                      ) : variant.colorHex ? (
-                        <View
-                          style={[
-                            styles.slideshowVariantColor,
-                            { backgroundColor: variant.colorHex },
-                          ]}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="image-outline"
-                          size={20}
-                          color="#d1d5db"
-                        />
-                      )}
-                      {selectedVariant === variant.id && (
-                        <View style={styles.slideshowVariantCheck}>
-                          <Ionicons
-                            name="checkmark"
-                            size={14}
-                            color={Colors.white}
-                          />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Action Buttons */}
-            <View style={styles.slideshowButtonRow}>
-              <TouchableOpacity
-                style={styles.slideshowAddToCartBtn}
-                activeOpacity={0.7}
-                onPress={() => {
-                  console.log("Add to cart")
-                  setShowImageViewer(false)
-                }}
-              >
-                <Ionicons name="cart-outline" size={20} color="#f97316" />
-                <Text style={styles.slideshowAddToCartText}>Add to Cart</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.slideshowBuyNowBtn}
-                activeOpacity={0.7}
-                onPress={() => {
-                  setShowBuyModal(true)
-                  setShowImageViewer(false)
-                  setQuantity(1)
-                }}
-              >
-                <Ionicons name="flash" size={18} color={Colors.white} />
-                <Text style={styles.slideshowBuyNowText}>Buy Now</Text>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </View>
-      )}
 
       <BuyNowModal
         visible={showBuyModal}
@@ -2806,9 +2067,9 @@ export default function ProductDetailScreen({
       />
 
       {/* Animated Image Overlay for Add to Cart Animation */}
-      {showAnimatedImage && images.length > 0 && (
+      {showAnimatedImage && animImage && (
         <Animated.Image
-          source={{ uri: images[activeImage] }}
+          source={{ uri: animImage }}
           style={[
             {
               position: "absolute",

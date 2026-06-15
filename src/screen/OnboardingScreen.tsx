@@ -10,7 +10,7 @@ import {  View,
 } from "react-native"
 import { Image } from "expo-image"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import styles from "../styles/OnboardingScreen.styles"
 
@@ -18,7 +18,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 interface Slide {
   key: string
-  icon: keyof typeof Ionicons.glyphMap
+  icon: string
   iconColor: string
   iconBg: string
   eyebrow: string
@@ -29,7 +29,7 @@ interface Slide {
   bulletPoints?: string[]
   cards?: {
     number: string
-    icon: keyof typeof Ionicons.glyphMap
+    icon: string
     title: string
     description: string
   }[]
@@ -217,7 +217,7 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         {item.bulletPoints && (
           <View style={styles.bulletPointsContainer}>
             {item.bulletPoints.map((point, index) => {
-              let iconName: keyof typeof Ionicons.glyphMap = "checkmark-circle"
+              let iconName: string = "checkmark-circle"
 
               // Set icon based on content
               if (point.includes("earn without stocking")) {

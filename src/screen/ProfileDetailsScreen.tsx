@@ -10,7 +10,7 @@ import {
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { getColors, gradients } from "../theme/theme"
 import { profileService } from "../services/profileService"
@@ -39,7 +39,7 @@ interface ProfileDetailsScreenProps {
   onUserUpdate?: (patch: Record<string, any>) => void
 }
 
-type IconName = keyof typeof Ionicons.glyphMap
+type IconName = string
 
 type RowItem =
   | { kind: "info"; key: string; label: string; value: string; icon?: IconName }

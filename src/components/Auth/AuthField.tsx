@@ -8,10 +8,10 @@ import {
   TextInputProps,
   ViewStyle,
 } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 
-type IconName = keyof typeof Ionicons.glyphMap
+type IconName = string
 type Variant = "dark" | "light"
 
 export interface AuthFieldProps extends TextInputProps {

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
@@ -18,11 +17,19 @@ import {
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import Toast from "react-native-toast-message"
 import { Colors } from "../constants/colors"
 import { addressService, LocationData } from "../services/addressService"
 import { useRegions } from "../hooks/query/useRegions"
+import {
+  profileSchema,
+  buildProfileDefaults,
+  ProfileFormValues,
+} from "../schemas/profileSchemas"
+import ControlledFormField from "../components/ui/ControlledFormField"
 import Button from "../components/Button/PrimaryButton"
 import styles from "../styles/ProfileEditScreen.styles"
 
@@ -32,6 +39,16 @@ interface ProfileEditScreenProps {
   onSave?: (data: any) => Promise<void>
   isDarkMode?: boolean
 }
+
+// Free-text fields bound to react-hook-form via ControlledFormField.
+type TextFieldName =
+  | "firstName"
+  | "lastName"
+  | "middleName"
+  | "phone"
+  | "occupation"
+  | "streetAddress"
+  | "zipCode"
 
 const GENDERS = ["Male", "Female", "Other"]
 const WORK_LOCATIONS = ["Local", "Overseas"]
@@ -84,40 +101,41 @@ export default function ProfileEditScreen({
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
   const [loadingLocations, setLoadingLocations] = useState(false)
-  const [errors, setErrors] = useState<Set<string>>(new Set())
-  const [focusedField, setFocusedField] = useState<string | null>(null)
 
-  const [profileData, setProfileData] = useState({
-    firstName: user?.first_name || user?.name || "",
-    lastName: user?.last_name || "",
-    middleName: user?.middle_name || "",
-    birthDate: user?.birth_date || "2000-01-01",
-    gender: user?.gender
-      ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1).toLowerCase()
-      : "Male",
-    occupation: user?.occupation || "",
-    workLocation: user?.work_location === "overseas" ? "Overseas" : "Local",
-    country: user?.country || "Philippines",
-    streetAddress: user?.address || "",
-    zipCode: user?.zip_code || "",
-    phone: user?.phone || "",
-  })
+  // All form values (text + selects + location + date) live in react-hook-form;
+  // validation rules are in profileSchema (zod).
+  const { control, handleSubmit, setValue, getValues, watch, formState } =
+    useForm<ProfileFormValues>({
+      resolver: zodResolver(profileSchema),
+      defaultValues: buildProfileDefaults(user),
+      mode: "onBlur",
+    })
+  const { errors } = formState
 
-  const initLocation = (value: any): LocationData | null =>
-    value && value !== "Not specified" ? { code: value, name: value } : null
+  // Only subscribe the parent to the fields IT renders directly (selects, date,
+  // location). Text fields are isolated inside ControlledFormField, so their
+  // keystrokes don't re-render this component.
+  const [
+    genderValue,
+    workLocationValue,
+    countryValue,
+    birthDateValue,
+    regionValue,
+    provinceValue,
+    cityValue,
+    barangayValue,
+  ] = watch([
+    "gender",
+    "workLocation",
+    "country",
+    "birthDate",
+    "region",
+    "province",
+    "city",
+    "barangay",
+  ])
 
-  const [selectedRegion, setSelectedRegion] = useState<LocationData | null>(
-    initLocation(user?.region)
-  )
-  const [selectedProvince, setSelectedProvince] = useState<LocationData | null>(
-    initLocation(user?.province)
-  )
-  const [selectedCity, setSelectedCity] = useState<LocationData | null>(
-    initLocation(user?.city)
-  )
-  const [selectedBarangay, setSelectedBarangay] =
-    useState<LocationData | null>(initLocation(user?.barangay))
-
+  // Option lists for the location dropdowns (data/UI state, not form values).
   const { data: regions = [], isLoading: loadingRegions } = useRegions()
   const [provinces, setProvinces] = useState<LocationData[]>([])
   const [cities, setCities] = useState<LocationData[]>([])
@@ -241,19 +259,6 @@ export default function ProfileEditScreen({
     }
   }
 
-  const clearError = (key: string) =>
-    setErrors((prev) => {
-      if (!prev.has(key)) return prev
-      const next = new Set(prev)
-      next.delete(key)
-      return next
-    })
-
-  const updateField = (key: keyof typeof profileData, value: string) => {
-    setProfileData((prev) => ({ ...prev, [key]: value }))
-    clearError(key)
-  }
-
   const openDropdown = (
     field: string,
     options: string[] | LocationData[],
@@ -282,38 +287,33 @@ export default function ProfileEditScreen({
   }
 
   const handleDatePickerConfirm = () => {
-    setProfileData((prev) => ({
-      ...prev,
-      birthDate: formatDate(tempYear, tempMonth, tempDay),
-    }))
-    clearError("birthDate")
+    setValue("birthDate", formatDate(tempYear, tempMonth, tempDay), {
+      shouldValidate: true,
+    })
     setShowDatePicker(false)
     setDatePickerMode("year")
   }
 
   const selectDropdownOption = (value: LocationData | string) => {
-    if (selectedDropdown) clearError(selectedDropdown)
+    const field = selectedDropdown
 
-    if (selectedDropdown === "gender") {
-      setProfileData((prev) => ({
-        ...prev,
-        gender: typeof value === "string" ? value : value.name,
-      }))
-    } else if (selectedDropdown === "workLocation") {
-      setProfileData((prev) => ({
-        ...prev,
-        workLocation: typeof value === "string" ? value : value.name,
-      }))
-    } else if (selectedDropdown === "country") {
-      setProfileData((prev) => ({
-        ...prev,
-        country: typeof value === "string" ? value : value.name,
-      }))
-    } else if (selectedDropdown === "region" && typeof value !== "string") {
-      setSelectedRegion(value)
-      setSelectedProvince(null)
-      setSelectedCity(null)
-      setSelectedBarangay(null)
+    if (field === "gender") {
+      setValue("gender", typeof value === "string" ? value : value.name, {
+        shouldValidate: true,
+      })
+    } else if (field === "workLocation") {
+      setValue("workLocation", typeof value === "string" ? value : value.name, {
+        shouldValidate: true,
+      })
+    } else if (field === "country") {
+      setValue("country", typeof value === "string" ? value : value.name, {
+        shouldValidate: true,
+      })
+    } else if (field === "region" && typeof value !== "string") {
+      setValue("region", value, { shouldValidate: true })
+      setValue("province", null)
+      setValue("city", null)
+      setValue("barangay", null)
       setProvinces([])
       setCities([])
       setBarangays([])
@@ -326,53 +326,27 @@ export default function ProfileEditScreen({
       } else {
         fetchProvinces(value.code)
       }
-    } else if (selectedDropdown === "province" && typeof value !== "string") {
-      setSelectedProvince(value)
-      setSelectedCity(null)
-      setSelectedBarangay(null)
+    } else if (field === "province" && typeof value !== "string") {
+      setValue("province", value, { shouldValidate: true })
+      setValue("city", null)
+      setValue("barangay", null)
       setCities([])
       setBarangays([])
-      fetchCities(isNCRRegion && selectedRegion ? selectedRegion.code : value.code)
-    } else if (selectedDropdown === "city" && typeof value !== "string") {
-      setSelectedCity(value)
-      setSelectedBarangay(null)
+      const regionVal = getValues("region")
+      fetchCities(isNCRRegion && regionVal ? regionVal.code : value.code)
+    } else if (field === "city" && typeof value !== "string") {
+      setValue("city", value, { shouldValidate: true })
+      setValue("barangay", null)
       setBarangays([])
       fetchBarangays(value.code)
-    } else if (selectedDropdown === "barangay" && typeof value !== "string") {
-      setSelectedBarangay(value)
+    } else if (field === "barangay" && typeof value !== "string") {
+      setValue("barangay", value, { shouldValidate: true })
     }
     setSelectedDropdown(null)
   }
 
-  const validate = (): Set<string> => {
-    const missing = new Set<string>()
-    if (!profileData.firstName.trim()) missing.add("firstName")
-    if (!profileData.occupation.trim()) missing.add("occupation")
-    if (!profileData.streetAddress.trim()) missing.add("streetAddress")
-    if (!profileData.zipCode.trim()) missing.add("zipCode")
-    if (!profileData.birthDate) missing.add("birthDate")
-    if (!profileData.gender) missing.add("gender")
-    if (!profileData.workLocation) missing.add("workLocation")
-    if (!profileData.country) missing.add("country")
-    if (!selectedRegion) missing.add("region")
-    if (!selectedProvince) missing.add("province")
-    if (!selectedCity) missing.add("city")
-    if (!selectedBarangay) missing.add("barangay")
-    return missing
-  }
-
-  const handleSave = async () => {
-    const missing = validate()
-    if (missing.size > 0) {
-      setErrors(missing)
-      Toast.show({
-        type: "error",
-        text1: "Missing information",
-        text2: "Please complete all required fields.",
-      })
-      return
-    }
-
+  // Validation handled by zodResolver(profileSchema); values arrive validated.
+  const onSubmit = async (values: ProfileFormValues) => {
     if (!onSave) {
       Toast.show({
         type: "error",
@@ -385,11 +359,21 @@ export default function ProfileEditScreen({
     setLoading(true)
     try {
       await onSave({
-        ...profileData,
-        region: selectedRegion?.name || "",
-        province: selectedProvince?.name || "",
-        city: selectedCity?.name || "",
-        barangay: selectedBarangay?.name || "",
+        firstName: values.firstName,
+        lastName: values.lastName,
+        middleName: values.middleName,
+        birthDate: values.birthDate,
+        gender: values.gender,
+        occupation: values.occupation,
+        workLocation: values.workLocation,
+        country: values.country,
+        streetAddress: values.streetAddress,
+        zipCode: values.zipCode,
+        phone: values.phone,
+        region: values.region?.name || "",
+        province: values.province?.name || "",
+        city: values.city?.name || "",
+        barangay: values.barangay?.name || "",
       })
     } catch (error: any) {
       Toast.show({
@@ -402,6 +386,14 @@ export default function ProfileEditScreen({
     }
   }
 
+  const onInvalid = () => {
+    Toast.show({
+      type: "error",
+      text1: "Missing information",
+      text2: "Please complete all required fields.",
+    })
+  }
+
   /* ---------- Field renderers ---------- */
   const renderLabel = (label: string, required?: boolean) => (
     <View style={styles.labelRow}>
@@ -411,56 +403,34 @@ export default function ProfileEditScreen({
   )
 
   const renderTextField = (
-    key: keyof typeof profileData,
+    name: TextFieldName,
     label: string,
     opts: {
       required?: boolean
       placeholder?: string
       keyboardType?: KeyboardTypeOptions
     } = {}
-  ) => {
-    const hasError = errors.has(key)
-    const focused = focusedField === key
-    return (
-      <View style={styles.field}>
-        {renderLabel(label, opts.required)}
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: c.text,
-              backgroundColor: c.inputBg,
-              borderColor: hasError
-                ? Colors.error
-                : focused
-                  ? Colors.sky
-                  : c.border,
-            },
-          ]}
-          value={profileData[key]}
-          onChangeText={(t) => updateField(key, t)}
-          onFocus={() => setFocusedField(key)}
-          onBlur={() => setFocusedField(null)}
-          placeholder={opts.placeholder}
-          placeholderTextColor={c.textSec}
-          keyboardType={opts.keyboardType}
-        />
-        {hasError ? (
-          <Text style={styles.errorText}>This field is required</Text>
-        ) : null}
-      </View>
-    )
-  }
+  ) => (
+    <ControlledFormField
+      control={control}
+      name={name}
+      label={label}
+      required={opts.required}
+      placeholder={opts.placeholder}
+      keyboardType={opts.keyboardType}
+      isDarkMode={isDarkMode}
+    />
+  )
 
   const renderSelectField = (
-    key: string,
     label: string,
     value: string,
     placeholder: string,
     onPress: () => void,
+    error?: string,
     required?: boolean
   ) => {
-    const hasError = errors.has(key)
+    const hasError = !!error
     return (
       <View style={styles.field}>
         {renderLabel(label, required)}
@@ -483,9 +453,7 @@ export default function ProfileEditScreen({
           </Text>
           <Ionicons name="chevron-down" size={18} color={c.textSec} />
         </TouchableOpacity>
-        {hasError ? (
-          <Text style={styles.errorText}>This field is required</Text>
-        ) : null}
+        {hasError ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
     )
   }
@@ -573,27 +541,30 @@ export default function ProfileEditScreen({
                     styles.input,
                     {
                       backgroundColor: c.inputBg,
-                      borderColor: errors.has("birthDate")
-                        ? Colors.error
-                        : c.border,
+                      borderColor: errors.birthDate ? Colors.error : c.border,
                     },
                   ]}
                   onPress={() => setShowDatePicker(true)}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.inputText, { color: c.text }]}>
-                    {profileData.birthDate}
+                    {birthDateValue}
                   </Text>
                   <Ionicons name="calendar" size={18} color={c.textSec} />
                 </TouchableOpacity>
+                {errors.birthDate ? (
+                  <Text style={styles.errorText}>
+                    {errors.birthDate.message}
+                  </Text>
+                ) : null}
               </View>
 
               {renderSelectField(
-                "gender",
                 "Gender",
-                profileData.gender,
+                genderValue,
                 "Select gender",
                 () => openDropdown("gender", GENDERS, "Gender"),
+                errors.gender?.message,
                 true
               )}
               {renderTextField("occupation", "Occupation", {
@@ -601,20 +572,20 @@ export default function ProfileEditScreen({
                 placeholder: "Occupation",
               })}
               {renderSelectField(
-                "workLocation",
                 "Work Location",
-                profileData.workLocation,
+                workLocationValue,
                 "Select work location",
                 () =>
                   openDropdown("workLocation", WORK_LOCATIONS, "Work Location"),
+                errors.workLocation?.message,
                 true
               )}
               {renderSelectField(
-                "country",
                 "Country",
-                profileData.country,
+                countryValue,
                 "Select country",
                 () => openDropdown("country", COUNTRIES, "Country"),
+                errors.country?.message,
                 true
               )}
             </View>
@@ -635,35 +606,35 @@ export default function ProfileEditScreen({
                 placeholder: "Street / House No.",
               })}
               {renderSelectField(
-                "region",
                 "Region",
-                selectedRegion?.name || "",
+                regionValue?.name || "",
                 "Select region",
                 () => openDropdown("region", regions, "Region"),
+                errors.region?.message as string | undefined,
                 true
               )}
               {renderSelectField(
-                "province",
                 "Province",
-                selectedProvince?.name || "",
+                provinceValue?.name || "",
                 "Select province",
                 () => openDropdown("province", provinces, "Province"),
+                errors.province?.message as string | undefined,
                 true
               )}
               {renderSelectField(
-                "city",
                 "City / Municipality",
-                selectedCity?.name || "",
+                cityValue?.name || "",
                 "Select city / municipality",
                 () => openDropdown("city", cities, "City / Municipality"),
+                errors.city?.message as string | undefined,
                 true
               )}
               {renderSelectField(
-                "barangay",
                 "Barangay",
-                selectedBarangay?.name || "",
+                barangayValue?.name || "",
                 "Select barangay",
                 () => openDropdown("barangay", barangays, "Barangay"),
+                errors.barangay?.message as string | undefined,
                 true
               )}
               {renderTextField("zipCode", "ZIP Code", {
@@ -688,7 +659,7 @@ export default function ProfileEditScreen({
         >
           <Button
             title="SAVE CHANGES"
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit, onInvalid)}
             loading={loading}
             style={styles.saveBtn}
           />
@@ -748,19 +719,19 @@ export default function ProfileEditScreen({
                 {dropdownOptions.map((item, index) => {
                   const isSelected =
                     (selectedDropdown === "gender" &&
-                      item.name === profileData.gender) ||
+                      item.name === genderValue) ||
                     (selectedDropdown === "workLocation" &&
-                      item.name === profileData.workLocation) ||
+                      item.name === workLocationValue) ||
                     (selectedDropdown === "country" &&
-                      item.name === profileData.country) ||
+                      item.name === countryValue) ||
                     (selectedDropdown === "region" &&
-                      item.name === selectedRegion?.name) ||
+                      item.name === regionValue?.name) ||
                     (selectedDropdown === "province" &&
-                      item.name === selectedProvince?.name) ||
+                      item.name === provinceValue?.name) ||
                     (selectedDropdown === "city" &&
-                      item.name === selectedCity?.name) ||
+                      item.name === cityValue?.name) ||
                     (selectedDropdown === "barangay" &&
-                      item.name === selectedBarangay?.name)
+                      item.name === barangayValue?.name)
 
                   return (
                     <TouchableOpacity

@@ -14,7 +14,7 @@ import {
 } from "react-native"
 import type { AppStateStatus } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import {
   NavigationProvider,
   NavigationContextType,
@@ -1264,6 +1264,7 @@ export default function AppNavigator({
       setPurchasesStatus,
       purchasesInitialOrderId: purchasesInitialOrderId,
       setPurchasesInitialOrderId,
+      setShowPurchases,
       linkedAccountsRefreshTrigger,
       setLinkedAccountsRefreshTrigger: () => {},
       showShopProductDetail,

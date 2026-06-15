@@ -18,7 +18,7 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../components/ui/Icon"
 import axios from "axios"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../constants/colors"
@@ -177,6 +177,12 @@ export default function PurchasesScreen({
   const [selectedStatus, setSelectedStatus] = useState<any>(initialStatus)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+
+  // Follow the incoming status prop (e.g. opened from a notification tap on a
+  // specific order status) even if the screen is already mounted.
+  useEffect(() => {
+    setSelectedStatus(initialStatus)
+  }, [initialStatus])
 
   const {
     data: allOrders = [],

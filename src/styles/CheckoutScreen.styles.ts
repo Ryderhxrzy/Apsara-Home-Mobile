@@ -349,6 +349,11 @@ const styles = StyleSheet.create({
   voucherDesc: {
     fontSize: 11,
   },
+  removeVoucherText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#ef4444",
+  },
   noVouchersText: {
     fontSize: 13,
     fontWeight: "500",

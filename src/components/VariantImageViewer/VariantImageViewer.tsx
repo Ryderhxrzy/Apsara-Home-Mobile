@@ -8,8 +8,8 @@ import {
   Dimensions,
   StyleSheet,
 } from "react-native"
-import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
+import Ionicons from "../ui/Icon"
+import ZoomableImage from "../ZoomableImage/ZoomableImage"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Colors } from "../../constants/colors"
 import {
@@ -54,6 +54,8 @@ function VariantImageViewer({
   const insets = useSafeAreaInsets()
   const pagerRef = useRef<ScrollView>(null)
   const [pageIndex, setPageIndex] = useState(0)
+  // Disable paging while an image is pinch-zoomed so panning moves the image.
+  const [zoomed, setZoomed] = useState(false)
 
   // One page per variant image — variations without photos contribute nothing
   // (the strip shows no viewer entry point for them either).
@@ -121,6 +123,7 @@ function VariantImageViewer({
           ref={pagerRef}
           horizontal
           pagingEnabled
+          scrollEnabled={!zoomed}
           showsHorizontalScrollIndicator={false}
           disableIntervalMomentum
           onMomentumScrollEnd={(e) => {
@@ -132,11 +135,10 @@ function VariantImageViewer({
         >
           {pages.map((page, i) => (
             <View key={`${page.variantId}-${i}`} style={styles.page}>
-              <Image
-                source={{ uri: page.image }}
-                style={styles.pageImage}
-                contentFit="contain"
-                transition={150}
+              <ZoomableImage
+                uri={page.image}
+                onZoomChange={setZoomed}
+                containerStyle={styles.pageImage}
               />
             </View>
           ))}
