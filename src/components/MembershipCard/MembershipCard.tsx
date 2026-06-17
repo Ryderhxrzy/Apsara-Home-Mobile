@@ -16,6 +16,7 @@ interface MembershipCardProps {
   isDarkMode?: boolean
   onCartPress?: () => void
   onReferralPress?: () => void
+  onOrdersPress?: () => void
 }
 
 /**
@@ -33,6 +34,7 @@ function MembershipCard({
   isDarkMode = false,
   onCartPress,
   onReferralPress,
+  onOrdersPress,
 }: MembershipCardProps) {
   const t = getColors(isDarkMode)
   const hasBadge = !!badgeName
@@ -104,7 +106,7 @@ function MembershipCard({
         <View style={[styles.divider, { backgroundColor: t.border }]} />
 
         <View style={styles.statRow}>
-          {renderStat("bag-outline", orders, "Orders")}
+          {renderStat("bag-outline", orders, "Orders", onOrdersPress)}
           <View style={[styles.statDivider, { backgroundColor: t.border }]} />
           {renderStat("cart-outline", cart, "Cart", onCartPress)}
           <View style={[styles.statDivider, { backgroundColor: t.border }]} />

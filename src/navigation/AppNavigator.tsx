@@ -2199,47 +2199,36 @@ export default function AppNavigator({
                 setShowProfileEdit(true)
               }}
               onNavigateAboutUs={() => {
-                setShowSettings(false)
                 openInfoPage("aboutUs")
               }}
               onNavigatePrivacyPolicy={() => {
-                setShowSettings(false)
                 openInfoPage("privacyPolicy")
               }}
               onNavigateTermsAndConditions={() => {
-                setShowSettings(false)
                 openInfoPage("termsAndConditions")
               }}
               onNavigateIncomeDisclaimer={() => {
-                setShowSettings(false)
                 openInfoPage("incomeDisclaimer")
               }}
               onNavigateCookiePolicy={() => {
-                setShowSettings(false)
                 openInfoPage("cookiePolicy")
               }}
               onNavigateRewardsAndCommissions={() => {
-                setShowSettings(false)
                 openInfoPage("rewardsAndCommissions")
               }}
               onNavigateContactUs={() => {
-                setShowSettings(false)
                 openInfoPage("contactUs")
               }}
               onNavigateOurBranches={() => {
-                setShowSettings(false)
                 openInfoPage("ourBranches")
               }}
               onNavigateFAQs={() => {
-                setShowSettings(false)
                 openInfoPage("faqs")
               }}
               onNavigateShippingInfo={() => {
-                setShowSettings(false)
                 openInfoPage("shippingInfo")
               }}
               onNavigateReturns={() => {
-                setShowSettings(false)
                 openInfoPage("returns")
               }}
               onLogout={onLogout}

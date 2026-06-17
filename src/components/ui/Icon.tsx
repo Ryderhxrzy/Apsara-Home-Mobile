@@ -288,6 +288,7 @@ const MAP: Record<string, LucideIcon> = {
   "qr-code": QrCode,
   "qr-code-outline": QrCode,
   receipt: Receipt,
+  "receipt-outline": Receipt,
   refresh: RefreshCw,
   "refresh-outline": RefreshCw,
   remove: Minus,

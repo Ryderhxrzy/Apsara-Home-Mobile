@@ -170,6 +170,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
+  notificationFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  notificationMetaLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    flexWrap: "nowrap",
+  },
+  notificationAmountStrong: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  notificationMetaText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  viewOrderLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingLeft: 8,
+    flexShrink: 0,
+  },
+  viewOrderText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.sky,
+  },
   emptyContainer: {
     flex: 1,
     alignItems: "center",

@@ -180,10 +180,13 @@ export default function PurchasesScreen({
   const [showDetailModal, setShowDetailModal] = useState(false)
 
   // Follow the incoming status prop (e.g. opened from a notification tap on a
-  // specific order status) even if the screen is already mounted.
-  useEffect(() => {
+  // specific order status) even if the screen is already mounted. Adjusting
+  // state during render (not an effect) — converges via the prev-value guard.
+  const [prevInitialStatus, setPrevInitialStatus] = useState(initialStatus)
+  if (initialStatus !== prevInitialStatus) {
+    setPrevInitialStatus(initialStatus)
     setSelectedStatus(initialStatus)
-  }, [initialStatus])
+  }
 
   const {
     data: allOrders = [],
@@ -339,11 +342,8 @@ export default function PurchasesScreen({
     borderLight: isDarkMode ? "#475569" : "#f1f5f9",
   }
 
-  useEffect(() => {
-    // Clear modal when switching tabs (data is fetched via useOrders + filtered)
-    setShowDetailModal(false)
-    setSelectedOrder(null)
-  }, [token, selectedStatus])
+  // (Switching tabs clears any open detail modal — handled in the tab onPress so
+  // it only fires on a user tab change, not the programmatic deep-link change.)
 
   // COMMENTED OUT: Fetch cancellation reasons - API endpoint returns 404
   // useEffect(() => {
@@ -363,42 +363,25 @@ export default function PurchasesScreen({
   //   fetchCancellationReasons();
   // }, [token]);
 
-  const hasSetInitialOrder = React.useRef(false)
-
-  useEffect(() => {
-    if (initialOrderId && allOrders.length > 0 && !hasSetInitialOrder.current) {
-      console.log(
-        "[PurchasesScreen] Looking for order with initialOrderId:",
-        initialOrderId
-      )
-
-      // Try to find order by any of the IDs (they should all be the same value according to user)
-      let order = allOrders.find(
-        (o) =>
-          o.mobile_order_id === initialOrderId ||
-          o.order_number === initialOrderId ||
-          o.checkout_id === initialOrderId ||
-          o.id.toString() === initialOrderId
-      )
-
-      if (order) {
-        console.log("[PurchasesScreen] Found order:", order)
-        setSelectedOrder(order)
-        setShowDetailModal(true)
-
-        // Also update selectedStatus to match the order's status so user sees it in the right tab
-        const normalizedStatus = normalizeStatusKey(order.status)
-        console.log("[PurchasesScreen] Updating status to:", normalizedStatus)
-        setSelectedStatus(normalizedStatus)
-        hasSetInitialOrder.current = true
-      } else {
-        console.warn(
-          "[PurchasesScreen] Order not found with ID:",
-          initialOrderId
-        )
-      }
+  // Open the deep-linked order's detail modal once, after orders load. Adjusting
+  // state during render (not an effect); the didOpen flag makes it run a single
+  // time once the orders list is available (replaces a render-unsafe ref write).
+  const [didOpenInitialOrder, setDidOpenInitialOrder] = useState(false)
+  if (initialOrderId && allOrders.length > 0 && !didOpenInitialOrder) {
+    const order = (allOrders as Order[]).find(
+      (o) =>
+        o.mobile_order_id === initialOrderId ||
+        o.order_number === initialOrderId ||
+        o.checkout_id === initialOrderId ||
+        o.id.toString() === initialOrderId
+    )
+    setDidOpenInitialOrder(true)
+    if (order) {
+      setSelectedOrder(order)
+      setShowDetailModal(true)
+      setSelectedStatus(normalizeStatusKey(order.status))
     }
-  }, [initialOrderId, allOrders])
+  }
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -656,11 +639,7 @@ export default function PurchasesScreen({
         ]}
       >
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons
-            name="chevron-back-outline"
-            size={24}
-            color={colors.text}
-          />
+          <Ionicons name="chevron-back-outline" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={[styles.headerGreeting, { color: colors.text }]}>
@@ -708,7 +687,11 @@ export default function PurchasesScreen({
                     { backgroundColor: Colors.sky },
                   ],
                 ]}
-                onPress={() => setSelectedStatus(filterStatus)}
+                onPress={() => {
+                  setSelectedStatus(filterStatus)
+                  setShowDetailModal(false)
+                  setSelectedOrder(null)
+                }}
               >
                 <Text
                   style={[
@@ -758,7 +741,8 @@ export default function PurchasesScreen({
               No Purchases Yet
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textSec }]}>
-              You don't have any {statusConfig.label.toLowerCase()} orders yet
+              You don&apos;t have any {statusConfig.label.toLowerCase()} orders
+              yet
             </Text>
 
             <TouchableOpacity

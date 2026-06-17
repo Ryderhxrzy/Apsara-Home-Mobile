@@ -716,7 +716,7 @@ function HomeScreen({
           containerStyle={[styles.section, { backgroundColor: colors.bg }]}
         />
 
-        <View style={[styles.section, { backgroundColor: colors.bg }]}>
+        <View style={[styles.sectionEven, { backgroundColor: colors.bg }]}>
           <SectionHeader
             title="Shop by Rooms"
             icon="bed-outline"
@@ -763,28 +763,22 @@ function HomeScreen({
               ))}
             </View>
           ) : (
-            <ScrollView
+            <FlatList
+              data={categories}
+              renderItem={({ item, index }) => (
+                <CategoryCircle
+                  category={item}
+                  index={index}
+                  onPress={onShopByCategoryPress}
+                  isDarkMode={isDarkMode}
+                  colors={colors}
+                />
+              )}
+              keyExtractor={(item) => `category-${item.id}`}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.circleRow}
-            >
-              <FlashList
-                data={categories}
-                renderItem={({ item, index }) => (
-                  <CategoryCircle
-                    category={item}
-                    index={index}
-                    onPress={onShopByCategoryPress}
-                    isDarkMode={isDarkMode}
-                    colors={colors}
-                  />
-                )}
-                keyExtractor={(item) => `category-${item.id}`}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.circleRow}
-              />
-            </ScrollView>
+            />
           )}
         </View>
 

@@ -1386,8 +1386,6 @@ export default function ProductDetailScreen({
                   <ProductDescription
                     description={product.description}
                     isDarkMode={isDarkMode}
-                    expanded={descriptionExpanded}
-                    onToggle={() => setDescriptionExpanded(!descriptionExpanded)}
                   />
                 )}
 

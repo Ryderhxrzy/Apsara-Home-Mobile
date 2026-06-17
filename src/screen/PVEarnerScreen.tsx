@@ -57,7 +57,7 @@ export default function PVEarnerScreen({
   }, [onBack])
 
   const colors = {
-    bg: isDarkMode ? "#0f172a" : "#f5f5f5",
+    bg: isDarkMode ? "#0f172a" : "#f8fafc",
     containerBg: isDarkMode ? "#1f2937" : Colors.white,
     text: isDarkMode ? "#f8fafc" : Colors.text,
     textSec: isDarkMode ? "#94a3b8" : Colors.textSecondary,
@@ -285,35 +285,32 @@ export default function PVEarnerScreen({
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={["left", "right", "bottom"]}
     >
-      {/* Header with Background Image */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Image
-          source={{
-              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/pv_earner_bg_fzbxf5.png"
-            }}
-          style={styles.headerBackgroundImage}
-          contentFit="cover"
-          transition={200}
-        />
-        <View style={[styles.headerContent, { paddingTop: insets.top }]}>
-          <TouchableOpacity
-            onPress={onBack}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="chevron-back-outline"
-              size={24}
-              color={Colors.white}
-            />
-          </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: Colors.white }]}>
-              PV Earner
-            </Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.containerBg,
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 8,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={onBack}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="chevron-back-outline"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          PV Earner
+        </Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {/* Daily Check-In and Missions */}

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import {
   View,
   Text,
@@ -8,8 +8,13 @@ import {
   Modal,
   Dimensions,
   StyleSheet,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  LayoutChangeEvent,
 } from "react-native"
 import { Image } from "expo-image"
+import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import RenderHtml from "react-native-render-html"
 import Ionicons from "../ui/Icon"
@@ -20,6 +25,24 @@ import styles from "../../styles/ProductDetailScreen.styles"
 const SCREEN_WIDTH = Dimensions.get("window").width
 const CARD_W = Math.round(SCREEN_WIDTH * 0.62)
 const CARD_H = Math.round(CARD_W * 1.15)
+
+// Height the description text is clamped to before "See more" is shown.
+const COLLAPSED_H = 220
+
+// Enable LayoutAnimation on old-architecture Android (no-op on Fabric).
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
+
+// Quick, smooth expand/collapse — height eases; the fade + button fade in/out.
+const EXPAND_ANIM = LayoutAnimation.create(
+  220,
+  LayoutAnimation.Types.easeInEaseOut,
+  LayoutAnimation.Properties.opacity
+)
 
 // Backend descriptions can arrive entity-encoded (e.g. "&lt;p&gt;" shows the
 // literal <p> tag) and carry inline CSS (style="font-size:16px") that fights the
@@ -64,24 +87,23 @@ const stripImages = (html: string): string =>
 interface ProductDescriptionProps {
   description?: string | null
   isDarkMode?: boolean
-  expanded: boolean
-  onToggle: () => void
 }
 
 /**
- * Collapsible HTML product description. Any images embedded in the description
- * are lifted out of the HTML and shown in a single horizontal, scrollable strip
- * (tap to open a full-screen viewer) instead of stacking vertically. The
- * expensive RenderHtml + entity-decode + image-extract runs only when
- * `description`/`isDarkMode`/`expanded` change (memoized by the compiler).
+ * Product description. The text is clamped to COLLAPSED_H with a "See more /
+ * See less" toggle and a bottom fade (only when it actually overflows); the
+ * expand/collapse animates via LayoutAnimation. Images embedded in the
+ * description are lifted into a horizontal scrollable strip (tap → full-screen
+ * zoomable viewer). RenderHtml + entity-decode + image-extract recompute only
+ * when description/isDarkMode change (memoized by the compiler).
  */
 function ProductDescription({
   description,
   isDarkMode = false,
-  expanded,
-  onToggle,
 }: ProductDescriptionProps) {
   const insets = useSafeAreaInsets()
+  const [expanded, setExpanded] = useState(false)
+  const [contentHeight, setContentHeight] = useState(0)
   const [viewerVisible, setViewerVisible] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
   const [viewerZoomed, setViewerZoomed] = useState(false)
@@ -94,6 +116,29 @@ function ProductDescription({
   const decoded = toRenderableHtml(description)
   const imageUrls = extractImageUrls(decoded)
   const html = imageUrls.length > 0 ? stripImages(decoded) : decoded
+
+  // Re-collapse when the viewed product's description changes.
+  useEffect(() => {
+    setExpanded(false)
+    setContentHeight(0)
+  }, [description])
+
+  const overflows = contentHeight > COLLAPSED_H + 8
+  const clamp = !expanded && overflows
+  const showToggle = overflows
+  const fadeColors = isDarkMode
+    ? (["rgba(30,41,59,0)", "#1e293b"] as const)
+    : (["rgba(255,255,255,0)", "#ffffff"] as const)
+
+  const onContentLayout = (e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height
+    if (h && Math.abs(h - contentHeight) > 1) setContentHeight(h)
+  }
+
+  const toggle = () => {
+    LayoutAnimation.configureNext(EXPAND_ANIM)
+    setExpanded((p) => !p)
+  }
 
   const openViewer = (index: number) => {
     setViewerIndex(index)
@@ -111,26 +156,22 @@ function ProductDescription({
         },
       ]}
     >
-      <TouchableOpacity
+      <View
         style={[
           styles.descriptionHeader,
           { backgroundColor: isDarkMode ? "#111827" : "#f9fafb" },
         ]}
-        onPress={onToggle}
-        activeOpacity={0.7}
       >
         <Text style={[styles.descriptionTitle, { color: text }]}>
           Description
         </Text>
-        <Ionicons
-          name={expanded ? "chevron-up" : "chevron-down"}
-          size={20}
-          color={text}
-        />
-      </TouchableOpacity>
-      {expanded && (
-        <View style={[styles.descriptionContent, { backgroundColor: card }]}>
-          <View style={styles.descriptionContentInner}>
+      </View>
+
+      <View style={[styles.descriptionContent, { backgroundColor: card }]}>
+        {/* Clamped text — onLayout on the inner view reports full height even
+            while the outer view clips it, so we know whether it overflows. */}
+        <View style={clamp ? s.clampCollapsed : undefined}>
+          <View style={styles.descriptionContentInner} onLayout={onContentLayout}>
             <RenderHtml
               source={{ html }}
               contentWidth={SCREEN_WIDTH - 32}
@@ -163,49 +204,76 @@ function ProductDescription({
             />
           </View>
 
-          {/* Embedded description images — single horizontal scrollable row */}
-          {imageUrls.length > 0 && (
-            <View style={s.imagesWrap}>
-              <View style={s.imagesLabelRow}>
-                <Ionicons name="image" size={14} color={Colors.sky} />
-                <Text style={[s.imagesLabel, { color: text }]}>
-                  Product Images
-                </Text>
-                <Text style={[s.imagesHint, { color: textSec }]}>
-                  Swipe • tap to zoom
-                </Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.imagesRow}
-                decelerationRate="fast"
-                snapToInterval={CARD_W + 10}
-                snapToAlignment="start"
-              >
-                {imageUrls.map((uri, i) => (
-                  <Pressable
-                    key={`${uri}-${i}`}
-                    onPress={() => openViewer(i)}
-                    style={({ pressed }) => [
-                      s.imageCard,
-                      { borderColor: divider, opacity: pressed ? 0.85 : 1 },
-                    ]}
-                  >
-                    <Image
-                      source={{ uri }}
-                      style={s.image}
-                      contentFit="cover"
-                      transition={150}
-                      cachePolicy="memory-disk"
-                    />
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+          {/* Fade ("shadow") over the clipped bottom edge while collapsed. */}
+          {clamp && (
+            <LinearGradient
+              colors={fadeColors}
+              style={s.fade}
+              pointerEvents="none"
+            />
           )}
         </View>
-      )}
+
+        {/* See more / See less */}
+        {showToggle && (
+          <TouchableOpacity
+            style={s.toggleBtn}
+            onPress={toggle}
+            activeOpacity={0.7}
+          >
+            <Text style={s.toggleText}>
+              {expanded ? "See less" : "See more"}
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={Colors.sky}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Embedded description images — single horizontal scrollable row */}
+        {imageUrls.length > 0 && (
+          <View style={s.imagesWrap}>
+            <View style={s.imagesLabelRow}>
+              <Ionicons name="image" size={14} color={Colors.sky} />
+              <Text style={[s.imagesLabel, { color: text }]}>
+                Product Images
+              </Text>
+              <Text style={[s.imagesHint, { color: textSec }]}>
+                Swipe • tap to zoom
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.imagesRow}
+              decelerationRate="fast"
+              snapToInterval={CARD_W + 10}
+              snapToAlignment="start"
+            >
+              {imageUrls.map((uri, i) => (
+                <Pressable
+                  key={`${uri}-${i}`}
+                  onPress={() => openViewer(i)}
+                  style={({ pressed }) => [
+                    s.imageCard,
+                    { borderColor: divider, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <Image
+                    source={{ uri }}
+                    style={s.image}
+                    contentFit="cover"
+                    transition={150}
+                    cachePolicy="memory-disk"
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
 
       {/* Full-screen viewer for the description images */}
       <Modal
@@ -260,7 +328,24 @@ function ProductDescription({
 }
 
 const s = StyleSheet.create({
-  imagesWrap: { marginTop: 6, marginBottom: 4 },
+  clampCollapsed: { maxHeight: COLLAPSED_H, overflow: "hidden" },
+  fade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+  },
+  toggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  toggleText: { fontSize: 13, fontWeight: "700", color: Colors.sky },
+  imagesWrap: { marginTop: 10, marginBottom: 4 },
   imagesLabelRow: {
     flexDirection: "row",
     alignItems: "center",

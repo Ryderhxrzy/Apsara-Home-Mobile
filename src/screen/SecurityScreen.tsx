@@ -96,61 +96,8 @@ export default function SecurityScreen({
     return () => backHandler.remove()
   }, [onBack])
 
-  useEffect(() => {
-    console.log("[SecurityScreen] Token status:", {
-      hasToken: !!token,
-      tokenLength: token?.length || 0,
-      tokenStart: token ? token.substring(0, 20) + "..." : "null",
-    })
-
-    if (token) {
-      fetchGoogleLinkedStatus()
-      fetchActiveSessions()
-    } else {
-      console.warn("[SecurityScreen] No token provided to SecurityScreen")
-      Alert.alert(
-        "Warning",
-        "Authentication token not available. Some features may not work."
-      )
-    }
-  }, [token])
-
-  useEffect(() => {
-    checkBiometricAvailability()
-  }, [])
-
-  useEffect(() => {
-    console.log("[QR Camera] Camera permission status:", permission)
-  }, [permission])
-
-  const fetchGoogleLinkedStatus = async () => {
-    if (!token) return
-    try {
-      console.log("[SecurityScreen] Fetching Google linked status")
-      const headers = { Authorization: `Bearer ${token}` }
-      const res = await axios.get(
-        `${API_CONFIG.BASE_URL}/auth/mobile/check-google-linked`,
-        { headers }
-      )
-      console.log("[SecurityScreen] Google linked status response:", res.data)
-
-      if (res.data?.linked) {
-        setGoogleLinked(true)
-        // Optionally fetch the account email if available
-        if (res.data?.provider_data?.email) {
-          setGoogleAccount({ email: res.data.provider_data.email })
-        }
-      } else {
-        setGoogleLinked(false)
-      }
-    } catch (error) {
-      console.error(
-        "[SecurityScreen] Error fetching Google linked status:",
-        error
-      )
-    }
-  }
-
+  // fetchActiveSessions stays a shared function (used by the token effect and by
+  // revokeLoginSession). The Google-linked check is inlined into the effect.
   const fetchActiveSessions = async () => {
     if (!token) {
       console.error("[SecurityScreen] No token available")
@@ -202,6 +149,72 @@ export default function SecurityScreen({
       setLoadingSessions(false)
     }
   }
+
+  useEffect(() => {
+    console.log("[SecurityScreen] Token status:", {
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      tokenStart: token ? token.substring(0, 20) + "..." : "null",
+    })
+
+    if (!token) {
+      console.warn("[SecurityScreen] No token provided to SecurityScreen")
+      Alert.alert(
+        "Warning",
+        "Authentication token not available. Some features may not work."
+      )
+      return
+    }
+
+    // Inline async — setState runs after awaits (compiler-accepted). The Google
+    // check is inlined; fetchActiveSessions stays a shared fn (also used by
+    // revokeLoginSession) and is awaited here.
+    async function load() {
+      try {
+        const headers = { Authorization: `Bearer ${token}` }
+        const res = await axios.get(
+          `${API_CONFIG.BASE_URL}/auth/mobile/check-google-linked`,
+          { headers }
+        )
+        if (res.data?.linked) {
+          setGoogleLinked(true)
+          if (res.data?.provider_data?.email) {
+            setGoogleAccount({ email: res.data.provider_data.email })
+          }
+        } else {
+          setGoogleLinked(false)
+        }
+      } catch (error) {
+        console.error(
+          "[SecurityScreen] Error fetching Google linked status:",
+          error
+        )
+      }
+      await fetchActiveSessions()
+    }
+    load()
+  }, [token])
+
+  useEffect(() => {
+    // Inline async fn — setState runs after the awaits (asynchronously), which
+    // the React Compiler accepts (unlike calling an external setState-ing fn).
+    async function checkBiometricAvailability() {
+      try {
+        const available = await BiometricUtils.isBiometricAvailable()
+        const enrolled = await BiometricUtils.isBiometricEnrolled()
+        const hasCredential = await BiometricUtils.hasBiometricCredential()
+        setBiometricAvailable(available && enrolled)
+        setBiometricEnabled(hasCredential)
+      } catch (error) {
+        console.error("Error checking biometric:", error)
+      }
+    }
+    checkBiometricAvailability()
+  }, [])
+
+  useEffect(() => {
+    console.log("[QR Camera] Camera permission status:", permission)
+  }, [permission])
 
   const revokeLoginSession = async (tokenId: number) => {
     if (!token) {
@@ -384,19 +397,6 @@ export default function SecurityScreen({
       Alert.alert("Error", errorMsg)
     } finally {
       setLoadingGoogle(false)
-    }
-  }
-
-  const checkBiometricAvailability = async () => {
-    try {
-      const available = await BiometricUtils.isBiometricAvailable()
-      const enrolled = await BiometricUtils.isBiometricEnrolled()
-      const hasCredential = await BiometricUtils.hasBiometricCredential()
-
-      setBiometricAvailable(available && enrolled)
-      setBiometricEnabled(hasCredential)
-    } catch (error) {
-      console.error("Error checking biometric:", error)
     }
   }
 
@@ -754,8 +754,8 @@ export default function SecurityScreen({
         >
           <Image
             source={{
-            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969377/security_bg_r75w4x.png"
-          }}
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969377/security_bg_r75w4x.png",
+            }}
             style={styles.headerBackgroundImage}
             contentFit="cover"
             transition={200}

@@ -49,6 +49,7 @@ export default function LoginScreen({
   onGoToIndex,
   onAuthenticated,
   onResetOnboarding,
+  onShowAffiliateScreen,
 }: {
   onGoToSignup?: () => void
   onGoToIndex?: () => void
@@ -57,6 +58,7 @@ export default function LoginScreen({
     token?: string
   ) => void
   onResetOnboarding?: () => Promise<void>
+  onShowAffiliateScreen?: () => void
 }) {
   const { control, handleSubmit, trigger, getValues, reset } = useForm({
     resolver: zodResolver(loginSchema),
@@ -593,6 +595,31 @@ export default function LoginScreen({
                   </View>
                 </>
               )}
+
+              {onShowAffiliateScreen ? (
+                <TouchableOpacity
+                  style={styles.affiliateBanner}
+                  onPress={onShowAffiliateScreen}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.affiliateIcon}>
+                    <Ionicons name="megaphone" size={18} color={Colors.sky} />
+                  </View>
+                  <View style={styles.affiliateTextWrap}>
+                    <Text style={styles.affiliateTitle}>
+                      AF Home Affiliate Program
+                    </Text>
+                    <Text style={styles.affiliateSub}>
+                      Start your affiliate journey — learn how to earn
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={Colors.sky}
+                  />
+                </TouchableOpacity>
+              ) : null}
 
               <Text style={styles.legalFooter}>
                 By continuing you agree to our{" "}

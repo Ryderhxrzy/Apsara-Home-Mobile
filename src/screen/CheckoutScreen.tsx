@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo } from "react"
 import {  View,
   Text,
   ScrollView,
@@ -153,7 +153,6 @@ export default function CheckoutScreen({
 
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
-  const [loadingShippingRates, setLoadingShippingRates] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     string | null
   >(null)
@@ -164,7 +163,6 @@ export default function CheckoutScreen({
     null
   )
   const [validatingVoucher, setValidatingVoucher] = useState(false)
-  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
     null
   )
@@ -177,6 +175,35 @@ export default function CheckoutScreen({
     isLoading: loadingAddresses,
     isError: addressesError,
   } = useAddresses({ token })
+
+  // Shipping methods are derived from the selected address (two flat-rate
+  // carriers, no network call), so compute them instead of fetching in an effect.
+  const shippingMethods = useMemo<ShippingMethod[]>(() => {
+    if (!selectedAddress) return []
+    return [
+      {
+        id: 1,
+        province: selectedAddress.province,
+        city: selectedAddress.city,
+        fee: 0,
+        status: true,
+      },
+      {
+        id: 2,
+        province: selectedAddress.province,
+        city: selectedAddress.city,
+        fee: 0,
+        status: true,
+      },
+    ]
+  }, [selectedAddress])
+
+  // Auto-select the default address once addresses load — adjusting state during
+  // render (not in an effect). It converges because selectedAddress becomes
+  // truthy after the set, so the condition is false on the next render.
+  if (!selectedAddress && addresses.length > 0) {
+    setSelectedAddress(addresses.find((a) => a.is_default) || addresses[0])
+  }
 
   const colors = {
     bg: isDarkMode ? "#0f172a" : "#f5f5f5",
@@ -222,58 +249,6 @@ export default function CheckoutScreen({
     },
   ]
 
-  // Fetch shipping rates based on selected address
-  const fetchShippingRates = async (address?: UserAddress) => {
-    const targetAddress = address || selectedAddress
-    if (!targetAddress) return
-
-    setLoadingShippingRates(true)
-    try {
-      // Default shipping methods: J&T and XDE with 0 cost
-      const defaultShippingMethods: ShippingMethod[] = [
-        {
-          id: 1,
-          province: targetAddress.province,
-          city: targetAddress.city,
-          fee: 0,
-          status: true,
-        },
-        {
-          id: 2,
-          province: targetAddress.province,
-          city: targetAddress.city,
-          fee: 0,
-          status: true,
-        },
-      ]
-
-      setShippingMethods(defaultShippingMethods)
-
-      console.log("Shipping methods set:", {
-        userCity: targetAddress.city,
-        methods: ["J&T", "XDE"],
-        fee: 0,
-      })
-    } catch (error) {
-      console.error("Failed to fetch shipping rates:", error)
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load shipping rates",
-      })
-    } finally {
-      setLoadingShippingRates(false)
-    }
-  }
-
-  // Select default address once addresses are loaded from React Query.
-  useEffect(() => {
-    if (addresses.length === 0) return
-    if (selectedAddress) return
-    const defaultAddr = addresses.find((a) => a.is_default)
-    setSelectedAddress(defaultAddr || addresses[0])
-  }, [addresses, selectedAddress])
-
   // Surface address load failures via toast (mirrors previous behavior).
   useEffect(() => {
     if (addressesError) {
@@ -284,12 +259,6 @@ export default function CheckoutScreen({
       })
     }
   }, [addressesError])
-
-  useEffect(() => {
-    if (selectedAddress) {
-      fetchShippingRates(selectedAddress)
-    }
-  }, [selectedAddress])
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -1116,16 +1085,7 @@ export default function CheckoutScreen({
                   </View>
 
                   {/* Shipping Cost Display */}
-                  {loadingShippingRates ? (
-                    <View style={styles.shippingInfoContainer}>
-                      <ActivityIndicator size="small" color={Colors.sky} />
-                      <Text
-                        style={[styles.loadingText, { color: colors.textSec }]}
-                      >
-                        Loading shipping...
-                      </Text>
-                    </View>
-                  ) : selectedShippingMethod ? (
+                  {selectedShippingMethod ? (
                     <View
                       style={[
                         styles.shippingInfo,

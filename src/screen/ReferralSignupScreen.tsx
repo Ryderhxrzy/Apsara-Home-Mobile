@@ -38,6 +38,7 @@ interface ReferralSignupScreenProps {
   onBack: () => void
   onContinueToOtp?: (phone: string, verificationToken: string) => void
   onResumOtp?: () => void
+  onShowAffiliateScreen?: () => void
 }
 
 const DRAFT_KEY = "referral_signup_draft"
@@ -50,6 +51,7 @@ export default function ReferralSignupScreen({
   onBack,
   onContinueToOtp,
   onResumOtp,
+  onShowAffiliateScreen,
 }: ReferralSignupScreenProps) {
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
@@ -395,6 +397,42 @@ export default function ReferralSignupScreen({
               matchLabel="Should be Match"
               variant={variant}
             />
+
+            {onShowAffiliateScreen ? (
+              <TouchableOpacity
+                style={[
+                  styles.affiliateBanner,
+                  {
+                    backgroundColor: isDarkMode
+                      ? "rgba(14,165,233,0.12)"
+                      : "#eff6ff",
+                    borderColor: isDarkMode ? "#1e3a5f" : "#dbeafe",
+                  },
+                ]}
+                onPress={onShowAffiliateScreen}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[
+                    styles.affiliateIcon,
+                    { backgroundColor: isDarkMode ? "#0f3050" : "#dbeafe" },
+                  ]}
+                >
+                  <Ionicons name="megaphone" size={18} color={Colors.sky} />
+                </View>
+                <View style={styles.affiliateTextWrap}>
+                  <Text style={[styles.affiliateTitle, { color: colors.text }]}>
+                    AF Home Affiliate Program
+                  </Text>
+                  <Text
+                    style={[styles.affiliateSub, { color: colors.textSec }]}
+                  >
+                    Start your affiliate journey — learn how to earn
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.sky} />
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </View>

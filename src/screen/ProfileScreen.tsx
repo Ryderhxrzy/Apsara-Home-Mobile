@@ -76,6 +76,7 @@ interface ProfileScreenProps {
   onLogout?: () => void
   onNavigateSettings?: () => void
   onCartPress?: () => void
+  onShowPurchases?: () => void
   cartCount?: number
   unreadCount?: number
   token?: string | null
@@ -216,6 +217,7 @@ export default function ProfileScreen({
   onLogout,
   onNavigateSettings,
   onCartPress,
+  onShowPurchases,
   cartCount = 0,
   unreadCount = 0,
   token,
@@ -614,6 +616,7 @@ export default function ProfileScreen({
             isDarkMode={isDarkMode}
             onCartPress={onCartPress}
             onReferralPress={() => onShowReferralNetwork?.(referralTree)}
+            onOrdersPress={onShowPurchases}
           />
 
           {/* Security Settings Banner */}

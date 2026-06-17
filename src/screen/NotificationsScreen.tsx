@@ -254,6 +254,18 @@ export default function NotificationsScreen({
     return s
   }
 
+  // Pretty-print the payment method shown in a notification's meta row.
+  const formatPaymentMethod = (pm?: string): string => {
+    if (!pm) return ""
+    const p = String(pm).toLowerCase()
+    if (p === "gcash") return "GCash"
+    if (p === "grabpay" || p === "grab_pay") return "GrabPay"
+    if (p === "paymaya" || p === "maya") return "Maya"
+    if (p === "card") return "Card"
+    if (p === "cod") return "Cash on Delivery"
+    return pm.charAt(0).toUpperCase() + pm.slice(1)
+  }
+
   const getNotificationStatus = (item: any): string | null => {
     // 1) Explicit status field.
     const rawStatus = item?.status || item?.order_status
@@ -547,6 +559,7 @@ export default function NotificationsScreen({
                                   styles.notificationTitle,
                                   { color: colors.text },
                                 ]}
+                                numberOfLines={1}
                               >
                                 {item.title}
                               </Text>
@@ -588,18 +601,70 @@ export default function NotificationsScreen({
                                 styles.notificationDescription,
                                 { color: colors.textSec },
                               ]}
+                              numberOfLines={2}
                             >
                               {item.message}
                             </Text>
-                            {item.amount > 0 && (
-                              <Text
-                                style={[
-                                  styles.notificationAmount,
-                                  { color: colors.emptyIcon },
-                                ]}
-                              >
-                                Amount: ₱{item.amount.toLocaleString()}
-                              </Text>
+                            {/* Meta footer: amount · qty · payment + view-order
+                                affordance (the card deep-links to MyPurchases) */}
+                            {(item.amount > 0 ||
+                              item.quantity > 0 ||
+                              item.payment_method) && (
+                              <View style={styles.notificationFooter}>
+                                <View style={styles.notificationMetaLeft}>
+                                  {item.amount > 0 && (
+                                    <Text
+                                      style={[
+                                        styles.notificationAmountStrong,
+                                        { color: colors.text },
+                                      ]}
+                                    >
+                                      ₱
+                                      {Number(item.amount).toLocaleString(
+                                        undefined,
+                                        {
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 2,
+                                        }
+                                      )}
+                                    </Text>
+                                  )}
+                                  {item.quantity > 0 && (
+                                    <Text
+                                      style={[
+                                        styles.notificationMetaText,
+                                        { color: colors.textSec },
+                                      ]}
+                                    >
+                                      {"   ·   "}Qty {item.quantity}
+                                    </Text>
+                                  )}
+                                  {!!item.payment_method && (
+                                    <Text
+                                      style={[
+                                        styles.notificationMetaText,
+                                        { color: colors.textSec },
+                                      ]}
+                                      numberOfLines={1}
+                                    >
+                                      {"   ·   "}
+                                      {formatPaymentMethod(item.payment_method)}
+                                    </Text>
+                                  )}
+                                </View>
+                                {(!!item.href || !!getNotificationStatus(item)) && (
+                                  <View style={styles.viewOrderLink}>
+                                    <Text style={styles.viewOrderText}>
+                                      View order
+                                    </Text>
+                                    <Ionicons
+                                      name="chevron-forward"
+                                      size={13}
+                                      color={Colors.sky}
+                                    />
+                                  </View>
+                                )}
+                              </View>
                             )}
                             {(item.updates || []).length > 0 && (
                               <TouchableOpacity

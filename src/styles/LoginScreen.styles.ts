@@ -130,6 +130,40 @@ const styles = StyleSheet.create({
     color: Colors.sky,
   },
 
+  // ── Affiliate CTA banner ──
+  affiliateBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 20,
+  },
+  affiliateIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  affiliateTextWrap: { flex: 1 },
+  affiliateTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  affiliateSub: {
+    fontSize: 11.5,
+    fontWeight: "500",
+    color: "#64748b",
+    marginTop: 2,
+  },
+
   // ── Legal footer ──
   legalFooter: {
     fontSize: 12,

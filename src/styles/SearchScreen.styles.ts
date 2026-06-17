@@ -200,6 +200,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  // 2-column ItemCard grid for "Recommended for You".
+  recCardGrid: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+  },
+  recCardCol: {
+    flex: 1,
+    gap: 8,
+  },
   recsTable: {
     flexDirection: "row",
     flexWrap: "wrap",

@@ -372,6 +372,7 @@ function NotificationTabScreen() {
 // Profile Tab Screen Wrapper
 function ProfileTabScreen() {
   const ctx = useAppContext()
+  const navigation = useNavigation()
 
   return (
     <ProfileScreen
@@ -382,6 +383,10 @@ function ProfileTabScreen() {
         ctx.setShowSettings(true)
       }}
       onCartPress={ctx.onCartPress}
+      onShowPurchases={() => {
+        ctx.setPurchasesStatus("pending")
+        ctx.setShowPurchases(true)
+      }}
       cartCount={ctx.cartCount}
       unreadCount={ctx.unreadCount}
       isDarkMode={ctx.isDarkMode}
@@ -403,7 +408,7 @@ function ProfileTabScreen() {
       onWishlistChange={ctx.onWishlistChange}
       onProductPress={ctx.onProductPress}
       onShopNavigate={ctx.onShopNavigate}
-      onNavigateWishlist={ctx.onNavigateWishlist}
+      onNavigateWishlist={() => navigation.navigate("wishlist" as any)}
     />
   )
 }
@@ -416,8 +421,14 @@ function CustomTabBar({
   insets,
   hideTabBar,
 }: any) {
-  const { isDarkMode, wishlistItems, unreadCount, enrichedUser } =
-    useAppContext() as any
+  const {
+    isDarkMode,
+    wishlistItems,
+    unreadCount,
+    enrichedUser,
+    setShowPurchases,
+    setPurchasesStatus,
+  } = useAppContext() as any
   const safeAreaInsets = useSafeAreaInsets()
   // Inactive tab tint — a muted slate that reads on both the white (light) and
   // slate-800 (dark) bar. Colors.textSecondary is slate-700, too dark on dark.
@@ -454,13 +465,20 @@ function CustomTabBar({
             }
           }
 
-          // Get badge count
+          // The "notification" slot is now an Orders action button: it opens the
+          // MyPurchases (orders) overlay instead of navigating to a tab.
+          const handlePress =
+            route.name === "notification"
+              ? () => {
+                  setPurchasesStatus?.("pending")
+                  setShowPurchases?.(true)
+                }
+              : onPress
+
+          // Get badge count (Orders slot shows no badge — notifications live in
+          // the top header bell).
           const badgeCount =
-            route.name === "wishlist"
-              ? wishlistItems?.length || 0
-              : route.name === "notification"
-                ? unreadCount || 0
-                : 0
+            route.name === "wishlist" ? wishlistItems?.length || 0 : 0
 
           // Render shop tab differently (diamond logo in center)
           if (route.name === "shop") {
@@ -493,11 +511,13 @@ function CustomTabBar({
             )
           }
 
-          // Render other tabs (home, wishlist, notification, profile)
+          // Render other tabs (home, wishlist, orders, profile)
           return (
-            <Pressable key={index} onPress={onPress} style={styles.navItem}>
+            <Pressable key={index} onPress={handlePress} style={styles.navItem}>
               <View style={styles.indicator}>
-                {isFocused && <View style={styles.indicatorLine} />}
+                {isFocused && route.name !== "notification" && (
+                  <View style={styles.indicatorLine} />
+                )}
               </View>
               <View style={styles.iconWrap}>
                 {route.name === "home" && (
@@ -516,9 +536,9 @@ function CustomTabBar({
                 )}
                 {route.name === "notification" && (
                   <Ionicons
-                    name={isFocused ? "notifications" : "notifications-outline"}
+                    name="receipt-outline"
                     size={24}
-                    color={isFocused ? Colors.sky : inactiveColor}
+                    color={inactiveColor}
                   />
                 )}
                 {route.name === "profile" && (
@@ -562,7 +582,7 @@ function CustomTabBar({
                   : route.name === "wishlist"
                     ? "Wishlist"
                     : route.name === "notification"
-                      ? "Notify"
+                      ? "Orders"
                       : "Profile"}
               </Text>
             </Pressable>

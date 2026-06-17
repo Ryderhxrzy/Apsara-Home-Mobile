@@ -171,10 +171,12 @@ export default function CartScreen({
   )
   const desiredQtyRef = useRef<Record<number, number>>({})
   const qtyOriginalRef = useRef<Record<number, number>>({})
-  const variantModalTranslateY = useRef(
-    new Animated.Value(VARIANT_MODAL_HEIGHT)
-  ).current
-  const variantPanResponder = useRef(
+  // Created once via lazy state initializers (not useRef().current) so the
+  // React Compiler doesn't flag a ref read during render.
+  const variantModalTranslateY = useState(
+    () => new Animated.Value(VARIANT_MODAL_HEIGHT)
+  )[0]
+  const [variantPanResponder] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
@@ -202,7 +204,7 @@ export default function CartScreen({
         }
       },
     })
-  ).current
+  )
 
   // Palette sourced from the centralized theme (slate spine + sky accent),
   // keeping the same keys this screen's render already uses.

@@ -28,6 +28,7 @@ import { userBehaviorService } from "../services/userBehaviorService"
 import { API_CONFIG } from "../config/api"
 import { useLiveSearch } from "../hooks/query/useLiveSearch"
 import { useSearchRecommendations } from "../hooks/query/useSearchRecommendations"
+import ItemCard from "../components/Items/ItemCard"
 import { useSearchHistory } from "../hooks/query/useSearchHistory"
 import { useQueryClient } from "@tanstack/react-query"
 import Toast from "react-native-toast-message"
@@ -337,6 +338,48 @@ export default function SearchScreen({
 
   const hasQuery = query.trim().length > 0
 
+  // Map a recommendation (fields vary by endpoint) into the ItemCard product
+  // shape, pulling price/PV/badges from any of their likely field names.
+  const recToCard = (item: any) => ({
+    id: item.id,
+    name: item.name,
+    image: item.image,
+    soldCount: item.soldCount ?? item.sold_count ?? 0,
+    originalPrice:
+      item.originalPrice ??
+      item.priceSrp ??
+      item.original_price ??
+      item.price_srp ??
+      item.price ??
+      0,
+    memberPrice:
+      item.memberPrice ??
+      item.priceMember ??
+      item.discounted_price ??
+      item.member_price ??
+      0,
+    pv: item.pv ?? item.prodpv ?? item.product_pv ?? 0,
+    brandName: item.brandName ?? item.brand ?? item.brand_name ?? "",
+    variantCount: item.variantCount ?? item.variants?.length ?? 0,
+    badges: {
+      musthave: item.musthave ?? false,
+      bestseller: item.bestseller ?? false,
+      salespromo: item.salespromo ?? false,
+    },
+  })
+
+  const renderRecCard = (item: any) => (
+    <ItemCard
+      key={`rec-${item.id}`}
+      product={recToCard(item)}
+      token={token}
+      isDarkMode={isDarkMode}
+      onPress={(p: any) => onProductPress?.(p.id)}
+      isWishlisted={false}
+      onWishlistToggle={() => {}}
+    />
+  )
+
   return (
     <Animated.View
       style={[
@@ -566,9 +609,8 @@ export default function SearchScreen({
                         index < arr.length - 1 &&
                         styles.historyRowBorderDark,
                     ]}
-                    onPress={() => submitSearch(term)}
+                    onPress={() => setQuery(term)}
                     activeOpacity={0.7}
-                    disabled={savingQuery}
                   >
                     <Ionicons
                       name="time-outline"
@@ -670,45 +712,17 @@ export default function SearchScreen({
                 ))}
               </View>
             ) : (
-              <View
-                style={[styles.recsTable, isDarkMode && styles.recsTableDark]}
-              >
-                {displayedRecommendations.map((item) => (
-                  <TouchableOpacity
-                    key={`rec-${item.id}`}
-                    style={[
-                      styles.recsTableCell,
-                      isDarkMode && styles.recsTableCellDark,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => onProductPress?.(item.id)}
-                  >
-                    <View style={styles.recBoxContainer}>
-                      <View
-                        style={[
-                          styles.recBoxWrap,
-                          isDarkMode && styles.recBoxWrapDark,
-                        ]}
-                      >
-                        <Image
-                          source={{ uri: item.image }}
-                          style={styles.roomImage}
-                          contentFit="contain"
-                          transition={200}
-                        />
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.circleLabel,
-                        isDarkMode && styles.circleLabelDark,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {item.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.recCardGrid}>
+                <View style={styles.recCardCol}>
+                  {displayedRecommendations
+                    .filter((_, i) => i % 2 === 0)
+                    .map(renderRecCard)}
+                </View>
+                <View style={styles.recCardCol}>
+                  {displayedRecommendations
+                    .filter((_, i) => i % 2 === 1)
+                    .map(renderRecCard)}
+                </View>
               </View>
             )}
           </View>

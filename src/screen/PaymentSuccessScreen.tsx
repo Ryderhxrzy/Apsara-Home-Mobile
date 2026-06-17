@@ -1,5 +1,6 @@
 import React, { useState } from "react"
-import {  View,
+import {
+  View,
   Text,
   ScrollView,
   TouchableOpacity,
@@ -633,8 +634,8 @@ export default function PaymentSuccessScreen({
                 </Text>
                 <View style={styles.faqList}>
                   <Text style={[styles.faqItem, { color: colors.textSec }]}>
-                    • Track Order: Go to "My Orders" in the app for real-time
-                    tracking information
+                    • Track Order: Go to &quot;My Orders&quot; in the app for
+                    real-time tracking information
                   </Text>
                   <Text style={[styles.faqItem, { color: colors.textSec }]}>
                     • Cancellation: Orders can be cancelled within 24 hours of
