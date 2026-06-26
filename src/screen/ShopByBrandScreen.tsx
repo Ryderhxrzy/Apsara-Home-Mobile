@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import React, { useEffect, useState, useMemo, useRef } from "react"
 import {
   View,
   Text,
@@ -21,9 +21,18 @@ import ShopByBrandHomeScreen from "./ShopByBrand/ShopByBrandHomeScreen"
 import ShopByBrandProductsScreen from "./ShopByBrand/ShopByBrandProductsScreen"
 import ShopByBrandCategoriesScreen from "./ShopByBrand/ShopByBrandCategoriesScreen"
 import Toast from "react-native-toast-message"
-import axios from "axios"
-import { API_CONFIG } from "../config/api"
+import { useBrandFollow } from "../hooks/query/useBrandFollow"
 import styles from "../styles/ShopByBrandScreen.styles"
+
+/** Compact follower count, e.g. 12500 → "12.5K", 2_300_000 → "2.3M". */
+function formatFollowerCount(count: number | null): string {
+  if (count == null) return "…"
+  if (count >= 1_000_000)
+    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (count >= 1_000)
+    return `${(count / 1_000).toFixed(1).replace(/\.0$/, "")}K`
+  return String(count)
+}
 
 interface Room {
   room_id: number
@@ -130,8 +139,10 @@ export default function ShopByBrandScreen({
   )
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
+  const { isFollowing, followersCount, toggleFollow } = useBrandFollow({
+    token,
+    brandId,
+  })
   const [selectedTab, setSelectedTab] = useState<
     "home" | "products" | "categories"
   >("home")
@@ -193,73 +204,24 @@ export default function ShopByBrandScreen({
     refetch()
   }
 
-  const checkFollowingStatus = useCallback(async () => {
-    if (!token || !brandId) return
-    try {
-      const response = await axios.post<{
-        is_following?: boolean | number
-        data?: { is_following?: boolean | number }
-      }>(
-        `${API_CONFIG.BASE_URL}/followers/is-following`,
-        { brand_id: brandId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      let isFollowingStatus = false
-      if (response.data?.is_following !== undefined) {
-        isFollowingStatus =
-          response.data.is_following === true ||
-          response.data.is_following === 1
-      } else if (response.data?.data?.is_following !== undefined) {
-        isFollowingStatus =
-          response.data.data.is_following === true ||
-          response.data.data.is_following === 1
-      } else if (typeof response.data === "boolean") {
-        isFollowingStatus = response.data
-      }
-
-      setIsFollowing(isFollowingStatus)
-    } catch (error) {
-      console.error("Error checking follow status:", error)
-      setIsFollowing(false)
-    }
-  }, [token, brandId])
-
-  const handleFollowPress = async () => {
-    if (!token || !brandId) return
-    setFollowLoading(true)
-    try {
-      const endpoint = isFollowing ? "unfollow" : "follow"
-      await axios.post(
-        `${API_CONFIG.BASE_URL}/followers/${endpoint}`,
-        { brand_id: brandId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setIsFollowing((prev) => !prev)
-      Toast.show({
-        type: "success",
-        text1: isFollowing ? "Unfollowed" : "Followed",
-        text2: `You ${isFollowing ? "unfollowed" : "now follow"} ${brand?.name ?? "this brand"}`,
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Please try again"
-      Toast.show({
-        type: "error",
-        text1: "Failed to update follow status",
-        text2: msg,
-      })
-    } finally {
-      setFollowLoading(false)
-    }
+  const handleFollowPress = () => {
+    toggleFollow({
+      onSuccess: (nowFollowing) => {
+        Toast.show({
+          type: "success",
+          text1: nowFollowing ? "Followed" : "Unfollowed",
+          text2: `You ${nowFollowing ? "now follow" : "unfollowed"} ${brand?.name ?? "this brand"}`,
+        })
+      },
+      onError: (message) => {
+        Toast.show({
+          type: "error",
+          text1: "Failed to update follow status",
+          text2: message,
+        })
+      },
+    })
   }
-
-  useEffect(() => {
-    if (token && brandId) {
-      checkFollowingStatus()
-    } else {
-      setIsFollowing(false)
-    }
-  }, [token, brandId, checkFollowingStatus])
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -513,14 +475,13 @@ export default function ShopByBrandScreen({
                   { color: themeColors.textSecondary },
                 ]}
               >
-                12.5K followers
+                {formatFollowerCount(followersCount)} followers
               </Text>
             </View>
           </View>
 
           <TouchableOpacity
             onPress={handleFollowPress}
-            disabled={followLoading}
             style={[
               styles.followButton,
               isFollowing
