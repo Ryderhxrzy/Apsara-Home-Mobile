@@ -6,9 +6,7 @@ module.exports = function (api) {
       // Strip console.* (except error/warn) from production builds only.
       // Dev builds keep all logs for debugging.
       production: {
-        plugins: [
-          ["transform-remove-console", { exclude: ["error", "warn"] }],
-        ],
+        plugins: [["transform-remove-console", { exclude: ["error", "warn"] }]],
       },
     },
   }

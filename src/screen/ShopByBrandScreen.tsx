@@ -125,12 +125,16 @@ export default function ShopByBrandScreen({
   isDarkMode = false,
 }: ShopByBrandScreenProps) {
   const selectedRoomId: number | null = null
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null
+  )
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
-  const [selectedTab, setSelectedTab] = useState<"home" | "products" | "categories">("home")
+  const [selectedTab, setSelectedTab] = useState<
+    "home" | "products" | "categories"
+  >("home")
   const [showMenu, setShowMenu] = useState(false)
 
   const perPage = 20
@@ -138,7 +142,10 @@ export default function ShopByBrandScreen({
   const insets = useSafeAreaInsets()
 
   const selectedRoom = useMemo<Room | undefined>(
-    () => (selectedRoomId ? ROOMS.find((r) => r.room_id === selectedRoomId) : undefined),
+    () =>
+      selectedRoomId
+        ? ROOMS.find((r) => r.room_id === selectedRoomId)
+        : undefined,
     [selectedRoomId]
   )
   void selectedRoom // referenced via filter params
@@ -169,7 +176,11 @@ export default function ShopByBrandScreen({
   useEffect(() => {
     if (isError) {
       const msg = error instanceof Error ? error.message : "Please try again"
-      Toast.show({ type: "error", text1: "Failed to load products", text2: msg })
+      Toast.show({
+        type: "error",
+        text1: "Failed to load products",
+        text2: msg,
+      })
     }
   }, [isError, error])
 
@@ -197,7 +208,8 @@ export default function ShopByBrandScreen({
       let isFollowingStatus = false
       if (response.data?.is_following !== undefined) {
         isFollowingStatus =
-          response.data.is_following === true || response.data.is_following === 1
+          response.data.is_following === true ||
+          response.data.is_following === 1
       } else if (response.data?.data?.is_following !== undefined) {
         isFollowingStatus =
           response.data.data.is_following === true ||
@@ -231,7 +243,11 @@ export default function ShopByBrandScreen({
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Please try again"
-      Toast.show({ type: "error", text1: "Failed to update follow status", text2: msg })
+      Toast.show({
+        type: "error",
+        text1: "Failed to update follow status",
+        text2: msg,
+      })
     } finally {
       setFollowLoading(false)
     }
@@ -328,11 +344,20 @@ export default function ShopByBrandScreen({
       >
         {/* Top Row: Back, Search, Menu */}
         <View style={styles.searchRow}>
-          <TouchableOpacity onPress={onBack} style={styles.iconButton} hitSlop={8}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.iconButton}
+            hitSlop={8}
+          >
             <Ionicons name="chevron-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
 
-          <View style={[styles.searchWrapper, { backgroundColor: themeColors.searchBg }]}>
+          <View
+            style={[
+              styles.searchWrapper,
+              { backgroundColor: themeColors.searchBg },
+            ]}
+          >
             <Ionicons
               name="search-outline"
               size={16}
@@ -367,7 +392,11 @@ export default function ShopByBrandScreen({
             activeOpacity={0.7}
             hitSlop={8}
           >
-            <Ionicons name="ellipsis-horizontal" size={22} color={themeColors.text} />
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={22}
+              color={themeColors.text}
+            />
           </TouchableOpacity>
         </View>
 
@@ -388,7 +417,10 @@ export default function ShopByBrandScreen({
                 { top: insets.top + 56, backgroundColor: themeColors.cardBg },
               ]}
             >
-              <TouchableOpacity style={styles.menuItem} onPress={handleShareBrand}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleShareBrand}
+              >
                 <Ionicons
                   name="share-social"
                   size={18}
@@ -400,9 +432,15 @@ export default function ShopByBrandScreen({
                 </Text>
               </TouchableOpacity>
               <View
-                style={[styles.menuDivider, { backgroundColor: themeColors.cardBorder }]}
+                style={[
+                  styles.menuDivider,
+                  { backgroundColor: themeColors.cardBorder },
+                ]}
               />
-              <TouchableOpacity style={styles.menuItem} onPress={handleReportBrand}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleReportBrand}
+              >
                 <Ionicons
                   name="flag"
                   size={18}
@@ -456,11 +494,25 @@ export default function ShopByBrandScreen({
               <Text style={[styles.brandMetaText, { color: themeColors.text }]}>
                 4.8
               </Text>
-              <Text style={[styles.brandMetaDot, { color: themeColors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.brandMetaDot,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
                 •
               </Text>
-              <Ionicons name="people" size={12} color={themeColors.textSecondary} />
-              <Text style={[styles.brandMetaText, { color: themeColors.textSecondary }]}>
+              <Ionicons
+                name="people"
+                size={12}
+                color={themeColors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.brandMetaText,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
                 12.5K followers
               </Text>
             </View>
@@ -513,7 +565,9 @@ export default function ShopByBrandScreen({
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
               {selectedTab === tab && (
-                <View style={[styles.tabIndicator, { backgroundColor: Colors.sky }]} />
+                <View
+                  style={[styles.tabIndicator, { backgroundColor: Colors.sky }]}
+                />
               )}
             </TouchableOpacity>
           ))}
@@ -548,6 +602,7 @@ export default function ShopByBrandScreen({
           token={token}
           brandId={brandId}
           isZqBrand={isZqBrand}
+          categoryId={selectedCategoryId}
           searchQuery={searchQuery}
           wishlistItems={wishlistItems}
           onWishlistChange={onWishlistChange}

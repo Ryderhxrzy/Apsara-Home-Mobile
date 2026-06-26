@@ -120,19 +120,17 @@ export interface AppContextType {
   setSearchSourceProductId: (id: number | null) => void
 
   // PV Earner & Profiles & Settings & Leaderboard
-  showPVEarnerFromTab: boolean
-  setShowPVEarnerFromTab: (show: boolean) => void
+  // (PV Earner overlay visibility now lives in the Zustand modal store: pvEarnerOpen)
   showLeaderboard: boolean
   setShowLeaderboard: (show: boolean) => void
-  setShowSettings?: (show: boolean) => void
+  // settings/security/profileDetails/profileEdit visibility now lives in the
+  // Zustand modal store (settingsOpen / securityOpen / profileDetailsOpen /
+  // profileEditOpen), opened via its actions — see src/store/modalStore.ts
   profileDetailsFromTab: boolean
   setProfileDetailsFromTab: (show: boolean) => void
-  currentProfile: any
-  setCurrentProfile: (profile: any) => void
 
   // Referral & Network
-  referralNetworkFromTab: boolean
-  setReferralNetworkFromTab: (show: boolean) => void
+  // (referralNetwork overlay visibility now lives in the Zustand modal store: referralNetworkOpen)
   closeReferralNetwork: boolean
   setCloseReferralNetwork: (close: boolean) => void
   referralTree: any
@@ -174,10 +172,8 @@ export interface AppContextType {
   onShopByCategoryPress: (categoryId: number) => void
   onShopByBrandPress: (brandId: number) => void
   onShopNavigate: () => void
-  onShowProfileDetails: (show: boolean) => void
   onShowReferralNetwork: (show: boolean, tree?: any) => void
   onPurchaseItemClick: (status: string) => void
-  onSecuritySettingsPress: () => void
   onShowAFWalletOverview: () => void
   onShowAFWalletVoucher: () => void
   onShowAFWalletRewards: () => void

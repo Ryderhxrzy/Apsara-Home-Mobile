@@ -69,7 +69,8 @@ const ListRow = memo(function ListRow({
 
   const badges = []
   if (item.musthave) badges.push({ label: "Must Have", color: "#f97316" })
-  else if (item.bestseller) badges.push({ label: "Bestseller", color: "#d4a017" })
+  else if (item.bestseller)
+    badges.push({ label: "Bestseller", color: "#d4a017" })
   else if (item.salespromo) badges.push({ label: "On Sale", color: "#10b981" })
 
   const handleWishlist = async () => {
@@ -125,7 +126,9 @@ const ListRow = memo(function ListRow({
       {/* Details */}
       <View style={styles.listRowDetails}>
         {badges.length > 0 && (
-          <View style={[styles.listRowBadge, { backgroundColor: badges[0].color }]}>
+          <View
+            style={[styles.listRowBadge, { backgroundColor: badges[0].color }]}
+          >
             <Text style={styles.listRowBadgeText}>{badges[0].label}</Text>
           </View>
         )}
@@ -136,7 +139,10 @@ const ListRow = memo(function ListRow({
           {item.name}
         </Text>
         {!!item.brand && (
-          <Text style={[styles.listRowBrand, { color: colors.textSec }]} numberOfLines={1}>
+          <Text
+            style={[styles.listRowBrand, { color: colors.textSec }]}
+            numberOfLines={1}
+          >
             {item.brand}
           </Text>
         )}
@@ -182,10 +188,17 @@ function GridSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
   const imgBg = isDarkMode ? "#0f172a" : "#f1f5f9"
 
   return (
-    <View style={[styles.skeletonGrid, { borderColor: border, backgroundColor: bg }]}>
+    <View
+      style={[
+        styles.skeletonGrid,
+        { borderColor: border, backgroundColor: bg },
+      ]}
+    >
       <View style={[styles.skeletonImg, { backgroundColor: imgBg }]}>
         <Image
-          source={{ uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png" }}
+          source={{
+            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
+          }}
           style={styles.skeletonLogo}
           contentFit="contain"
           tintColor={isDarkMode ? "#cbd5e1" : "#4b5563"}
@@ -193,8 +206,18 @@ function GridSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
       </View>
       <View style={styles.skeletonLines}>
         <View style={[styles.skeletonLine, { backgroundColor: shimmer }]} />
-        <View style={[styles.skeletonLine, { backgroundColor: shimmer, width: "70%" }]} />
-        <View style={[styles.skeletonLine, { backgroundColor: shimmer, width: "50%", marginTop: 6 }]} />
+        <View
+          style={[
+            styles.skeletonLine,
+            { backgroundColor: shimmer, width: "70%" },
+          ]}
+        />
+        <View
+          style={[
+            styles.skeletonLine,
+            { backgroundColor: shimmer, width: "50%", marginTop: 6 },
+          ]}
+        />
       </View>
     </View>
   )
@@ -206,12 +229,32 @@ function ListSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
   const shimmer = isDarkMode ? "#334155" : "#e5e7eb"
   const imgBg = isDarkMode ? "#0f172a" : "#f1f5f9"
   return (
-    <View style={[styles.listSkeletonRow, { backgroundColor: bg, borderColor: border }]}>
+    <View
+      style={[
+        styles.listSkeletonRow,
+        { backgroundColor: bg, borderColor: border },
+      ]}
+    >
       <View style={[styles.listSkeletonImg, { backgroundColor: imgBg }]} />
       <View style={styles.listSkeletonLines}>
-        <View style={[styles.skeletonLine, { backgroundColor: shimmer, width: "80%" }]} />
-        <View style={[styles.skeletonLine, { backgroundColor: shimmer, width: "50%", marginTop: 6 }]} />
-        <View style={[styles.skeletonLine, { backgroundColor: shimmer, width: "40%", marginTop: 6 }]} />
+        <View
+          style={[
+            styles.skeletonLine,
+            { backgroundColor: shimmer, width: "80%" },
+          ]}
+        />
+        <View
+          style={[
+            styles.skeletonLine,
+            { backgroundColor: shimmer, width: "50%", marginTop: 6 },
+          ]}
+        />
+        <View
+          style={[
+            styles.skeletonLine,
+            { backgroundColor: shimmer, width: "40%", marginTop: 6 },
+          ]}
+        />
       </View>
     </View>
   )
@@ -240,6 +283,7 @@ interface ShopByBrandProductsScreenProps {
   token?: string | null
   brandId?: number
   isZqBrand?: boolean
+  categoryId?: number | null
   searchQuery?: string
   wishlistItems?: any[]
   onWishlistChange?: () => void
@@ -251,6 +295,7 @@ export default function ShopByBrandProductsScreen({
   token,
   brandId,
   isZqBrand = false,
+  categoryId = null,
   searchQuery = "",
   wishlistItems = [],
   onWishlistChange = () => {},
@@ -277,6 +322,7 @@ export default function ShopByBrandProductsScreen({
     brandId,
     isZqBrand,
     perPage: 16,
+    categoryId,
     search: searchQuery,
   })
 
@@ -416,7 +462,11 @@ export default function ShopByBrandProductsScreen({
     if (isError) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.textSec} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={48}
+            color={colors.textSec}
+          />
           <Text style={[styles.emptyText, { color: colors.textSec }]}>
             Failed to load products
           </Text>
@@ -424,7 +474,9 @@ export default function ShopByBrandProductsScreen({
             style={[styles.retryBtn, { borderColor: Colors.sky }]}
             onPress={() => refetch()}
           >
-            <Text style={{ color: Colors.sky, fontWeight: "600", fontSize: 13 }}>
+            <Text
+              style={{ color: Colors.sky, fontWeight: "600", fontSize: 13 }}
+            >
               Retry
             </Text>
           </Pressable>
@@ -447,7 +499,10 @@ export default function ShopByBrandProductsScreen({
       <View
         style={[
           styles.toolbar,
-          { backgroundColor: colors.toolbar, borderBottomColor: colors.toolbarBorder },
+          {
+            backgroundColor: colors.toolbar,
+            borderBottomColor: colors.toolbarBorder,
+          },
         ]}
       >
         {/* Sort button */}
@@ -456,7 +511,10 @@ export default function ShopByBrandProductsScreen({
           onPress={() => setShowSortModal(true)}
         >
           <Ionicons name="swap-vertical-outline" size={14} color={Colors.sky} />
-          <Text style={[styles.sortBtnText, { color: Colors.sky }]} numberOfLines={1}>
+          <Text
+            style={[styles.sortBtnText, { color: Colors.sky }]}
+            numberOfLines={1}
+          >
             {currentSortLabel}
           </Text>
           <Ionicons name="chevron-down" size={12} color={Colors.sky} />
@@ -537,9 +595,7 @@ export default function ShopByBrandProductsScreen({
           style={styles.modalOverlay}
           onPress={() => setShowSortModal(false)}
         >
-          <View
-            style={[styles.modalCard, { backgroundColor: colors.modalBg }]}
-          >
+          <View style={[styles.modalCard, { backgroundColor: colors.modalBg }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
                 Sort By

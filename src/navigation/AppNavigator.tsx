@@ -23,6 +23,7 @@ import {
   NavigationContextType,
 } from "../context/NavigationContext"
 import { AppContextProvider } from "../context/AppContext"
+import { useModalStore } from "../store/modalStore"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Colors } from "../constants/colors"
 import { getBadgeImage } from "../constants/tierConfig"
@@ -33,13 +34,9 @@ import { referralService } from "../services/referralService"
 import TabNavigator from "./TabNavigator"
 import SearchScreen from "../screen/SearchScreen"
 import SearchResultScreen from "../screen/SearchResultScreen"
-import SettingsScreen from "../screen/SettingsScreen"
-import SecurityScreen from "../screen/SecurityScreen"
 import ProductDetailScreen from "../screen/ProductDetailScreen"
 import CartScreen from "../screen/CartScreen"
-import ProfileDetailsScreen from "../screen/ProfileDetailsScreen"
 import AffiliateReferralModal from "../components/Referral/AffiliateReferralModal"
-import ReferralNetworkScreen from "../screen/ReferralNetworkScreen"
 import ReferralSignupFlow from "../components/ModalHost/ReferralSignupFlow"
 import CheckoutScreen from "../screen/CheckoutScreen"
 import OrderSuccessScreen from "../screen/OrderSuccessScreen"
@@ -49,9 +46,7 @@ import PaymentSuccessScreen from "../screen/PaymentSuccessScreen"
 import PaymentCancelScreen from "../screen/PaymentCancelScreen"
 import ShippingAddressSelectionScreen from "../screen/ShippingAddressSelectionScreen"
 import ModalHost from "../components/ModalHost/ModalHost"
-import { useModalStore } from "../store/modalStore"
-import ProfileEditScreen from "../screen/ProfileEditScreen"
-import PVEarnerScreen from "../screen/PVEarnerScreen"
+import AccountOverlayHost from "../components/ModalHost/AccountOverlayHost"
 import { orderService } from "../services/orderService"
 import Toast from "react-native-toast-message"
 import { useNotifications } from "../hooks/useNotifications"
@@ -203,6 +198,11 @@ export default function AppNavigator({
     fullUser: user,
   })
 
+  // Customer support chat overlay now lives in the Zustand modal store
+  // (openChatSupport / chatSupportOpen) and renders via ModalHost — see
+  // src/store/modalStore.ts. Removed from here so opening it no longer
+  // re-renders this navigator.
+
   // Purchases overlay state — declared before handleNotificationPressed (which
   // sets it when a push notification is tapped).
   const [showPurchases, setShowPurchases] = useState(false)
@@ -242,9 +242,10 @@ export default function AppNavigator({
   useNotifications(user?.id || "", token || "")
 
   // Opens info-page / AF Wallet overlays via the Zustand modal store.
-  const openInfoPage = useModalStore((s) => s.openInfoPage)
+  // Info-page + history overlays are opened directly from the screens that need
+  // them (ModalHost / AccountOverlayHost call the store), so only the wallet
+  // openers remain wired through AppNavigator's context callbacks.
   const openWalletPage = useModalStore((s) => s.openWalletPage)
-  const openHistory = useModalStore((s) => s.openHistory)
   const openReferralIntro = useModalStore((s) => s.openReferralIntro)
 
   const [activeTab, setActiveTab] = useState<TabKey>("home")
@@ -272,10 +273,12 @@ export default function AppNavigator({
   const [paymentCheckoutUrl, setPaymentCheckoutUrl] = useState("")
   const [checkoutItem, setCheckoutItem] = useState<any>(null)
   const [checkoutCartItems, setCheckoutCartItems] = useState<any[]>([])
-  const [showProfileDetails, setShowProfileDetails] = useState(false)
-  const [showProfileEdit, setShowProfileEdit] = useState(false)
-  const [currentProfile, setCurrentProfile] = useState<any>(null)
-  const [referralNetworkFromTab, setReferralNetworkFromTab] = useState(false)
+  // settings / security / profileDetails / profileEdit overlays + their state
+  // machine (currentProfile, previousScreenFromSecurity, editProfileFromSettings)
+  // now live in the Zustand modal store and render via <AccountOverlayHost />.
+  // referralNetwork overlay visibility now lives in the Zustand modal store
+  // (referralNetworkOpen / openReferralNetwork) and renders via ModalHost. The
+  // referralTree below stays here because AffiliateReferralModal also reads it.
   const [referralTree, setReferralTree] = useState<any>(null)
   const [closeReferralNetwork] = useState(false)
   const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<
@@ -318,14 +321,8 @@ export default function AppNavigator({
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false)
   const [paymentConfirmationData, setPaymentConfirmationData] =
     useState<any>(null)
-  const [showSecurity, setShowSecurity] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   // History overlay migrated to the Zustand modal store (useModalStore).
-  const [previousScreenFromSecurity, setPreviousScreenFromSecurity] = useState<
-    "settings" | null
-  >(null)
-  const [editProfileFromSettings, setEditProfileFromSettings] = useState(false)
   const [linkedAccountsRefreshTrigger, setLinkedAccountsRefreshTrigger] =
     useState(0)
   // Info-page overlays (About Us, Privacy Policy, etc.) migrated to the Zustand
@@ -349,7 +346,8 @@ export default function AppNavigator({
   // rendered by <ModalHost />.
   // Referral signup flow (intro/signup/OTP) state migrated to the Zustand modal
   // store and rendered by <ReferralSignupFlow />.
-  const [showPVEarnerFromTab, setShowPVEarnerFromTab] = useState(false)
+  // PV Earner overlay visibility now lives in the Zustand modal store
+  // (pvEarnerOpen / openPVEarner) and renders via ModalHost.
   const [showShopProductDetail, setShowShopProductDetail] = useState(false)
   const [shopSelectedProductId, setShopSelectedProductId] = useState<
     number | null
@@ -461,7 +459,7 @@ export default function AppNavigator({
       })
     } else if (screen === "Profile") {
       // Navigate to profile referrals
-      setReferralNetworkFromTab(true)
+      useModalStore.getState().openReferralNetwork()
     }
   }
 
@@ -1208,6 +1206,59 @@ export default function AppNavigator({
   // exposes changes — so unrelated state churn (modal booleans like showCart,
   // showCheckout, etc., which are NOT in this object) no longer re-renders every
   // useAppContext consumer. The dep array is verified by react-hooks/exhaustive-deps.
+  // Profile update request — moved out of the inline ProfileEdit onSave when that
+  // screen migrated to AccountOverlayHost. Returns true on success so the host can
+  // run the same post-save back-navigation; toasts stay here with the data logic.
+  const handleProfileSave = useCallback(
+    async (profileData: any): Promise<boolean> => {
+      try {
+        const updatePayload = {
+          name: profileData.firstName || "",
+          last_name: profileData.lastName || "",
+          phone: profileData.phone,
+          middle_name: profileData.middleName,
+          birth_date: profileData.birthDate,
+          gender: profileData.gender?.toLowerCase() || "male",
+          occupation: profileData.occupation,
+          work_location:
+            profileData.workLocation?.toLowerCase() === "overseas"
+              ? "overseas"
+              : "local",
+          country: profileData.country,
+          address: profileData.streetAddress,
+          region: profileData.region,
+          province: profileData.province,
+          city: profileData.city,
+          barangay: profileData.barangay,
+          zip_code: profileData.zipCode,
+        }
+        await axios.put(`${API_CONFIG.BASE_URL}/auth/me`, updatePayload, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+        Toast.show({
+          type: "success",
+          text1: "Success",
+          text2: "Profile updated successfully",
+        })
+        return true
+      } catch (error: any) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2:
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to update profile",
+        })
+        return false
+      }
+    },
+    [token]
+  )
+
   const appContextValue = useMemo(
     () => ({
       token: token || "",
@@ -1262,16 +1313,10 @@ export default function AppNavigator({
       setPreviousSearchQuery,
       searchSourceProductId: null,
       setSearchSourceProductId,
-      showPVEarnerFromTab,
-      setShowPVEarnerFromTab,
       showLeaderboard,
       setShowLeaderboard,
       profileDetailsFromTab: false,
       setProfileDetailsFromTab: () => {},
-      currentProfile: null,
-      setCurrentProfile: () => {},
-      referralNetworkFromTab,
-      setReferralNetworkFromTab,
       closeReferralNetwork,
       setCloseReferralNetwork: () => {},
       referralTree,
@@ -1329,17 +1374,14 @@ export default function AppNavigator({
         setPreviousTab("profile")
         setActiveTab("wishlist")
       },
-      onShowProfileDetails: (show: boolean) => setShowProfileDetails(show),
       onShowReferralNetwork: (tree: ReferralTree | null) => {
-        setReferralNetworkFromTab(true)
         if (tree) setReferralTree(tree)
+        useModalStore.getState().openReferralNetwork()
       },
       onPurchaseItemClick: (status: string) => {
         setPurchasesStatus(normalizePurchaseStatus(status))
         setShowPurchases(true)
       },
-      onSecuritySettingsPress: () => setShowSecurity(true),
-      setShowSettings,
       onShowAFWalletOverview: () => openWalletPage("overview"),
       onShowAFWalletVoucher: () => openWalletPage("voucher"),
       onShowAFWalletRewards: () => openWalletPage("rewards"),
@@ -1373,9 +1415,7 @@ export default function AppNavigator({
       shopSourceIsCart,
       shopSourceIsCheckout,
       shopSourceProductId,
-      showPVEarnerFromTab,
       showLeaderboard,
-      referralNetworkFromTab,
       closeReferralNetwork,
       referralTree,
       purchasesStatus,
@@ -1515,11 +1555,6 @@ export default function AppNavigator({
                     !isInitialHomeDataReady ||
                     selectedProductId !== null ||
                     searchQuery !== null ||
-                    showPVEarnerFromTab ||
-                    showSettings ||
-                    showSecurity ||
-                    showProfileDetails ||
-                    referralNetworkFromTab ||
                     showLeaderboard ||
                     selectedBrandId !== null
                   }
@@ -2011,119 +2046,6 @@ export default function AppNavigator({
           </View>
         )}
 
-        {showProfileDetails && (
-          <View style={styles.cartScreenOverlay}>
-            <ProfileDetailsScreen
-              token={token}
-              placeholderUser={enrichedUser}
-              cartCount={cartCount}
-              isDarkMode={isDarkMode}
-              onUserUpdate={onUserUpdate}
-              onClose={() => setShowProfileDetails(false)}
-              onCartPress={() => {
-                setShowProfileDetails(false)
-                setShowCart(true)
-              }}
-              onEditProfile={(profileData) => {
-                setCurrentProfile(profileData)
-                setShowProfileDetails(false)
-                setShowProfileEdit(true)
-              }}
-            />
-          </View>
-        )}
-
-        {showProfileEdit && (
-          <View style={styles.cartScreenOverlay}>
-            <ProfileEditScreen
-              user={currentProfile || enrichedUser}
-              isDarkMode={isDarkMode}
-              onBack={() => {
-                setShowProfileEdit(false)
-                if (editProfileFromSettings) {
-                  setShowSettings(true)
-                  setEditProfileFromSettings(false)
-                } else {
-                  setShowProfileDetails(true)
-                }
-              }}
-              onSave={async (profileData) => {
-                try {
-                  console.log(
-                    "[AppNavigator] Profile save requested with data:",
-                    profileData
-                  )
-                  const updatePayload = {
-                    name: profileData.firstName || "",
-                    last_name: profileData.lastName || "",
-                    phone: profileData.phone,
-                    middle_name: profileData.middleName,
-                    birth_date: profileData.birthDate,
-                    gender: profileData.gender?.toLowerCase() || "male",
-                    occupation: profileData.occupation,
-                    work_location:
-                      profileData.workLocation?.toLowerCase() === "overseas"
-                        ? "overseas"
-                        : "local",
-                    country: profileData.country,
-                    address: profileData.streetAddress,
-                    region: profileData.region,
-                    province: profileData.province,
-                    city: profileData.city,
-                    barangay: profileData.barangay,
-                    zip_code: profileData.zipCode,
-                  }
-
-                  console.log(
-                    "[AppNavigator] Sending update payload:",
-                    updatePayload
-                  )
-                  const response = await axios.put(
-                    `${API_CONFIG.BASE_URL}/auth/me`,
-                    updatePayload,
-                    {
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                      },
-                    }
-                  )
-
-                  console.log(
-                    "[AppNavigator] Profile updated successfully, response:",
-                    response.data
-                  )
-                  Toast.show({
-                    type: "success",
-                    text1: "Success",
-                    text2: "Profile updated successfully",
-                  })
-                  setShowProfileEdit(false)
-                  if (editProfileFromSettings) {
-                    setShowSettings(true)
-                    setEditProfileFromSettings(false)
-                  } else {
-                    setShowProfileDetails(true)
-                  }
-                } catch (error: any) {
-                  console.log(
-                    "[AppNavigator] Error updating profile:",
-                    error.response?.data || error.message
-                  )
-                  Toast.show({
-                    type: "error",
-                    text1: "Error",
-                    text2:
-                      error.response?.data?.message ||
-                      error.message ||
-                      "Failed to update profile",
-                  })
-                }
-              }}
-            />
-          </View>
-        )}
-
         <AffiliateReferralModal
           visible={showAffiliateReferralModal}
           onClose={() => setShowAffiliateReferralModal(false)}
@@ -2134,129 +2056,48 @@ export default function AppNavigator({
           loading={affiliateLoading}
           onViewNetwork={() => {
             setShowAffiliateReferralModal(false)
-            setReferralNetworkFromTab(true)
+            useModalStore.getState().openReferralNetwork()
           }}
         />
-
-        {showSecurity && (
-          <View style={styles.cartScreenOverlay}>
-            <SecurityScreen
-              isDarkMode={isDarkMode}
-              token={token}
-              onBack={() => {
-                setShowSecurity(false)
-                if (previousScreenFromSecurity === "settings") {
-                  setShowSettings(true)
-                  setPreviousScreenFromSecurity(null)
-                }
-              }}
-              onGoogleLinked={() =>
-                setLinkedAccountsRefreshTrigger((prev) => prev + 1)
-              }
-              onOpenHistory={() => openHistory()}
-            />
-          </View>
-        )}
-
-        {showPVEarnerFromTab && (
-          <View style={styles.cartScreenOverlay}>
-            <PVEarnerScreen
-              isDarkMode={isDarkMode}
-              onBack={() => setShowPVEarnerFromTab(false)}
-              token={token}
-              wishlistItems={wishlistItems}
-              onWishlistChange={() => invalidateWishlist()}
-              onProductPress={(id) => {
-                setShowPVEarnerFromTab(false)
-                setPreviousSearchQuery(null)
-                setPreviousTab(activeTab)
-                setSelectedProductId(id)
-              }}
-              onShopPress={() => {
-                setShowPVEarnerFromTab(false)
-                setPreviousTab(activeTab)
-                setActiveTab("shop")
-              }}
-            />
-          </View>
-        )}
-
-        {showSettings && (
-          <View style={styles.cartScreenOverlay}>
-            <SettingsScreen
-              user={enrichedUser}
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-              onBack={() => setShowSettings(false)}
-              onNavigateSecurity={() => {
-                setPreviousScreenFromSecurity("settings")
-                setShowSettings(false)
-                setShowSecurity(true)
-              }}
-              onEditProfile={() => {
-                setEditProfileFromSettings(true)
-                setShowSettings(false)
-                setShowProfileEdit(true)
-              }}
-              onNavigateAboutUs={() => {
-                openInfoPage("aboutUs")
-              }}
-              onNavigatePrivacyPolicy={() => {
-                openInfoPage("privacyPolicy")
-              }}
-              onNavigateTermsAndConditions={() => {
-                openInfoPage("termsAndConditions")
-              }}
-              onNavigateIncomeDisclaimer={() => {
-                openInfoPage("incomeDisclaimer")
-              }}
-              onNavigateCookiePolicy={() => {
-                openInfoPage("cookiePolicy")
-              }}
-              onNavigateRewardsAndCommissions={() => {
-                openInfoPage("rewardsAndCommissions")
-              }}
-              onNavigateContactUs={() => {
-                openInfoPage("contactUs")
-              }}
-              onNavigateOurBranches={() => {
-                openInfoPage("ourBranches")
-              }}
-              onNavigateFAQs={() => {
-                openInfoPage("faqs")
-              }}
-              onNavigateShippingInfo={() => {
-                openInfoPage("shippingInfo")
-              }}
-              onNavigateReturns={() => {
-                openInfoPage("returns")
-              }}
-              onLogout={onLogout}
-            />
-          </View>
-        )}
-
 
         {/* Info-page overlays (About Us, Privacy Policy, FAQs, etc.) — state in
             the Zustand modal store, rendered here so toggling them no longer
             re-renders the whole AppNavigator. */}
-        <ModalHost isDarkMode={isDarkMode} token={token} />
+        <ModalHost
+          isDarkMode={isDarkMode}
+          token={token}
+          user={enrichedUser}
+          wishlistItems={wishlistItems}
+          onWishlistChange={invalidateWishlist}
+          referralTree={referralTree}
+          onPVEarnerProductPress={(id) => {
+            setPreviousSearchQuery(null)
+            setPreviousTab(activeTab)
+            setSelectedProductId(id)
+          }}
+          onPVEarnerShopPress={() => {
+            setPreviousTab(activeTab)
+            setActiveTab("shop")
+          }}
+        />
 
-        {referralNetworkFromTab && (
-          <View style={styles.cartScreenOverlay}>
-            <ReferralNetworkScreen
-              token={token}
-              tree={referralTree}
-              isDarkMode={isDarkMode}
-              onBack={() => {
-                console.log(
-                  "[AppNavigator] ReferralNetworkScreen.onBack called - closing modal"
-                )
-                setReferralNetworkFromTab(false)
-              }}
-            />
-          </View>
-        )}
+        {/* Account overlays (settings ↔ security ↔ profile details ↔ profile
+            edit) — visibility + transitions live in the Zustand modal store; the
+            leaf couplings below stay owned by AppNavigator. */}
+        <AccountOverlayHost
+          isDarkMode={isDarkMode}
+          token={token}
+          user={enrichedUser}
+          cartCount={cartCount}
+          setIsDarkMode={setIsDarkMode}
+          onLogout={onLogout}
+          onUserUpdate={onUserUpdate}
+          onOpenCart={() => setShowCart(true)}
+          onGoogleLinked={() =>
+            setLinkedAccountsRefreshTrigger((prev) => prev + 1)
+          }
+          onProfileSave={handleProfileSave}
+        />
 
         {showPurchases && (
           <View style={styles.cartScreenOverlay}>

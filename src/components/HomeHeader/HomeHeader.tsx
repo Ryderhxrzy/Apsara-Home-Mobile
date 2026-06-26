@@ -7,10 +7,15 @@ import {
   StyleProp,
   ViewStyle,
 } from "react-native"
+import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Icon from "../ui/Icon"
 import { Colors } from "../../constants/colors"
 import { getColors, tw } from "../../theme/theme"
+
+// AF Home brand wordmark — bundled locally so it renders instantly (no network
+// flash) and works offline. The full "AF HOME" lockup (149×50, ~3:1).
+const BRAND_LOGO = require("../../../assets/af_home_logo.png")
 
 interface HomeHeaderProps {
   user?: { name?: string } | null
@@ -62,18 +67,14 @@ function HomeHeader({
         containerStyle,
       ]}
     >
+      {/* Brand row: logo on the left, actions on the right */}
       <View style={styles.topRow}>
-        <View style={styles.greetingWrap}>
-          <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
-            Hi, {firstName} 👋
-          </Text>
-          <Text
-            style={[styles.subtitle, { color: colors.textSec }]}
-            numberOfLines={1}
-          >
-            Find the best products for your lifestyle
-          </Text>
-        </View>
+        <Image
+          source={BRAND_LOGO}
+          style={styles.logo}
+          contentFit="contain"
+          transition={150}
+        />
 
         <View style={styles.actions}>
           <TouchableOpacity
@@ -114,6 +115,19 @@ function HomeHeader({
         </View>
       </View>
 
+      {/* Greeting */}
+      <View style={styles.greetingWrap}>
+        <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
+          Hi, {firstName} 👋
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: colors.textSec }]}
+          numberOfLines={1}
+        >
+          Find the best products for your lifestyle
+        </Text>
+      </View>
+
       <TouchableOpacity
         style={[styles.searchField, { backgroundColor: colors.searchBg }]}
         activeOpacity={0.7}
@@ -145,8 +159,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  logo: {
+    // Full "AF HOME" wordmark (149×50, ~3:1) — size the box to that ratio so it
+    // reads as a wordmark instead of letterboxing inside a square.
+    height: 34,
+    width: 101,
+  },
   greetingWrap: {
-    flex: 1,
+    marginTop: 12,
   },
   greeting: {
     fontSize: 22,

@@ -36,7 +36,6 @@ import { useShowcaseProducts } from "../hooks/query/useShowcaseProducts"
 import { useBehaviorRecommendations } from "../hooks/query/useBehaviorRecommendations"
 import HomeProductRail from "../components/HomeProductRail/HomeProductRail"
 import { getRoomIcon, getCategoryIcon } from "../utils/categoryIcons"
-import { ChatBotIcon } from "../components/ChatBot"
 import { FlashList } from "@shopify/flash-list"
 import styles, { BANNER_HEIGHT } from "../styles/HomeScreen.styles"
 
@@ -877,13 +876,6 @@ function HomeScreen({
           containerStyle={[styles.sectionEven, { backgroundColor: colors.bg }]}
         />
       </ScrollView>
-
-      {/* Chat Bot Icon */}
-      <ChatBotIcon
-        position="bottom-right"
-        visible={true}
-        isDarkMode={isDarkMode}
-      />
     </View>
   )
 }

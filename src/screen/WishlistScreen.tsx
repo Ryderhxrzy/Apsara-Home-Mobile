@@ -10,6 +10,7 @@ import {
   Modal,
 } from "react-native"
 import { FlashList } from "@shopify/flash-list"
+import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
@@ -25,8 +26,11 @@ import ItemList from "../components/Items/ItemList"
 import AddToCartModal from "../components/Items/AddToCartModal"
 import MultipleItemsCartModal from "../components/Items/MultipleItemsCartModal"
 import ConfirmationModal from "../components/ConfirmationModal/ConfirmationModal"
-import { ChatBotIcon } from "../components/ChatBot"
 import styles from "../styles/WishlistScreen.styles"
+
+// AF "house" brand mark, bundled locally (instant, offline). Square badge that
+// sits next to the screen title.
+const BRAND_LOGO = require("../../assets/splash-icon1.png")
 
 interface WishlistItem {
   wishlist_id: number
@@ -139,7 +143,8 @@ export default function WishlistScreen({
 
   // Alias so existing handlers keep working; hide optimistically-removed items.
   const wishlist = useMemo(
-    () => (items as WishlistItem[]).filter((i) => !removedIds.has(i.wishlist_id)),
+    () =>
+      (items as WishlistItem[]).filter((i) => !removedIds.has(i.wishlist_id)),
     [items, removedIds]
   )
 
@@ -558,9 +563,11 @@ export default function WishlistScreen({
           ]}
         >
           <View style={styles.titleRow}>
-            <Text style={[styles.screenTitle, { color: colors.text }]}>
-              My Wishlist
-            </Text>
+            <View style={styles.titleLeft}>
+              <Text style={[styles.screenTitle, { color: colors.text }]}>
+                My Wishlist
+              </Text>
+            </View>
             <TouchableOpacity
               style={styles.headerIconBtn}
               onPress={onNavigateToCart}
@@ -596,10 +603,7 @@ export default function WishlistScreen({
               returnKeyType="search"
             />
             {searchInput.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchInput("")}
-                hitSlop={8}
-              >
+              <TouchableOpacity onPress={() => setSearchInput("")} hitSlop={8}>
                 <Ionicons
                   name="close-circle"
                   size={18}
@@ -856,13 +860,6 @@ export default function WishlistScreen({
           }}
         />
       </View>
-
-      {/* Chat Bot Icon */}
-      <ChatBotIcon
-        position="bottom-right"
-        visible={true}
-        isDarkMode={isDarkMode}
-      />
     </View>
   )
 }

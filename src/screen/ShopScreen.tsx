@@ -26,7 +26,6 @@ import ItemCard from "../components/Items/ItemCard"
 import ShopHeader from "../components/ShopHeader/ShopHeader"
 import HeaderFilter from "../components/AppHeader/HeaderFilter"
 import { useOptimizedProducts } from "../hooks/useOptimizedProducts"
-import { ChatBotIcon } from "../components/ChatBot"
 import styles from "../styles/ShopScreen.styles"
 
 const ROOMS = [
@@ -651,12 +650,6 @@ function ShopScreen({
           />
       </SafeAreaView>
 
-      {/* Chat Bot Icon */}
-      <ChatBotIcon
-        position="bottom-right"
-        visible={true}
-        isDarkMode={isDarkMode}
-      />
     </View>
   )
 }

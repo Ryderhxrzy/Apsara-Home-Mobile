@@ -22,10 +22,22 @@ import AFWalletVoucherScreen from "../../screen/AFWalletVoucherScreen"
 import AFWalletRewardsScreen from "../../screen/AFWalletRewardsScreen"
 import AFWalletNetworkScreen from "../../screen/AFWalletNetworkScreen"
 import HistoryScreen from "../../screen/HistoryScreen"
+import ChatSupportScreen from "../../screen/ChatSupportScreen"
+import PVEarnerScreen from "../../screen/PVEarnerScreen"
+import ReferralNetworkScreen from "../../screen/ReferralNetworkScreen"
 
 interface ModalHostProps {
   isDarkMode?: boolean
   token?: string | null
+  user?: { id?: string | number; name?: string; avatar_url?: string } | null
+  /** Shared data + nav callbacks for the coupled overlays (PV Earner / Referral
+   *  Network). Their visibility lives in the store; their cross-screen wiring is
+   *  passed down from AppNavigator so it stays the single source of truth. */
+  wishlistItems?: any[]
+  onWishlistChange?: () => void
+  onPVEarnerProductPress?: (id: number) => void
+  onPVEarnerShopPress?: () => void
+  referralTree?: any
 }
 
 // Map each info page to its screen component. All info screens share the same
@@ -70,6 +82,12 @@ const WALLET_PAGES: Record<
 export default function ModalHost({
   isDarkMode = false,
   token,
+  user,
+  wishlistItems,
+  onWishlistChange,
+  onPVEarnerProductPress,
+  onPVEarnerShopPress,
+  referralTree,
 }: ModalHostProps) {
   const infoPage = useModalStore((s) => s.infoPage)
   const closeInfoPage = useModalStore((s) => s.closeInfoPage)
@@ -77,6 +95,12 @@ export default function ModalHost({
   const closeWalletPage = useModalStore((s) => s.closeWalletPage)
   const historyOpen = useModalStore((s) => s.historyOpen)
   const closeHistory = useModalStore((s) => s.closeHistory)
+  const chatSupportOpen = useModalStore((s) => s.chatSupportOpen)
+  const closeChatSupport = useModalStore((s) => s.closeChatSupport)
+  const pvEarnerOpen = useModalStore((s) => s.pvEarnerOpen)
+  const closePVEarner = useModalStore((s) => s.closePVEarner)
+  const referralNetworkOpen = useModalStore((s) => s.referralNetworkOpen)
+  const closeReferralNetwork = useModalStore((s) => s.closeReferralNetwork)
 
   if (infoPage) {
     const Screen = INFO_PAGES[infoPage]
@@ -107,6 +131,54 @@ export default function ModalHost({
           isDarkMode={isDarkMode}
           token={token}
           onBack={closeHistory}
+        />
+      </View>
+    )
+  }
+
+  if (chatSupportOpen) {
+    return (
+      <View style={styles.overlay}>
+        <ChatSupportScreen
+          isDarkMode={isDarkMode}
+          token={token}
+          user={user}
+          onBack={closeChatSupport}
+        />
+      </View>
+    )
+  }
+
+  if (pvEarnerOpen) {
+    return (
+      <View style={styles.overlay}>
+        <PVEarnerScreen
+          isDarkMode={isDarkMode}
+          token={token}
+          wishlistItems={wishlistItems}
+          onWishlistChange={onWishlistChange}
+          onBack={closePVEarner}
+          onProductPress={(id: number) => {
+            closePVEarner()
+            onPVEarnerProductPress?.(id)
+          }}
+          onShopPress={() => {
+            closePVEarner()
+            onPVEarnerShopPress?.()
+          }}
+        />
+      </View>
+    )
+  }
+
+  if (referralNetworkOpen) {
+    return (
+      <View style={styles.overlay}>
+        <ReferralNetworkScreen
+          token={token}
+          tree={referralTree}
+          isDarkMode={isDarkMode}
+          onBack={closeReferralNetwork}
         />
       </View>
     )

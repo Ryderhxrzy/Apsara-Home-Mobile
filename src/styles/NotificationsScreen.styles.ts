@@ -48,6 +48,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  titleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  headerLogo: {
+    // Square brand mark (1024×1024) — keep the box square.
+    width: 32,
+    height: 32,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",

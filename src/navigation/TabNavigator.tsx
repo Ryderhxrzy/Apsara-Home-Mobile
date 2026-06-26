@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { useAppContext } from "../context/AppContext"
+import { useModalStore } from "../store/modalStore"
 
 import HomeHeader from "../components/HomeHeader/HomeHeader"
 import HomeScreen from "../screen/HomeScreen"
@@ -24,6 +25,7 @@ import WishlistScreen from "../screen/WishlistScreen"
 import ShopScreen from "../screen/ShopScreen"
 import ShopByBrandScreen from "../screen/ShopByBrandScreen"
 import NotificationsScreen from "../screen/NotificationsScreen"
+import ChatSupportFab from "../components/ChatSupportFab/ChatSupportFab"
 import ProfileScreen from "../screen/ProfileScreen"
 import LoadingScreen from "../screen/LoadingScreen"
 
@@ -373,15 +375,17 @@ function NotificationTabScreen() {
 function ProfileTabScreen() {
   const ctx = useAppContext()
   const navigation = useNavigation()
+  // settings / security / profile-details overlays now open via the modal store.
+  const openSettings = useModalStore((s) => s.openSettings)
+  const openSecurity = useModalStore((s) => s.openSecurity)
+  const openProfileDetails = useModalStore((s) => s.openProfileDetails)
 
   return (
     <ProfileScreen
       user={ctx.enrichedUser}
       token={ctx.token}
       onLogout={ctx.onLogout}
-      onNavigateSettings={() => {
-        ctx.setShowSettings(true)
-      }}
+      onNavigateSettings={() => openSettings()}
       onCartPress={ctx.onCartPress}
       onShowPurchases={() => {
         ctx.setPurchasesStatus("pending")
@@ -390,20 +394,18 @@ function ProfileTabScreen() {
       cartCount={ctx.cartCount}
       unreadCount={ctx.unreadCount}
       isDarkMode={ctx.isDarkMode}
-      onShowProfileDetails={ctx.onShowProfileDetails}
+      onShowProfileDetails={() => openProfileDetails()}
       onShowReferralNetwork={ctx.onShowReferralNetwork}
       closeReferralNetwork={ctx.closeReferralNetwork}
       onPurchaseItemClick={ctx.onPurchaseItemClick}
       linkedAccountsRefreshTrigger={ctx.linkedAccountsRefreshTrigger}
-      onSecuritySettingsPress={ctx.onSecuritySettingsPress}
+      onSecuritySettingsPress={() => openSecurity()}
       setShowLeaderboard={ctx.setShowLeaderboard}
       showLeaderboard={ctx.showLeaderboard}
       onShowAFWalletOverview={ctx.onShowAFWalletOverview}
       onShowAFWalletVoucher={ctx.onShowAFWalletVoucher}
       onShowAFWalletRewards={ctx.onShowAFWalletRewards}
       onShowAFWalletNetwork={ctx.onShowAFWalletNetwork}
-      onShowPVEarner={ctx.setShowPVEarnerFromTab}
-      showPVEarnerFromTab={ctx.showPVEarnerFromTab}
       wishlistItems={ctx.wishlistItems}
       onWishlistChange={ctx.onWishlistChange}
       onProductPress={ctx.onProductPress}
@@ -427,7 +429,6 @@ function CustomTabBar({
     unreadCount,
     enrichedUser,
     setShowPurchases,
-    setPurchasesStatus,
   } = useAppContext() as any
   const safeAreaInsets = useSafeAreaInsets()
   // Inactive tab tint — a muted slate that reads on both the white (light) and
@@ -465,14 +466,12 @@ function CustomTabBar({
             }
           }
 
-          // The "notification" slot is now an Orders action button: it opens the
-          // MyPurchases (orders) overlay instead of navigating to a tab.
+          // The "notification" slot is an Orders button: it opens the My
+          // Purchases screen instead of navigating to a tab. (Chat support now
+          // lives in the floating button; notifications open via the header bell.)
           const handlePress =
             route.name === "notification"
-              ? () => {
-                  setPurchasesStatus?.("pending")
-                  setShowPurchases?.(true)
-                }
+              ? () => setShowPurchases?.(true)
               : onPress
 
           // Get badge count (Orders slot shows no badge — notifications live in
@@ -496,9 +495,7 @@ function CustomTabBar({
                   >
                     <View style={styles.shopDiamondInner}>
                       <Image
-                        source={{
-                        uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/home_logo_zktlq8.png"
-                      }}
+                        source={require("../../assets/splash-icon1.png")}
                         style={styles.homeLogoImage}
                         contentFit="contain"
                         tintColor={Colors.white}
@@ -536,7 +533,7 @@ function CustomTabBar({
                 )}
                 {route.name === "notification" && (
                   <Ionicons
-                    name="receipt-outline"
+                    name="bag-handle-outline"
                     size={24}
                     color={inactiveColor}
                   />
@@ -599,27 +596,61 @@ export default function TabNavigator({
 }: {
   hideTabBar?: boolean
 }) {
+  // Chat support now lives in a floating button (the bottom-tab "Messages" slot
+  // was reverted to Orders), rendered once here so it shows on every tab and is
+  // covered by the full-screen overlays mounted above the navigator. Its open
+  // state lives in the Zustand modal store (rendered by ModalHost), so tapping
+  // the FAB no longer re-renders the whole AppNavigator.
+  const { isDarkMode } = useAppContext() as any
+  const openChatSupport = useModalStore((s) => s.openChatSupport)
+  // PV Earner / Referral Network overlay visibility moved to the modal store.
+  // OR them into the tab-bar-hidden flag HERE (rather than via AppNavigator's
+  // hideTabBar prop) so toggling them re-renders only this navigator, not the
+  // 2.7k-line AppNavigator god-component.
+  const navOverlayOpen = useModalStore(
+    (s) =>
+      s.pvEarnerOpen ||
+      s.referralNetworkOpen ||
+      s.settingsOpen ||
+      s.securityOpen ||
+      s.profileDetailsOpen ||
+      s.profileEditOpen
+  )
+  const tabBarHidden = hideTabBar || navOverlayOpen
+  const insets = useSafeAreaInsets()
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        // Lazy-mount tabs on first focus (not all at login) to cut startup work.
-        // They stay mounted after the first visit, so switching remains instant.
-        lazy: true,
-        tabBarHideOnKeyboard: true,
-      }}
-      tabBar={(props) => <CustomTabBar {...props} hideTabBar={hideTabBar} />}
-    >
-      <Tab.Screen name="home" component={HomeTabScreen} />
-      <Tab.Screen name="wishlist" component={WishlistTabScreen} />
-      <Tab.Screen name="shop" component={ShopTabScreen} />
-      <Tab.Screen name="notification" component={NotificationTabScreen} />
-      <Tab.Screen name="profile" component={ProfileTabScreen} />
-    </Tab.Navigator>
+    <View style={styles.flexRoot}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          // Lazy-mount tabs on first focus (not all at login) to cut startup work.
+          // They stay mounted after the first visit, so switching remains instant.
+          lazy: true,
+          tabBarHideOnKeyboard: true,
+        }}
+        tabBar={(props) => <CustomTabBar {...props} hideTabBar={tabBarHidden} />}
+      >
+        <Tab.Screen name="home" component={HomeTabScreen} />
+        <Tab.Screen name="wishlist" component={WishlistTabScreen} />
+        <Tab.Screen name="shop" component={ShopTabScreen} />
+        <Tab.Screen name="notification" component={NotificationTabScreen} />
+        <Tab.Screen name="profile" component={ProfileTabScreen} />
+      </Tab.Navigator>
+
+      {!tabBarHidden && (
+        <ChatSupportFab
+          onPress={openChatSupport}
+          bottom={insets.bottom + 78}
+          isDarkMode={isDarkMode}
+        />
+      )}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  flexRoot: { flex: 1 },
   navBarContainer: {
     backgroundColor: Colors.white,
   },

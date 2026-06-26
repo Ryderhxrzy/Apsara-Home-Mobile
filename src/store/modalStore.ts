@@ -49,6 +49,69 @@ interface ModalState {
   closeHistory: () => void
 
   /**
+   * Customer-support chat overlay (opened from the floating ChatSupportFab).
+   * Fully self-contained — it only needs token/user/isDarkMode and closes itself —
+   * so it lives here and renders in ModalHost. Toggling it no longer re-renders
+   * the AppNavigator god-component.
+   */
+  chatSupportOpen: boolean
+  openChatSupport: () => void
+  closeChatSupport: () => void
+
+  /**
+   * PV Earner overlay (opened from the Profile screen). Its product-press / shop
+   * nav callbacks are passed into ModalHost as props from AppNavigator, so only
+   * the visibility boolean lives here.
+   */
+  pvEarnerOpen: boolean
+  openPVEarner: () => void
+  closePVEarner: () => void
+
+  /**
+   * Referral network overlay (opened from Profile and the affiliate modal). The
+   * referral tree data stays in AppNavigator (it's shared with
+   * AffiliateReferralModal) and is passed to ModalHost as a prop; only the
+   * visibility boolean lives here.
+   */
+  referralNetworkOpen: boolean
+  openReferralNetwork: () => void
+  closeReferralNetwork: () => void
+
+  /**
+   * Account overlays — settings ↔ security ↔ profile details ↔ profile edit.
+   * This was a tightly-coupled boolean state-machine inside AppNavigator; the
+   * transition actions below replicate its exact behaviour (where "back" returns
+   * to depends on where you came from). Rendered by AccountOverlayHost; the leaf
+   * couplings (cart, dark mode, logout, linked-accounts, the profile-save
+   * request) are passed into that host as props from AppNavigator.
+   */
+  settingsOpen: boolean
+  securityOpen: boolean
+  profileDetailsOpen: boolean
+  profileEditOpen: boolean
+  /** Profile data captured when opening edit from the profile-details screen. */
+  currentProfile: any
+  /** Return-target flags (mirror the old previousScreenFromSecurity /
+   *  editProfileFromSettings booleans). */
+  securityCameFromSettings: boolean
+  editProfileCameFromSettings: boolean
+
+  openSettings: () => void
+  closeSettings: () => void
+  /** Security opened from the Profile screen (back just closes). */
+  openSecurity: () => void
+  /** Security opened from Settings (back returns to Settings). */
+  openSecurityFromSettings: () => void
+  closeSecurity: () => void
+  openProfileDetails: () => void
+  closeProfileDetails: () => void
+  /** Edit opened from profile details (back/save returns to details). */
+  openProfileEditFromDetails: (profile: any) => void
+  /** Edit opened from Settings (back/save returns to Settings). */
+  openProfileEditFromSettings: () => void
+  closeProfileEdit: () => void
+
+  /**
    * Referral signup flow (deep-link → intro → signup → OTP). The step booleans
    * stack exactly like the originals (e.g. signup opens on top of intro). The
    * shared deep-link data (referralCode/referrerProfile) stays in AppNavigator
@@ -78,6 +141,72 @@ export const useModalStore = create<ModalState>((set) => ({
   historyOpen: false,
   openHistory: () => set({ historyOpen: true }),
   closeHistory: () => set({ historyOpen: false }),
+
+  chatSupportOpen: false,
+  openChatSupport: () => set({ chatSupportOpen: true }),
+  closeChatSupport: () => set({ chatSupportOpen: false }),
+
+  pvEarnerOpen: false,
+  openPVEarner: () => set({ pvEarnerOpen: true }),
+  closePVEarner: () => set({ pvEarnerOpen: false }),
+
+  referralNetworkOpen: false,
+  openReferralNetwork: () => set({ referralNetworkOpen: true }),
+  closeReferralNetwork: () => set({ referralNetworkOpen: false }),
+
+  settingsOpen: false,
+  securityOpen: false,
+  profileDetailsOpen: false,
+  profileEditOpen: false,
+  currentProfile: null,
+  securityCameFromSettings: false,
+  editProfileCameFromSettings: false,
+
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
+  openSecurity: () =>
+    set({ securityOpen: true, securityCameFromSettings: false }),
+  openSecurityFromSettings: () =>
+    set({
+      securityOpen: true,
+      settingsOpen: false,
+      securityCameFromSettings: true,
+    }),
+  closeSecurity: () =>
+    set((s) =>
+      s.securityCameFromSettings
+        ? {
+            securityOpen: false,
+            settingsOpen: true,
+            securityCameFromSettings: false,
+          }
+        : { securityOpen: false }
+    ),
+  openProfileDetails: () => set({ profileDetailsOpen: true }),
+  closeProfileDetails: () => set({ profileDetailsOpen: false }),
+  openProfileEditFromDetails: (profile) =>
+    set({
+      currentProfile: profile,
+      profileDetailsOpen: false,
+      profileEditOpen: true,
+      editProfileCameFromSettings: false,
+    }),
+  openProfileEditFromSettings: () =>
+    set({
+      settingsOpen: false,
+      profileEditOpen: true,
+      editProfileCameFromSettings: true,
+    }),
+  closeProfileEdit: () =>
+    set((s) =>
+      s.editProfileCameFromSettings
+        ? {
+            profileEditOpen: false,
+            settingsOpen: true,
+            editProfileCameFromSettings: false,
+          }
+        : { profileEditOpen: false, profileDetailsOpen: true }
+    ),
 
   referralIntroOpen: false,
   referralSignupOpen: false,

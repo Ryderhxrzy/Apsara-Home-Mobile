@@ -23,6 +23,7 @@ import PrimaryButton from "../components/Button/PrimaryButton"
 import OutlineButton from "../components/Button/OutlineButton"
 import MembershipCard from "../components/MembershipCard/MembershipCard"
 import { referralService, ReferralTree } from "../services/referralService"
+import { useModalStore } from "../store/modalStore"
 import { useWallet } from "../hooks/query/useWallet"
 import {
   useLoyaltyData,
@@ -35,7 +36,6 @@ import {
 import LevelProgress from "../components/LevelProgress/LevelProgress"
 // import DailyCheckin from "../components/DailyCheckin/DailyCheckin"
 import LevelProgressDetailsScreen from "./LevelProgressDetailsScreen"
-import { ChatBotIcon } from "../components/ChatBot"
 import LeaderboardScreen from "./LeaderboardScreen"
 import WebViewModal from "../components/WebViewModal/WebViewModal"
 import { styles } from "../styles/ProfileScreen.styles"
@@ -102,8 +102,6 @@ interface ProfileScreenProps {
   onShowAFWalletVoucher?: () => void
   onShowAFWalletRewards?: () => void
   onShowAFWalletNetwork?: () => void
-  onShowPVEarner?: (show: boolean) => void
-  showPVEarnerFromTab?: boolean
   wishlistItems?: any[]
   onWishlistChange?: () => void
   onProductPress?: (id: number) => void
@@ -233,8 +231,6 @@ export default function ProfileScreen({
   onShowAFWalletVoucher,
   onShowAFWalletRewards,
   onShowAFWalletNetwork,
-  onShowPVEarner,
-  showPVEarnerFromTab = false,
   wishlistItems = [],
   onWishlistChange = () => {},
   onProductPress = () => {},
@@ -242,6 +238,8 @@ export default function ProfileScreen({
   onNavigateWishlist = () => {},
 }: ProfileScreenProps) {
   const insets = useSafeAreaInsets()
+  // PV Earner overlay now opens via the Zustand modal store (renders in ModalHost).
+  const openPVEarner = useModalStore((s) => s.openPVEarner)
   const navigation = useNavigation<any>()
 
   // Palette sourced from the centralized theme (slate spine + sky accent),
@@ -689,7 +687,7 @@ export default function ProfileScreen({
                 borderColor: colors.border,
               },
             ]}
-            onPress={() => onShowPVEarner?.(true)}
+            onPress={() => openPVEarner()}
             activeOpacity={0.85}
           >
             <View
@@ -1997,12 +1995,6 @@ export default function ProfileScreen({
         onClose={() => setShowTrackOrder(false)}
       />
 
-      {/* Chat Bot Icon */}
-      <ChatBotIcon
-        position="bottom-right"
-        visible={true}
-        isDarkMode={isDarkMode}
-      />
     </View>
   )
 }

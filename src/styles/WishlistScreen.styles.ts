@@ -46,6 +46,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  titleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  headerLogo: {
+    // Square brand mark (1024×1024) — keep the box square.
+    width: 64,
+    height: 64,
+  },
   screenTitle: {
     fontSize: 24,
     fontWeight: "800",

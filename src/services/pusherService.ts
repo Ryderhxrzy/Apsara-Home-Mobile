@@ -44,7 +44,14 @@ class PusherService {
             socketId: string,
             callback: (error: any, authData: any) => void
           ) => {
-            fetch(`${API_CONFIG.BASE_URL}/realtime/pusher/auth`, {
+            // Conversation (support chat) channels use their own auth route;
+            // everything else uses the generic realtime auth.
+            const authUrl = String(channel?.name || "").startsWith(
+              "private-conversation-"
+            )
+              ? `${API_CONFIG.BASE_URL}/conversations/pusher/auth`
+              : `${API_CONFIG.BASE_URL}/realtime/pusher/auth`
+            fetch(authUrl, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
