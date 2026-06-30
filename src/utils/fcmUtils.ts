@@ -1,8 +1,94 @@
-import { getToken } from "@react-native-firebase/messaging"
+import {
+  getToken,
+  hasPermission,
+  requestPermission,
+  AuthorizationStatus,
+} from "@react-native-firebase/messaging"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Linking, Platform } from "react-native"
+import * as Application from "expo-application"
 import { getFirebaseMessagingAsync } from "./firebaseMessaging"
 
 const FCM_TOKEN_KEY = "fcm_token"
+
+export type NotificationPermission = "authorized" | "denied" | "undetermined"
+
+/** Current OS-level push permission for this device (does NOT prompt the user). */
+export const getNotificationPermission =
+  async (): Promise<NotificationPermission> => {
+    try {
+      const messaging = await getFirebaseMessagingAsync()
+      if (!messaging) return "denied"
+
+      const status = await hasPermission(messaging)
+      if (
+        status === AuthorizationStatus.AUTHORIZED ||
+        status === AuthorizationStatus.PROVISIONAL
+      ) {
+        return "authorized"
+      }
+      if (status === AuthorizationStatus.NOT_DETERMINED) {
+        return "undetermined"
+      }
+      return "denied"
+    } catch (error: any) {
+      console.warn(
+        "[FCMUtils] Failed to read notification permission:",
+        error?.message
+      )
+      return "denied"
+    }
+  }
+
+/** Prompt the OS permission dialog. Returns true if push is now allowed. */
+export const requestNotificationPermission = async (): Promise<boolean> => {
+  try {
+    const messaging = await getFirebaseMessagingAsync()
+    if (!messaging) return false
+
+    const status = await requestPermission(messaging)
+    return (
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL
+    )
+  } catch (error: any) {
+    console.warn(
+      "[FCMUtils] Failed to request notification permission:",
+      error?.message
+    )
+    return false
+  }
+}
+
+/**
+ * Open this app's notification settings so a user who has notifications turned
+ * off can re-enable them. On Android we deep-link straight to the app's
+ * notification screen; on iOS to the app's settings page. Falls back to the
+ * generic app-settings screen if the deep link is unavailable.
+ */
+export const openAppNotificationSettings = async (): Promise<void> => {
+  try {
+    if (Platform.OS === "ios") {
+      await Linking.openURL("app-settings:")
+      return
+    }
+
+    const pkg = Application.applicationId ?? "com.afhome.mobile"
+    await Linking.sendIntent("android.settings.APP_NOTIFICATION_SETTINGS", [
+      { key: "android.provider.extra.APP_PACKAGE", value: pkg },
+    ])
+  } catch (error: any) {
+    console.warn(
+      "[FCMUtils] Failed to open notification settings:",
+      error?.message
+    )
+    try {
+      await Linking.openSettings()
+    } catch {
+      // Nothing else we can do — leave the user where they are.
+    }
+  }
+}
 
 export const getFCMToken = async (): Promise<string | null> => {
   try {

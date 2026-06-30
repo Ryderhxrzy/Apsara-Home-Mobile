@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   iconButton: {
     width: 38,
@@ -212,7 +212,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 12,
+    // 10px to match the nav, tabs, and feed sections — one consistent content edge.
+    paddingHorizontal: 10,
     paddingTop: 12,
     paddingBottom: 10,
   },
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   tabItem: {
     flex: 1,

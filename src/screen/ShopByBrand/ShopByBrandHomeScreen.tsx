@@ -54,8 +54,9 @@ interface ShopByBrandHomeScreenProps {
   listRef?: React.Ref<any>
 }
 
-// Width of a carousel slide inside a section (sections sit at 4px insets).
-const SLIDE_WIDTH = width - 8
+// Width of a carousel slide inside a section (sections sit at 10px insets,
+// matching the brand header content edges above).
+const SLIDE_WIDTH = width - 20
 
 // Map a DB SectionProduct to the FeaturedItems product shape. Member price wins
 // (0/empty falls back to the original SRP), matching the web price helper.

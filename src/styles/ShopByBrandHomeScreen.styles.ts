@@ -302,7 +302,9 @@ const styles = StyleSheet.create({
   // Header wrapper around the DB sections inside the FlashList — inner 3px so the
   // cards/banners line up at ~8px with the masonry items below.
   headerWrap: {
-    paddingHorizontal: 4,
+    // 10px inset — the shared content edge used by the brand header rows (nav,
+    // brand profile, tabs) so the feed sections line up exactly with them.
+    paddingHorizontal: 10,
     paddingTop: 10,
   },
   // "For You" — a plain label (no card background) above the masonry feed.
@@ -311,10 +313,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 6,
     marginBottom: 8,
-    paddingHorizontal: 3,
+    // Sits inside headerWrap's 12px inset already — no extra padding needed.
+    paddingHorizontal: 0,
   },
   // Masonry feed (mirrors the Shop screen's grid spacing).
   forYouListContent: {
+    // No horizontal padding here — it would inset the whole list, including the
+    // brand header + cover photo. The header bleeds edge-to-edge; the sections
+    // carry their own 10px inset instead.
     paddingBottom: 24,
   },
   forYouItem: {
