@@ -10,13 +10,16 @@ import {
   TextInput,
   Modal,
   Share,
+  Animated,
 } from "react-native"
 import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { BadgeCheck } from "lucide-react-native"
 import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { CategoryItem } from "../services/authService"
-import { useBrandProducts } from "../hooks/query/useBrandProducts"
+import { useBrandHome } from "../hooks/query/useBrandHome"
+import BrandProfileHeader from "./ShopByBrand/BrandProfileHeader"
 import ShopByBrandHomeScreen from "./ShopByBrand/ShopByBrandHomeScreen"
 import ShopByBrandProductsScreen from "./ShopByBrand/ShopByBrandProductsScreen"
 import ShopByBrandCategoriesScreen from "./ShopByBrand/ShopByBrandCategoriesScreen"
@@ -50,6 +53,41 @@ const ROOMS: Room[] = [
   { room_id: 7, slug: "laundry-room", room_name: "Laundry Room" },
   { room_id: 8, slug: "bathroom", room_name: "Bathroom" },
 ]
+
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView)
+
+/**
+ * Compact top bar that fades in (native-driver opacity) as its tab is scrolled.
+ * One per tab, so each tab collapses its own brand header independently.
+ */
+function CollapsingTopBar({
+  scrollY,
+  style,
+  children,
+}: {
+  scrollY: Animated.Value
+  style?: any
+  children: React.ReactNode
+}) {
+  const [active, setActive] = useState(false)
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => setActive(value > 150))
+    return () => scrollY.removeListener(id)
+  }, [scrollY])
+  const opacity = scrollY.interpolate({
+    inputRange: [90, 170],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  })
+  return (
+    <Animated.View
+      pointerEvents={active ? "auto" : "none"}
+      style={[style, { opacity }]}
+    >
+      {children}
+    </Animated.View>
+  )
+}
 
 interface BrandInfo {
   id: number
@@ -133,75 +171,35 @@ export default function ShopByBrandScreen({
   onWishlistChange = () => {},
   isDarkMode = false,
 }: ShopByBrandScreenProps) {
-  const selectedRoomId: number | null = null
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
     null
   )
   const [searchQuery, setSearchQuery] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const { isFollowing, followersCount, toggleFollow } = useBrandFollow({
-    token,
-    brandId,
-  })
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
   const [selectedTab, setSelectedTab] = useState<
     "home" | "products" | "categories"
   >("home")
   const [showMenu, setShowMenu] = useState(false)
 
-  const perPage = 20
-  const scrollViewRef = useRef<ScrollView>(null)
   const insets = useSafeAreaInsets()
 
-  const selectedRoom = useMemo<Room | undefined>(
-    () =>
-      selectedRoomId
-        ? ROOMS.find((r) => r.room_id === selectedRoomId)
-        : undefined,
-    [selectedRoomId]
-  )
-  void selectedRoom // referenced via filter params
-
+  // DB-driven mobile home (sections + cover photo) configured by the brand owner.
+  // ZQ/global brands have no builder, so skip the fetch for them.
   const {
-    data: brandProductsData,
-    isLoading,
-    isRefetching,
-    isError,
-    error,
-    refetch,
-  } = useBrandProducts({
+    data: brandHomeData,
+    isLoading: homeLoading,
+    refetch: refetchHome,
+  } = useBrandHome({
     token,
     brandId,
-    isZqBrand,
-    page: currentPage,
-    perPage,
-    roomId: selectedRoomId,
-    categoryId: selectedCategoryId,
-    search: searchQuery,
+    enabled: !isZqBrand,
   })
-
-  const products: BrandProduct[] = brandProductsData?.products ?? []
-  const totalPages = brandProductsData?.totalPages ?? 0
-  const loading = isLoading
-  const refreshing = isRefetching
-
-  useEffect(() => {
-    if (isError) {
-      const msg = error instanceof Error ? error.message : "Please try again"
-      Toast.show({
-        type: "error",
-        text1: "Failed to load products",
-        text2: msg,
-      })
-    }
-  }, [isError, error])
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [selectedRoomId, selectedCategoryId, searchQuery])
+  const homeSections = brandHomeData?.sections ?? []
+  const coverPhoto = brandHomeData?.cover?.image_url ?? null
 
   const onRefresh = () => {
-    refetch()
+    refetchHome()
   }
 
   const handleFollowPress = () => {
@@ -223,22 +221,13 @@ export default function ShopByBrandScreen({
     })
   }
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true })
-      setCurrentPage((p) => p + 1)
+  useEffect(() => {
+    if (token && brandId) {
+      checkFollowingStatus()
+    } else {
+      setIsFollowing(false)
     }
-  }
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true })
-      setCurrentPage((p) => p - 1)
-    }
-  }
-
-  void handleNextPage
-  void handlePreviousPage
+  }, [token, brandId, checkFollowingStatus])
 
   const getBrandLogo = (): string | null => {
     return brand?.logo ?? brand?.brand_image ?? brand?.image ?? null
@@ -289,276 +278,168 @@ export default function ShopByBrandScreen({
 
   const brandLogo = getBrandLogo()
 
+  // ── Collapsing header (shared across tabs) ───────────────────────────────
+  // Every tab renders the full brand header at the top of its own scroll. One
+  // shared scroll value drives the compact bar, and on tab switch we carry the
+  // collapse state over (sync the new tab's scroll) so the header looks identical
+  // on Home, Products and Categories.
+  const scrollY = useRef(new Animated.Value(0)).current
+  const scrollOffset = useRef(0)
+  const homeListRef = useRef<any>(null)
+  const productsListRef = useRef<any>(null)
+  const categoriesScrollRef = useRef<any>(null)
+
+  const onAnyScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: true,
+        listener: (e: any) => {
+          scrollOffset.current = e?.nativeEvent?.contentOffset?.y ?? 0
+        },
+      }),
+    [scrollY]
+  )
+
+  const scrollActiveTo = useCallback(
+    (offset: number, animated = false) => {
+      if (selectedTab === "home")
+        homeListRef.current?.scrollToOffset?.({ offset, animated })
+      else if (selectedTab === "products")
+        productsListRef.current?.scrollToOffset?.({ offset, animated })
+      else categoriesScrollRef.current?.scrollTo?.({ y: offset, animated })
+    },
+    [selectedTab]
+  )
+
+  // Carry the header's collapse state across tabs: when switching, scroll the new
+  // tab to the same offset (clamped to the header range so it never jumps deep).
+  useEffect(() => {
+    const target = Math.min(scrollOffset.current, 200)
+    const id = requestAnimationFrame(() => scrollActiveTo(target, false))
+    return () => cancelAnimationFrame(id)
+  }, [selectedTab, scrollActiveTo])
+
+  // Tab strip — full (inside the brand header) or compact (inside the bar).
+  const renderTabs = (compactVariant: boolean) => (
+    <View style={compactVariant ? styles.tabBarCompact : styles.tabBar}>
+      {(["home", "products", "categories"] as const).map((tab) => (
+        <TouchableOpacity
+          key={tab}
+          style={compactVariant ? styles.tabItemCompact : styles.tabItem}
+          onPress={() => setSelectedTab(tab)}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              compactVariant ? styles.tabTextCompact : styles.tabText,
+              { color: themeColors.textSecondary },
+              selectedTab === tab && styles.tabTextActive,
+            ]}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </Text>
+          {selectedTab === tab && (
+            <View
+              style={[
+                compactVariant
+                  ? styles.tabIndicatorCompact
+                  : styles.tabIndicator,
+                { backgroundColor: Colors.sky },
+              ]}
+            />
+          )}
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
+
+  // Compact bar content: back + tabs + search icon + 3-dots.
+  const renderCompactBar = (onSearchPress: () => void) => (
+    <View style={styles.compactRow}>
+      <TouchableOpacity onPress={onBack} style={styles.iconButton} hitSlop={8}>
+        <Ionicons name="chevron-back" size={24} color={themeColors.text} />
+      </TouchableOpacity>
+      {renderTabs(true)}
+      <TouchableOpacity
+        onPress={onSearchPress}
+        style={styles.iconButton}
+        hitSlop={8}
+      >
+        <Ionicons name="search-outline" size={22} color={themeColors.text} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => setShowMenu(true)}
+        style={styles.iconButton}
+        activeOpacity={0.7}
+        hitSlop={8}
+      >
+        <Ionicons name="ellipsis-vertical" size={22} color={themeColors.text} />
+      </TouchableOpacity>
+    </View>
+  )
+
+  // Brand header (cover + nav + profile + tabs) — its own component, rendered at
+  // the top of each tab's scroll so it scrolls away naturally.
+  const brandProfileHeader = (
+    <BrandProfileHeader
+      brandName={brand?.name}
+      brandLogo={brandLogo}
+      brandInitial={getBrandInitial()}
+      coverPhoto={coverPhoto}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      onBack={onBack}
+      onMenuPress={() => setShowMenu(true)}
+      isFollowing={isFollowing}
+      followLoading={followLoading}
+      onFollowPress={handleFollowPress}
+      selectedTab={selectedTab}
+      onTabChange={setSelectedTab}
+      isDarkMode={isDarkMode}
+    />
+  )
+
   return (
     <View
       style={[styles.container, { backgroundColor: themeColors.containerBg }]}
     >
-      {/* Clean white brand-store header */}
+      {/* All three tabs stay MOUNTED (toggled via display) so switching is
+          instant and each keeps its scroll position + data. Each tab carries the
+          full brand header in its own scroll + its own collapsing compact bar. */}
       <View
         style={[
-          styles.header,
-          {
-            backgroundColor: themeColors.cardBg,
-            borderBottomColor: themeColors.cardBorder,
-            paddingTop: insets.top + 8,
-          },
+          styles.tabPage,
+          selectedTab === "home" ? styles.tabPageActive : styles.tabPageHidden,
         ]}
+        pointerEvents={selectedTab === "home" ? "auto" : "none"}
       >
-        {/* Top Row: Back, Search, Menu */}
-        <View style={styles.searchRow}>
-          <TouchableOpacity
-            onPress={onBack}
-            style={styles.iconButton}
-            hitSlop={8}
-          >
-            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.searchWrapper,
-              { backgroundColor: themeColors.searchBg },
-            ]}
-          >
-            <Ionicons
-              name="search-outline"
-              size={16}
-              color={themeColors.textSecondary}
-              style={styles.searchIconLeft}
-            />
-            <TextInput
-              style={[styles.searchInput, { color: themeColors.text }]}
-              placeholder={`Search in ${brand?.name ?? "this brand"}`}
-              placeholderTextColor={themeColors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {!!searchQuery && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                style={styles.clearSearchButton}
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={16}
-                  color={themeColors.textSecondary}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => setShowMenu(true)}
-            activeOpacity={0.7}
-            hitSlop={8}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={22}
-              color={themeColors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Menu Modal */}
-        <Modal
-          visible={showMenu}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowMenu(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setShowMenu(false)}
-          >
-            <View
-              style={[
-                styles.menuContainer,
-                { top: insets.top + 56, backgroundColor: themeColors.cardBg },
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleShareBrand}
-              >
-                <Ionicons
-                  name="share-social"
-                  size={18}
-                  color={Colors.sky}
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuText, { color: themeColors.text }]}>
-                  Share Brand
-                </Text>
-              </TouchableOpacity>
-              <View
-                style={[
-                  styles.menuDivider,
-                  { backgroundColor: themeColors.cardBorder },
-                ]}
-              />
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleReportBrand}
-              >
-                <Ionicons
-                  name="flag"
-                  size={18}
-                  color="#ef4444"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuText, { color: "#ef4444" }]}>
-                  Report Brand
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
-
-        {/* Brand identity row */}
-        <View style={styles.brandRow}>
-          <View
-            style={[styles.brandLogo, { borderColor: themeColors.cardBorder }]}
-          >
-            {brandLogo ? (
-              <Image
-                source={{ uri: brandLogo }}
-                style={styles.brandLogoImage}
-                contentFit="contain"
-                transition={200}
-              />
-            ) : (
-              <View style={styles.brandLogoFallback}>
-                <Text style={styles.brandInitial}>{getBrandInitial()}</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.brandInfo}>
-            <View style={styles.brandNameRow}>
-              <Text
-                style={[styles.brandName, { color: themeColors.text }]}
-                numberOfLines={1}
-              >
-                {brand?.name ?? "Brand"}
-              </Text>
-              <Ionicons
-                name="checkmark-circle"
-                size={16}
-                color={Colors.sky}
-                style={{ marginLeft: 4 }}
-              />
-            </View>
-            <View style={styles.brandMetaRow}>
-              <Ionicons name="star" size={13} color="#fbbf24" />
-              <Text style={[styles.brandMetaText, { color: themeColors.text }]}>
-                4.8
-              </Text>
-              <Text
-                style={[
-                  styles.brandMetaDot,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
-                •
-              </Text>
-              <Ionicons
-                name="people"
-                size={12}
-                color={themeColors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.brandMetaText,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
-                {formatFollowerCount(followersCount)} followers
-              </Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleFollowPress}
-            style={[
-              styles.followButton,
-              isFollowing
-                ? { backgroundColor: themeColors.followingBg }
-                : { backgroundColor: Colors.sky },
-            ]}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={isFollowing ? "heart" : "heart-outline"}
-              size={15}
-              color={isFollowing ? Colors.sky : Colors.white}
-              style={{ marginRight: 4 }}
-            />
-            <Text
-              style={[
-                styles.followButtonText,
-                { color: isFollowing ? Colors.sky : Colors.white },
-              ]}
-            >
-              {isFollowing ? "Following" : "Follow"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Navigation */}
-        <View style={styles.tabBar}>
-          {(["home", "products", "categories"] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={styles.tabItem}
-              onPress={() => setSelectedTab(tab)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: themeColors.textSecondary },
-                  selectedTab === tab && styles.tabTextActive,
-                ]}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-              {selectedTab === tab && (
-                <View
-                  style={[styles.tabIndicator, { backgroundColor: Colors.sky }]}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+        <ShopByBrandHomeScreen
+          sections={homeSections}
+          token={token}
+          brandId={brandId}
+          isZqBrand={isZqBrand}
+          isDarkMode={isDarkMode}
+          onProductPress={onProductPress}
+          wishlistItems={wishlistItems}
+          onWishlistChange={onWishlistChange}
+          sectionsLoading={homeLoading}
+          onRefreshSections={onRefresh}
+          profileHeader={brandProfileHeader}
+          onScroll={onAnyScroll}
+          listRef={homeListRef}
+          onSeeMore={() => setSelectedTab("products")}
+        />
       </View>
 
-      {selectedTab === "home" && (
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          <ShopByBrandHomeScreen
-            products={products as any}
-            token={token}
-            isDarkMode={isDarkMode}
-            onProductPress={onProductPress}
-            wishlistItems={wishlistItems}
-            onWishlistChange={onWishlistChange}
-            loading={loading && !refreshing}
-            onSeeMore={() => setSelectedTab("products")}
-          />
-        </ScrollView>
-      )}
-
-      {selectedTab === "products" && (
+      <View
+        style={[
+          styles.tabPage,
+          selectedTab === "products"
+            ? styles.tabPageActive
+            : styles.tabPageHidden,
+        ]}
+        pointerEvents={selectedTab === "products" ? "auto" : "none"}
+      >
         <ShopByBrandProductsScreen
           token={token}
           brandId={brandId}
@@ -569,26 +450,113 @@ export default function ShopByBrandScreen({
           onWishlistChange={onWishlistChange}
           onProductPress={onProductPress}
           isDarkMode={isDarkMode}
+          header={brandProfileHeader}
+          onScroll={onAnyScroll}
+          listRef={productsListRef}
         />
-      )}
+      </View>
 
-      {selectedTab === "categories" && (
-        <ScrollView
+      <View
+        style={[
+          styles.tabPage,
+          selectedTab === "categories"
+            ? styles.tabPageActive
+            : styles.tabPageHidden,
+        ]}
+        pointerEvents={selectedTab === "categories" ? "auto" : "none"}
+      >
+        <AnimatedScrollView
+          ref={categoriesScrollRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onScroll={onAnyScroll}
+          scrollEventThrottle={16}
         >
-          <ShopByBrandCategoriesScreen
-            categories={categories}
-            isDarkMode={isDarkMode}
-            onCategoryPress={(categoryId) => {
-              setSelectedCategoryId(categoryId)
-              setSelectedTab("products")
-            }}
-            onShopNow={() => setSelectedTab("products")}
-          />
-        </ScrollView>
-      )}
+          {brandProfileHeader}
+          <View style={styles.categoriesBody}>
+            <ShopByBrandCategoriesScreen
+              categories={categories}
+              isDarkMode={isDarkMode}
+              onCategoryPress={(categoryId) => {
+                setSelectedCategoryId(categoryId)
+                setSelectedTab("products")
+              }}
+              onShopNow={() => setSelectedTab("products")}
+            />
+          </View>
+        </AnimatedScrollView>
+      </View>
+
+      {/* Single shared compact bar — same collapse state across all tabs */}
+      <CollapsingTopBar
+        scrollY={scrollY}
+        style={[
+          styles.compactBarFixed,
+          {
+            paddingTop: insets.top,
+            backgroundColor: themeColors.cardBg,
+            borderBottomColor: themeColors.cardBorder,
+          },
+        ]}
+      >
+        {renderCompactBar(() => scrollActiveTo(0, true))}
+      </CollapsingTopBar>
+
+      {/* Menu Modal (Share / Report) */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowMenu(false)}
+        >
+          <View
+            style={[
+              styles.menuContainer,
+              { top: insets.top + 56, backgroundColor: themeColors.cardBg },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleShareBrand}
+            >
+              <Ionicons
+                name="share-social"
+                size={18}
+                color={Colors.sky}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: themeColors.text }]}>
+                Share Brand
+              </Text>
+            </TouchableOpacity>
+            <View
+              style={[
+                styles.menuDivider,
+                { backgroundColor: themeColors.cardBorder },
+              ]}
+            />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReportBrand}
+            >
+              <Ionicons
+                name="flag"
+                size={18}
+                color="#ef4444"
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: "#ef4444" }]}>
+                Report Brand
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   )
 }

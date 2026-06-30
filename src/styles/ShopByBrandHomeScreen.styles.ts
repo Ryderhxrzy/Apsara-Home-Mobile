@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     gap: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 8,
   },
   featuredItemWrap: {
@@ -237,6 +237,142 @@ const styles = StyleSheet.create({
   bestProductsBanner: {
     width: "100%",
     height: 150,
+  },
+
+  // ── Dynamic, DB-driven sections (mirrors the web MobilePhonePreview) ──
+  // Banner — a single full-width image card.
+  bannerSection: {
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  bannerSectionImage: {
+    width: "100%",
+    aspectRatio: 16 / 7,
+  },
+  // Carousel — swipeable, paginated images with dot indicators.
+  carouselSection: {
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  carouselDots: {
+    position: "absolute",
+    bottom: 8,
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+  },
+  dot: {
+    height: 4,
+    borderRadius: 2,
+  },
+  // Products — titled card with an optional button and a horizontal product row.
+  sectionCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  sectionHeaderRow: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  sectionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    minHeight: 280,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Header wrapper around the DB sections inside the FlashList — inner 3px so the
+  // cards/banners line up at ~8px with the masonry items below.
+  headerWrap: {
+    paddingHorizontal: 4,
+    paddingTop: 10,
+  },
+  // "For You" — a plain label (no card background) above the masonry feed.
+  forYouLabel: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 6,
+    marginBottom: 8,
+    paddingHorizontal: 3,
+  },
+  // Masonry feed (mirrors the Shop screen's grid spacing).
+  forYouListContent: {
+    paddingBottom: 24,
+  },
+  forYouItem: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  // Masonry skeleton (first-load placeholder)
+  skelWrap: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
+  skelCol: {
+    flex: 1,
+    gap: 8,
+  },
+  skelCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  skelImage: {
+    width: "100%",
+  },
+  skelBody: {
+    padding: 10,
+    gap: 6,
+  },
+  skelLine: {
+    height: 8,
+    borderRadius: 4,
+    width: "100%",
+  },
+  footerText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  // Text block — rich-text body with an optional image below it.
+  textCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 8,
+    padding: 10,
+  },
+  textImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 6,
+    marginTop: 8,
   },
 })
 
