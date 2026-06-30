@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useMemo, useCallback } from "react"
+import React, { useMemo, useCallback, useRef } from "react"
 import {
   createBottomTabNavigator,
   useBottomTabBarHeight,
@@ -11,11 +11,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  Animated,
 } from "react-native"
 import { Image } from "expo-image"
+import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
+import { getColors } from "../theme/theme"
 import { useAppContext } from "../context/AppContext"
 import { useModalStore } from "../store/modalStore"
 
@@ -34,6 +37,7 @@ const Tab = createBottomTabNavigator()
 // Home Tab Screen Wrapper
 function HomeTabScreen() {
   const navigation = useNavigation()
+  const insets = useSafeAreaInsets()
   const {
     token,
     enrichedUser,
@@ -126,10 +130,42 @@ function HomeTabScreen() {
     ]
   )
 
+  const handleViewAllProducts = useCallback(() => {
+    setPreviousTab(activeTab)
+    setSelectedRoomId(null as any)
+    setSelectedCategoryId(null as any)
+    navigation.navigate("shop" as any)
+  }, [
+    navigation,
+    activeTab,
+    setPreviousTab,
+    setSelectedRoomId,
+    setSelectedCategoryId,
+  ])
+
   if (!isInitialHomeDataReady) return <LoadingScreen />
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: getColors(isDarkMode).bgSubtle }}>
+      {/* One continuous gradient behind BOTH the header and the banner —
+          starts at the theme PRIMARY (sky) up top and fades to nothing by the
+          time the first content sheet begins. No solid header / cut. */}
+      <LinearGradient
+        colors={
+          isDarkMode
+            ? ["#38bdf8", "#38bdf8", "rgba(56,189,248,0)"]
+            : ["#0ea5e9", "#0ea5e9", "rgba(14,165,233,0)"]
+        }
+        locations={[0, 0.45, 1]}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top + 460,
+        }}
+        pointerEvents="none"
+      />
       <HomeHeader
         user={enrichedUser}
         cartCount={cartCount}
@@ -160,11 +196,12 @@ function HomeTabScreen() {
         onShopByRoomPress={handleShopByRoom}
         onShopByCategoryPress={handleShopByCategory}
         onShopByBrandPress={handleShopByBrand}
+        onViewAllProducts={handleViewAllProducts}
         onCartPress={onCartPress}
         onReferralPress={handleOpenAffiliateReferralModal}
         onRefresh={refreshHomeData}
       />
-    </>
+    </View>
   )
 }
 
@@ -629,7 +666,9 @@ export default function TabNavigator({
           lazy: true,
           tabBarHideOnKeyboard: true,
         }}
-        tabBar={(props) => <CustomTabBar {...props} hideTabBar={tabBarHidden} />}
+        tabBar={(props) => (
+          <CustomTabBar {...props} hideTabBar={tabBarHidden} />
+        )}
       >
         <Tab.Screen name="home" component={HomeTabScreen} />
         <Tab.Screen name="wishlist" component={WishlistTabScreen} />
@@ -695,8 +734,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   homeLogoImage: {
-    width: 30,
-    height: 30,
+    width: 36,
+    height: 36,
     resizeMode: "contain",
   },
   badge: {
