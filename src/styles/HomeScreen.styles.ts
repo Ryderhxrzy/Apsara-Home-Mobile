@@ -7,11 +7,271 @@ export const SCREEN_WIDTH = Dimensions.get("window").width
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.slate50 },
-  content: { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 28, gap: 10 },
+  // gap: 0 so the alternating section bands sit flush against each other —
+  // no main-background line peeking between them. Spacing below the banner is
+  // handled by `bannerShell.marginBottom`; the last band fills to the bottom
+  // via `sectionBlockLast`.
+  content: { paddingHorizontal: 8, paddingTop: 4, paddingBottom: 0, gap: 0 },
   loadingWrap: { paddingVertical: 42, alignItems: "center", gap: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
   bannerShell: {
     gap: 10,
+    marginBottom: 14,
+  },
+
+  // ── Sponsored zone (under the banner, inside the hero fade) ──────────────
+  // Each hero ad row is its own wrapper so it can fade independently on scroll.
+  sponsoredColsWrap: {
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  portraitWrap: {
+    paddingHorizontal: 4,
+    marginBottom: 14,
+  },
+  sponsoredCols: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  // Each sponsored column is its own panel (themed background applied inline),
+  // so Brands and Products read as two separate blocks.
+  sponsoredCol: {
+    flex: 1,
+    gap: 6,
+    borderRadius: radius.lg,
+    padding: 10,
+  },
+  sponsoredColTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    paddingHorizontal: 2,
+    textTransform: "uppercase",
+  },
+  sponsoredColRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  // Shared "Ad" badge + mini sponsored card (brand & product carousels)
+  adMiniBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "rgba(15,23,42,0.55)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  adMiniBadgeText: {
+    color: "#ffffff",
+    fontSize: 8,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  adMiniCard: {
+    width: 132,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 8,
+    gap: 6,
+    position: "relative",
+  },
+  adMiniLogo: {
+    width: "100%",
+    height: 72,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    padding: 10,
+  },
+  adMiniImageBox: {
+    width: "100%",
+    height: 92,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  adMiniMedia: {
+    width: "100%",
+    height: "100%",
+  },
+  adMiniFallback: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: Colors.sky,
+  },
+  adMiniName: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  adMiniMeta: {
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  adMiniPrice: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.sky,
+  },
+  // Optional portrait ad banner
+  portraitRow: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  portraitAdCard: {
+    width: 152,
+    height: 210,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+  },
+  portraitAdGradient: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "flex-end",
+    gap: 4,
+  },
+  portraitAdText: {
+    gap: 2,
+  },
+  portraitAdTitle: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  portraitAdSubtitle: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  portraitAdCtaBtn: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  portraitAdCtaText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  // Leading portrait-ads carousel spacing (banner hidden).
+  heroLead: {
+    marginBottom: 12,
+  },
+  // ── One landscape ad banner ──────────────────────────────────────────────
+  landscapeAd: {
+    height: 116,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    marginHorizontal: 4,
+    marginBottom: 14,
+  },
+  landscapeAdGradient: {
+    flex: 1,
+    paddingHorizontal: 18,
+    justifyContent: "center",
+    position: "relative",
+  },
+  landscapeAdInfo: {
+    gap: 3,
+    maxWidth: "72%",
+  },
+  landscapeAdTitle: {
+    color: "#ffffff",
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  landscapeAdSubtitle: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  landscapeAdCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+    alignSelf: "flex-start",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  landscapeAdCtaText: {
+    color: "#0369a1",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  landscapeAdWatermark: {
+    position: "absolute",
+    right: 14,
+    bottom: 10,
+  },
+  // ── Sponsored Brands paged carousel ──────────────────────────────────────
+  brandAdSection: {
+    marginBottom: 14,
+    gap: 8,
+  },
+  brandAdPage: {
+    paddingHorizontal: 4,
+  },
+  brandAdCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    position: "relative",
+  },
+  brandAdLogo: {
+    width: 84,
+    height: 84,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    padding: 10,
+    flexShrink: 0,
+  },
+  brandAdInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  adEyebrowSky: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    color: Colors.sky,
+  },
+  brandAdName: {
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  brandAdCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+  },
+  brandAdCtaText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.sky,
+  },
+  brandAdDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 2,
   },
   banner: {
     height: BANNER_HEIGHT,
@@ -88,7 +348,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 2,
   },
+  // Overlaid on the bottom of the banner (dots inside, not below).
   pagination: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -105,6 +370,56 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.sky,
   },
   section: { gap: 0, paddingHorizontal: 4 },
+
+  // ── Unified home section band (Shopee-style alternating feed) ──────────
+  // Full-bleed: marginHorizontal cancels the content's paddingHorizontal (8)
+  // so each band's background runs edge-to-edge. Backgrounds alternate per
+  // section and are applied inline from the theme. The thin page-bg gap
+  // between bands comes from `content.gap`.
+  sectionBlock: {
+    marginHorizontal: -8,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 0,
+  },
+  // Variant for HomeProductRail — the rail pads its own header + list to 12,
+  // so the band itself adds no horizontal padding (avoids a double inset and
+  // keeps the rail's header aligned with its cards).
+  sectionBlockRail: {
+    marginHorizontal: -8,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 0,
+  },
+  // Applied to the final band so its background fills all the way to the bottom
+  // of the scroll view instead of leaving the main page background exposed.
+  sectionBlockLast: {
+    paddingBottom: 16,
+  },
+  // Rounded top corners so the section reads as a sheet sliding up over the
+  // hero fade (applied to the first content section, Popular Picks).
+  sectionTopRounded: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  // "View more products" CTA below the Recommended grid → routes to Shop.
+  viewMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    marginHorizontal: 4,
+    paddingVertical: 13,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+  },
+  viewMoreText: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
 
   // ── Hero membership card ──────────────────────────────────────────────
   heroCard: {
@@ -280,6 +595,20 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingRight: 4,
   },
+  // A single scrollable column in the 2-row "Shop by Rooms" strip: two room
+  // circles stacked vertically.
+  roomColumn: {
+    gap: 18,
+  },
+  // Content container for the 2-row rooms strip. flexGrow + center keeps the
+  // columns centered when they fit the screen, while still allowing horizontal
+  // scrolling when there are enough rooms to overflow.
+  roomRow: {
+    gap: 18,
+    paddingHorizontal: 4,
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   categoryGrid: {
     gap: 16,
   },
@@ -301,7 +630,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: 10,
-    ...shadow.sm,
   },
   brandRowMain: {
     flex: 1,
@@ -367,7 +695,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    ...shadow.sm,
   },
   browseBadge: {
     position: "absolute",
@@ -486,10 +813,15 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: "700",
     lineHeight: 16,
+    // Reserve two lines so every item is the same height regardless of label
+    // length — keeps the 2nd row of the rooms strip aligned across all columns.
+    height: 32,
+    width: "100%",
   },
   brandRowHorizontal: {
-    paddingLeft: 8,
-    paddingRight: 8,
+    paddingLeft: 0,
+    paddingRight: 12,
+    paddingVertical: 4,
   },
   brandSeparator: {
     width: 14,
@@ -510,7 +842,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: palette.slate200,
-    ...shadow.md,
   },
   brandLogoBox: {
     height: 120,
@@ -572,7 +903,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.sky,
     alignItems: "center",
     justifyContent: "center",
-    ...shadow.sm,
   },
   brandFallbackInitialLarge: {
     fontSize: 48,
