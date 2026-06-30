@@ -107,6 +107,13 @@ function ItemCard({
     }
   }, [isWishlisted])
 
+  // FlashList/FlatList recycle ItemCard instances. Without resetting, a card
+  // that errored on a previous product would keep showing the placeholder logo
+  // after it's reused for a different product. Reset whenever the image changes.
+  useEffect(() => {
+    setImageError(false)
+  }, [product.image])
+
   useEffect(() => {
     if (showMenu) {
       Animated.spring(menuScaleAnim, {
@@ -252,7 +259,7 @@ function ItemCard({
         {imageError || !product.image ? (
           <Image
             source={{
-              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
             }}
             style={[
               styles.productImage,
@@ -266,12 +273,13 @@ function ItemCard({
           <Image
             source={
               getValidImageUrl(product.image) || {
-              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-            }
+                uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
+              }
             }
             style={styles.productImage}
             contentFit="cover"
             transition={200}
+            recyclingKey={String(product.id)}
             onError={() => {
               setImageError(true)
               console.warn(
@@ -289,18 +297,6 @@ function ItemCard({
           </View>
         )}
 
-        {/* Rail mode: Save amount moves onto the image (frees a badge row below
-            so the price always fits and prices line up across cards). */}
-        {uniformHeight && hasDiscount && (
-          <View style={styles.imageSaveBadge}>
-            <Ionicons name="pricetag" size={9} color={Colors.white} />
-            <Text style={styles.imageSaveBadgeText}>
-              Save ₱
-              {((product.originalPrice || 0) - displayPrice).toLocaleString()}
-            </Text>
-          </View>
-        )}
-
         {/* Top-right: Heart icon for wishlist */}
         <TouchableOpacity
           style={styles.wishlistButton}
@@ -315,8 +311,9 @@ function ItemCard({
           />
         </TouchableOpacity>
 
-        {/* Bottom-left: Product badges (Must Have, Bestseller, On Sale) */}
-        {activeBadges.length > 0 && (
+        {/* Bottom-left: Product badges (Must Have, Bestseller, On Sale) +
+            the Save amount badge, grouped together. */}
+        {(activeBadges.length > 0 || hasDiscount) && (
           <View style={styles.imageBottomBadges}>
             {activeBadges.map((b) => (
               <LinearGradient
@@ -330,6 +327,22 @@ function ItemCard({
                 <Text style={styles.imageBadgeLabel}>{b.label}</Text>
               </LinearGradient>
             ))}
+            {hasDiscount && (
+              <LinearGradient
+                colors={["#ef4444", "#dc2626"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.imageBadge}
+              >
+                <Ionicons name="pricetag" size={9} color={Colors.white} />
+                <Text style={styles.imageBadgeLabel}>
+                  Save ₱
+                  {(
+                    (product.originalPrice || 0) - displayPrice
+                  ).toLocaleString()}
+                </Text>
+              </LinearGradient>
+            )}
           </View>
         )}
       </View>
@@ -412,22 +425,6 @@ function ItemCard({
               <Ionicons name="layers" size={9} color={Colors.white} />
               <Text style={styles.badgeLabel}>
                 {product.variantCount} variants
-              </Text>
-            </LinearGradient>
-          )}
-
-          {/* Save amount badge — in rail mode this moves onto the image above */}
-          {hasDiscount && !uniformHeight && (
-            <LinearGradient
-              colors={["#ef4444", "#dc2626"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.badge}
-            >
-              <Ionicons name="pricetag" size={9} color={Colors.white} />
-              <Text style={styles.badgeLabel}>
-                Save ₱
-                {((product.originalPrice || 0) - displayPrice).toLocaleString()}
               </Text>
             </LinearGradient>
           )}
