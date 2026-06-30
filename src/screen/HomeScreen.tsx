@@ -30,11 +30,13 @@ import {
   RoomGridSkeleton,
   CategoryRowSkeleton,
   BrandCardSkeleton,
+  ItemCardSkeleton,
 } from "../components/SkeletonLoader/SkeletonLoader"
 import { usePrefetchProducts } from "../hooks/usePrefetchProducts"
 import { useShowcaseProducts } from "../hooks/query/useShowcaseProducts"
 import { useBehaviorRecommendations } from "../hooks/query/useBehaviorRecommendations"
 import HomeProductRail from "../components/HomeProductRail/HomeProductRail"
+import ItemCard from "../components/Items/ItemCard"
 import BrandFollowButton from "../components/BrandFollowButton/BrandFollowButton"
 import { getRoomIcon, getCategoryIcon } from "../utils/categoryIcons"
 import { FlashList } from "@shopify/flash-list"
@@ -72,6 +74,7 @@ interface HomeScreenProps {
   onShopByRoomPress?: (roomId: number) => void
   onShopByCategoryPress?: (categoryId: number) => void
   onShopByBrandPress?: (brandId: number) => void
+  onViewAllProducts?: () => void
   onRefresh?: () => Promise<void> | void
 }
 
@@ -92,6 +95,46 @@ const FALLBACK_ROOMS: RoomType[] = [
   { room_id: 7, room_name: "Laundry Room", image: "", count: 0 },
   { room_id: 8, room_name: "Bath Room", image: "", count: 0 },
 ]
+
+// Placeholder portrait ad-banner slots an advertiser can buy. Swap for a real
+// ads endpoint later; the UI already renders whatever is in this list.
+const SAMPLE_PORTRAIT_ADS: Array<{
+  id: string
+  title: string
+  subtitle: string
+  colors: [string, string]
+  icon: string
+}> = [
+  {
+    id: "pa1",
+    title: "Mega Sale",
+    subtitle: "Up to 70% off",
+    colors: ["#f97316", "#ea580c"],
+    icon: "flame",
+  },
+  {
+    id: "pa2",
+    title: "New Season",
+    subtitle: "Fresh arrivals",
+    colors: ["#8b5cf6", "#6d28d9"],
+    icon: "sparkles",
+  },
+  {
+    id: "pa3",
+    title: "Flash Deal",
+    subtitle: "Today only",
+    colors: ["#0ea5e9", "#0369a1"],
+    icon: "flash",
+  },
+]
+
+// Main promotional banner is hidden for now (ads-first hero). Flip to true to
+// bring the banner carousel back.
+const SHOW_MAIN_BANNER = false
+
+// Animated scroll container so the sponsored hero section can fade out (native
+// driver) as the user scrolls — like the Shop by Brand hero.
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView)
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
@@ -355,6 +398,7 @@ function HomeScreen({
   onShopByRoomPress = () => {},
   onShopByCategoryPress = () => {},
   onShopByBrandPress = () => {},
+  onViewAllProducts = () => {},
   onRefresh: onRefreshProp,
 }: HomeScreenProps) {
   // Palette now sourced from the centralized theme (slate spine + sky accent),
@@ -366,12 +410,36 @@ function HomeScreen({
     text: t.text,
     textSec: t.textSecondary,
     border: t.border,
-    sectionEven: t.primarySoft,
-    statsBg: t.primarySoft,
+    // Alternating section surfaces for the banded home feed. `sectionA` is the
+    // neutral surface (white / slate-800), `sectionB` a soft tint — sections
+    // toggle A/B down the page so each block is visually distinct.
+    sectionA: isDarkMode ? t.card : "#ffffff",
+    sectionB: isDarkMode ? "#16202e" : "#f0f9ff",
   }
 
   const [refreshing, setRefreshing] = useState(false)
   const [activeBanner, setActiveBanner] = useState(0)
+
+  // Scroll-driven fade for the hero ad sections (above Popular Picks). Each
+  // section fades only once the scroll actually REACHES it: we measure each
+  // section's Y (onLayout) and fade it out over the ~130px right after its top
+  // hits the viewport top — sections still below the scroll stay fully visible.
+  const scrollY = useRef(new Animated.Value(0)).current
+  const onScrollEvent = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: true,
+      }),
+    [scrollY]
+  )
+  const [colsY, setColsY] = useState(0)
+  const [portraitY, setPortraitY] = useState(0)
+  const fadeFromY = (y: number) =>
+    scrollY.interpolate({
+      inputRange: [y, y + 130],
+      outputRange: [1, 0],
+      extrapolate: "clamp",
+    })
   // "View all" expands a section in place (show every category/brand)
   // instead of navigating to the products screen. (Rooms now scroll inline.)
   const [showAllCategories, setShowAllCategories] = useState(false)
@@ -388,18 +456,63 @@ function HomeScreen({
     data: showcaseProducts = [],
     isLoading: showcaseLoading,
     refetch: refetchShowcase,
-  } = useShowcaseProducts({ token, count: 24 })
+  } = useShowcaseProducts({ token, count: 36 })
 
   // Personalized feed from the user's behavior. Empty for new users (no history)
   // → the "Just For You" rail falls back to the random showcase slice below.
   const { data: behaviorRecs = [], refetch: refetchBehaviorRecs } =
-    useBehaviorRecommendations({ token, limit: 12 })
+    useBehaviorRecommendations({ token, limit: 24 })
 
+  // Popular Picks takes the first 12 of the showcase; Recommended fills with the
+  // remaining showcase items (or the personalized feed) so the grid is long
+  // enough that scrolling doesn't feel cut off, with a "View more" → Shop below.
   const hasBehaviorRecs = behaviorRecs.length > 0
   const justForYouProducts = useMemo(
     () => (hasBehaviorRecs ? behaviorRecs : showcaseProducts.slice(12)),
     [hasBehaviorRecs, behaviorRecs, showcaseProducts]
   )
+
+  // "Recommended for you" renders as a 2-column grid (like the Shop screen),
+  // not a single horizontal rail. Split into left/right columns for a masonry
+  // layout inside the home ScrollView.
+  const recommendedColumns = useMemo(() => {
+    const left: ProductCard[] = []
+    const right: ProductCard[] = []
+    justForYouProducts.forEach((p, i) => {
+      ;(i % 2 === 0 ? left : right).push(p)
+    })
+    return { left, right }
+  }, [justForYouProducts])
+
+  const wishlistSet = useMemo(
+    () =>
+      new Set(
+        (wishlistItems ?? [])
+          .map((w: any) => w.product_id ?? w.id)
+          .filter(Boolean)
+      ),
+    [wishlistItems]
+  )
+
+  // Sponsored placements an advertiser can pay to surface. For now we slice the
+  // existing brands / showcase products as promoted cards; wire to a real ads
+  // endpoint later (the carousels render whatever is in these lists).
+  const promotedBrands = useMemo(() => brands.slice(0, 6), [brands])
+  const promotedProducts = useMemo(
+    () => showcaseProducts.slice(0, 6),
+    [showcaseProducts]
+  )
+
+  // "Shop by Rooms" displays as a 2-row horizontal strip: chunk the rooms into
+  // columns of 2 so each scrollable column stacks two room circles.
+  const roomColumns = useMemo(() => {
+    const data = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOMS
+    const cols: RoomType[][] = []
+    for (let i = 0; i < data.length; i += 2) {
+      cols.push(data.slice(i, i + 2))
+    }
+    return cols
+  }, [roomTypes])
 
   const handleRefresh = () => {
     console.log("🔄 [HOMESCREEN] PULL-TO-REFRESH TRIGGERED")
@@ -627,12 +740,137 @@ function HomeScreen({
     ]
   )
 
+  // Sponsored brand card (left carousel)
+  const renderAdBrandCard = useCallback(
+    ({ item }: { item: BrandItem }) => {
+      const logo = getBrandLogo(item)
+      return (
+        <Pressable
+          style={[
+            styles.adMiniCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          onPress={() => onShopByBrandPress?.(item.id)}
+        >
+          <View style={styles.adMiniBadge}>
+            <Text style={styles.adMiniBadgeText}>Ad</Text>
+          </View>
+          <View
+            style={[
+              styles.adMiniLogo,
+              { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" },
+            ]}
+          >
+            {logo ? (
+              <Image
+                source={{ uri: logo }}
+                style={styles.adMiniMedia}
+                contentFit="contain"
+                transition={200}
+              />
+            ) : (
+              <Text style={styles.adMiniFallback}>{getBrandInitial(item)}</Text>
+            )}
+          </View>
+          <Text
+            style={[styles.adMiniName, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
+          <Text
+            style={[styles.adMiniMeta, { color: colors.textSec }]}
+            numberOfLines={1}
+          >
+            {item.total_products ?? 0} products
+          </Text>
+        </Pressable>
+      )
+    },
+    [
+      colors.card,
+      colors.border,
+      colors.text,
+      colors.textSec,
+      isDarkMode,
+      onShopByBrandPress,
+    ]
+  )
+
+  // Sponsored product card (right carousel)
+  const renderAdProductCard = useCallback(
+    ({ item }: { item: ProductCard }) => {
+      const price = item.memberPrice || item.originalPrice
+      return (
+        <Pressable
+          style={[
+            styles.adMiniCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          onPress={() => onProductPress?.(item.id)}
+        >
+          <View style={styles.adMiniBadge}>
+            <Text style={styles.adMiniBadgeText}>Ad</Text>
+          </View>
+          <View
+            style={[
+              styles.adMiniImageBox,
+              { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" },
+            ]}
+          >
+            <Image
+              source={{ uri: item.image }}
+              style={styles.adMiniMedia}
+              contentFit="cover"
+              transition={200}
+            />
+          </View>
+          <Text
+            style={[styles.adMiniName, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
+          <Text style={styles.adMiniPrice}>₱{price.toLocaleString()}</Text>
+        </Pressable>
+      )
+    },
+    [colors.card, colors.border, colors.text, isDarkMode, onProductPress]
+  )
+
+  // Optional portrait ad banner (advertiser-bought vertical placement)
+  const renderPortraitAd = useCallback(
+    ({ item }: { item: (typeof SAMPLE_PORTRAIT_ADS)[number] }) => (
+      <Pressable
+        style={styles.portraitAdCard}
+        onPress={() => onViewAllProducts?.()}
+      >
+        <LinearGradient colors={item.colors} style={styles.portraitAdGradient}>
+          <View style={styles.adMiniBadge}>
+            <Text style={styles.adMiniBadgeText}>Ad</Text>
+          </View>
+          <Ionicons name={item.icon} size={26} color={Colors.white} />
+          <View style={styles.portraitAdText}>
+            <Text style={styles.portraitAdTitle}>{item.title}</Text>
+            <Text style={styles.portraitAdSubtitle}>{item.subtitle}</Text>
+          </View>
+          <View style={styles.portraitAdCtaBtn}>
+            <Text style={styles.portraitAdCtaText}>Shop now</Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
+    ),
+    [onViewAllProducts]
+  )
+
   return (
     <View style={{ flex: 1, position: "relative" }}>
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.bg }]}
+      <AnimatedScrollView
+        style={[styles.container, { backgroundColor: "transparent" }]}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        onScroll={onScrollEvent}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -642,91 +880,167 @@ function HomeScreen({
           />
         }
       >
-        <View style={styles.bannerShell}>
-          <ScrollView
-            ref={bannerRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleBannerScroll}
-            decelerationRate="fast"
-            snapToInterval={SCREEN_WIDTH - 16}
-            snapToAlignment="start"
-            bounces={true}
-          >
-            {banners.map((banner, index) => (
-              <View
-                key={`banner-${index}`}
-                style={[styles.banner, { width: SCREEN_WIDTH - 16 }]}
-              >
-                {banner.type === "video" ? (
-                  <>
-                    <VideoBanner banner={banner} />
-                    <View style={styles.videoOverlay} />
-                    <View
-                      style={[
-                        styles.bannerGlow,
-                        { backgroundColor: banner.accent },
-                      ]}
-                    />
-                    <View style={styles.bannerTextWrap}>
-                      <Text style={styles.bannerEyebrow}>{banner.eyebrow}</Text>
-                      <Text style={styles.bannerTitle}>{banner.title}</Text>
-                      <Text style={styles.bannerSubtitle}>
-                        {banner.subtitle}
-                      </Text>
-                    </View>
-                    <View style={styles.bannerIcon}>
-                      <Ionicons
-                        name={banner.icon}
-                        size={30}
-                        color={banner.accent}
+        {SHOW_MAIN_BANNER ? (
+          <View style={styles.bannerShell}>
+            <ScrollView
+              ref={bannerRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleBannerScroll}
+              decelerationRate="fast"
+              snapToInterval={SCREEN_WIDTH - 16}
+              snapToAlignment="start"
+              bounces={true}
+            >
+              {banners.map((banner, index) => (
+                <View
+                  key={`banner-${index}`}
+                  style={[styles.banner, { width: SCREEN_WIDTH - 16 }]}
+                >
+                  {banner.type === "video" ? (
+                    <>
+                      <VideoBanner banner={banner} />
+                      <View style={styles.videoOverlay} />
+                      <View
+                        style={[
+                          styles.bannerGlow,
+                          { backgroundColor: banner.accent },
+                        ]}
                       />
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <View
-                      style={[
-                        styles.bannerGlow,
-                        { backgroundColor: banner.accent },
-                      ]}
-                    />
-                    <View style={styles.bannerTextWrap}>
-                      <Text style={styles.bannerEyebrow}>{banner.eyebrow}</Text>
-                      <Text style={styles.bannerTitle}>{banner.title}</Text>
-                      <Text style={styles.bannerSubtitle}>
-                        {banner.subtitle}
-                      </Text>
-                    </View>
-                    <View style={styles.bannerIcon}>
-                      <Ionicons
-                        name={banner.icon}
-                        size={30}
-                        color={banner.accent}
+                      <View style={styles.bannerTextWrap}>
+                        <Text style={styles.bannerEyebrow}>
+                          {banner.eyebrow}
+                        </Text>
+                        <Text style={styles.bannerTitle}>{banner.title}</Text>
+                        <Text style={styles.bannerSubtitle}>
+                          {banner.subtitle}
+                        </Text>
+                      </View>
+                      <View style={styles.bannerIcon}>
+                        <Ionicons
+                          name={banner.icon}
+                          size={30}
+                          color={banner.accent}
+                        />
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View
+                        style={[
+                          styles.bannerGlow,
+                          { backgroundColor: banner.accent },
+                        ]}
                       />
-                    </View>
-                  </>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-          <View style={styles.pagination}>
-            {banners.map((_, index) => (
-              <View
-                key={`dot-${index}`}
-                style={[
-                  styles.dot,
-                  { backgroundColor: isDarkMode ? "#475569" : "#cbd5e1" },
-                  activeBanner === index && [
-                    styles.dotActive,
-                    { backgroundColor: Colors.sky },
-                  ],
-                ]}
-              />
-            ))}
+                      <View style={styles.bannerTextWrap}>
+                        <Text style={styles.bannerEyebrow}>
+                          {banner.eyebrow}
+                        </Text>
+                        <Text style={styles.bannerTitle}>{banner.title}</Text>
+                        <Text style={styles.bannerSubtitle}>
+                          {banner.subtitle}
+                        </Text>
+                      </View>
+                      <View style={styles.bannerIcon}>
+                        <Ionicons
+                          name={banner.icon}
+                          size={30}
+                          color={banner.accent}
+                        />
+                      </View>
+                    </>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.pagination} pointerEvents="none">
+              {banners.map((_, index) => (
+                <View
+                  key={`dot-${index}`}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: "rgba(255,255,255,0.5)" },
+                    activeBanner === index && [
+                      styles.dotActive,
+                      { backgroundColor: "#ffffff" },
+                    ],
+                  ]}
+                />
+              ))}
+            </View>
           </View>
-        </View>
+        ) : null}
+
+        {/* Sponsored zone (inside the hero fade): brands carousel on the left,
+            products carousel on the right, then an optional portrait ad banner
+            carousel. Transparent container so the gradient shows through. */}
+        {/* Sponsored brands + products — fades out only once the scroll reaches
+            this section (its measured top hits the viewport top). */}
+        {promotedBrands.length > 0 || promotedProducts.length > 0 ? (
+          <Animated.View
+            onLayout={(e) => setColsY(e.nativeEvent.layout.y)}
+            style={[styles.sponsoredColsWrap, { opacity: fadeFromY(colsY) }]}
+          >
+            <View style={styles.sponsoredCols}>
+              <View
+                style={[
+                  styles.sponsoredCol,
+                  { backgroundColor: isDarkMode ? "#16202e" : "#eef5fb" },
+                ]}
+              >
+                <Text
+                  style={[styles.sponsoredColTitle, { color: colors.text }]}
+                >
+                  Sponsored Brands
+                </Text>
+                <FlatList
+                  data={promotedBrands}
+                  renderItem={renderAdBrandCard}
+                  keyExtractor={(item) => `adb-${item.id}`}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.sponsoredColRow}
+                />
+              </View>
+              <View
+                style={[
+                  styles.sponsoredCol,
+                  { backgroundColor: isDarkMode ? "#1a1f2e" : "#eef7f0" },
+                ]}
+              >
+                <Text
+                  style={[styles.sponsoredColTitle, { color: colors.text }]}
+                >
+                  Sponsored Products
+                </Text>
+                <FlatList
+                  data={promotedProducts}
+                  renderItem={renderAdProductCard}
+                  keyExtractor={(item) => `adp-${item.id}`}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.sponsoredColRow}
+                />
+              </View>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* Portrait ad banners — also fades only once the scroll reaches it. */}
+        <Animated.View
+          onLayout={(e) => setPortraitY(e.nativeEvent.layout.y)}
+          style={[styles.portraitWrap, { opacity: fadeFromY(portraitY) }]}
+        >
+          <FlatList
+            data={SAMPLE_PORTRAIT_ADS}
+            renderItem={renderPortraitAd}
+            keyExtractor={(item) => `adv-${item.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.portraitRow}
+          />
+        </Animated.View>
 
         {/* Popular Picks — randomized product rail so the page feels alive */}
         <HomeProductRail
@@ -743,33 +1057,46 @@ function HomeScreen({
           onWishlistChange={onWishlistChange}
           actionLabel="Shuffle"
           onAction={() => refetchShowcase()}
-          containerStyle={[styles.section, { backgroundColor: colors.bg }]}
+          containerStyle={[
+            styles.sectionBlockRail,
+            styles.sectionTopRounded,
+            { backgroundColor: colors.sectionA },
+          ]}
         />
 
-        <View style={[styles.sectionEven, { backgroundColor: colors.bg }]}>
+        <View
+          style={[styles.sectionBlock, { backgroundColor: colors.sectionB }]}
+        >
           <SectionHeader
             title="Shop by Rooms"
             icon="bed-outline"
             isDarkMode={isDarkMode}
           />
           <FlatList
-            data={roomTypes.length > 0 ? roomTypes : FALLBACK_ROOMS}
-            renderItem={({ item }) => (
-              <RoomItemComponent
-                item={item}
-                onPress={onShopByRoomPress}
-                isDarkMode={isDarkMode}
-                colors={colors}
-              />
+            data={roomColumns}
+            renderItem={({ item: column }) => (
+              <View style={styles.roomColumn}>
+                {column.map((room) => (
+                  <RoomItemComponent
+                    key={`room-${room.room_id}`}
+                    item={room}
+                    onPress={onShopByRoomPress}
+                    isDarkMode={isDarkMode}
+                    colors={colors}
+                  />
+                ))}
+              </View>
             )}
-            keyExtractor={(item) => `room-${item.room_id}`}
+            keyExtractor={(_, index) => `room-col-${index}`}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.circleRow}
+            contentContainerStyle={styles.roomRow}
           />
         </View>
 
-        <View style={[styles.sectionEven, { backgroundColor: colors.bg }]}>
+        <View
+          style={[styles.sectionBlock, { backgroundColor: colors.sectionA }]}
+        >
           <SectionHeader
             title="Shop by Categories"
             icon="grid-outline"
@@ -812,7 +1139,9 @@ function HomeScreen({
           )}
         </View>
 
-        <View style={[styles.sectionOdd, { backgroundColor: colors.bg }]}>
+        <View
+          style={[styles.sectionBlock, { backgroundColor: colors.sectionB }]}
+        >
           <SectionHeader
             title="Top Brands"
             icon="pricetag-outline"
@@ -901,21 +1230,105 @@ function HomeScreen({
           )}
         </View>
 
-        {/* Recommended for you — personalized via user-behavior recommendations;
-            falls back to the random showcase slice for new users (no history) */}
-        <HomeProductRail
-          title="Recommended for you"
-          icon="sparkles"
-          products={justForYouProducts}
-          loading={showcaseLoading}
-          token={token}
-          isDarkMode={isDarkMode}
-          wishlistItems={wishlistItems}
-          onProductPress={onProductPress}
-          onWishlistChange={onWishlistChange}
-          containerStyle={[styles.sectionEven, { backgroundColor: colors.bg }]}
-        />
-      </ScrollView>
+        {/* Recommended for you — personalized via user-behavior recommendations
+            (falls back to the random showcase slice for new users). Rendered as
+            a 2-column grid like the Shop screen, not a single horizontal rail. */}
+        {justForYouProducts.length > 0 || showcaseLoading ? (
+          <View
+            style={[
+              styles.sectionBlock,
+              styles.sectionBlockLast,
+              { backgroundColor: colors.sectionA },
+            ]}
+          >
+            <SectionHeader
+              title="Recommended for you"
+              icon="sparkles"
+              isDarkMode={isDarkMode}
+            />
+            {showcaseLoading && justForYouProducts.length === 0 ? (
+              <View style={styles.masonryGrid}>
+                {[0, 1].map((col) => (
+                  <View
+                    key={`reco-skel-col-${col}`}
+                    style={styles.masonryColumn}
+                  >
+                    {[0, 1, 2].map((i) => (
+                      <View
+                        key={`reco-skel-${col}-${i}`}
+                        style={styles.featuredProductItem}
+                      >
+                        <ItemCardSkeleton
+                          imageHeight={200}
+                          isDarkMode={isDarkMode}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.masonryGrid}>
+                <View style={styles.masonryColumn}>
+                  {recommendedColumns.left.map((item) => (
+                    <View
+                      key={`reco-${item.id}`}
+                      style={styles.featuredProductItem}
+                    >
+                      <ItemCard
+                        product={item}
+                        token={token}
+                        isDarkMode={isDarkMode}
+                        isWishlisted={wishlistSet.has(item.id)}
+                        onPress={(p) => onProductPress?.(p.id)}
+                        onWishlistToggle={() => onWishlistChange?.()}
+                      />
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.masonryColumn}>
+                  {recommendedColumns.right.map((item) => (
+                    <View
+                      key={`reco-${item.id}`}
+                      style={styles.featuredProductItem}
+                    >
+                      <ItemCard
+                        product={item}
+                        token={token}
+                        isDarkMode={isDarkMode}
+                        isWishlisted={wishlistSet.has(item.id)}
+                        onPress={(p) => onProductPress?.(p.id)}
+                        onWishlistToggle={() => onWishlistChange?.()}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Send the user to the full catalog (Shop screen) — the home grid
+                is only a teaser slice. */}
+            {justForYouProducts.length > 0 ? (
+              <Pressable
+                onPress={() => onViewAllProducts?.()}
+                style={({ pressed }) => [
+                  styles.viewMoreBtn,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: Colors.sky,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.viewMoreText, { color: Colors.sky }]}>
+                  View more products
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color={Colors.sky} />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </AnimatedScrollView>
     </View>
   )
 }
