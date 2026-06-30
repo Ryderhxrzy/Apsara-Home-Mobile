@@ -8,9 +8,9 @@ import type { ProductCard } from "../../services/productService"
 
 // Matches the ShopScreen product card (lighter than the old 220px FeaturedItems).
 const CARD_W = 165
-// Rails are horizontal browse strips, so the card runs shorter than the grid's
-// 200px image to keep the section from eating the viewport.
-const RAIL_IMG_H = 140
+// Horizontal rail image — kept compact (square-ish on the 165px card) so the
+// strip doesn't dominate the viewport.
+const RAIL_IMG_H = 150
 
 interface WishlistRef {
   product_id?: number
@@ -73,18 +73,23 @@ function HomeProductRail({
 
   return (
     <View style={containerStyle}>
-      <SectionHeader
-        title={title}
-        icon={icon}
-        isDarkMode={isDarkMode}
-        actionLabel={actionLabel}
-        onAction={onAction}
-      />
+      <View style={styles.header}>
+        <SectionHeader
+          title={title}
+          icon={icon}
+          isDarkMode={isDarkMode}
+          actionLabel={actionLabel}
+          onAction={onAction}
+        />
+      </View>
       {loading && items.length === 0 ? (
         <View style={styles.skeletonRow}>
           {[0, 1, 2].map((i) => (
             <View key={i} style={styles.card}>
-              <ItemCardSkeleton imageHeight={RAIL_IMG_H} isDarkMode={isDarkMode} />
+              <ItemCardSkeleton
+                imageHeight={RAIL_IMG_H}
+                isDarkMode={isDarkMode}
+              />
             </View>
           ))}
         </View>
@@ -116,6 +121,10 @@ function HomeProductRail({
 }
 
 const styles = StyleSheet.create({
+  // Inset the header to match the list's contentContainer padding (12), so the
+  // title lines up with the first card. The parent rail band adds no horizontal
+  // padding of its own.
+  header: { paddingHorizontal: 12 },
   listContent: { paddingHorizontal: 12, paddingVertical: 4 },
   card: { width: CARD_W, marginRight: 12 },
   skeletonRow: {
