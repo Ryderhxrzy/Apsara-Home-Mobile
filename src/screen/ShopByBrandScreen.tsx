@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react"
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import {
   View,
   Text,
@@ -25,6 +25,14 @@ import ShopByBrandProductsScreen from "./ShopByBrand/ShopByBrandProductsScreen"
 import ShopByBrandCategoriesScreen from "./ShopByBrand/ShopByBrandCategoriesScreen"
 import Toast from "react-native-toast-message"
 import { useBrandFollow } from "../hooks/query/useBrandFollow"
+import FollowNotifyModal, {
+  type FollowNotifyMode,
+} from "../components/FollowNotifyModal/FollowNotifyModal"
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  openAppNotificationSettings,
+} from "../utils/fcmUtils"
 import styles from "../styles/ShopByBrandScreen.styles"
 
 /** Compact follower count, e.g. 12500 → "12.5K", 2_300_000 → "2.3M". */
@@ -175,12 +183,21 @@ export default function ShopByBrandScreen({
     null
   )
   const [searchQuery, setSearchQuery] = useState("")
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
+
+  const {
+    isFollowing,
+    isToggling: followLoading,
+    toggleFollow,
+  } = useBrandFollow({
+    token,
+    brandId,
+    withCount: false,
+  })
   const [selectedTab, setSelectedTab] = useState<
     "home" | "products" | "categories"
   >("home")
   const [showMenu, setShowMenu] = useState(false)
+  const [notifyMode, setNotifyMode] = useState<FollowNotifyMode | null>(null)
 
   const insets = useSafeAreaInsets()
 
@@ -204,12 +221,20 @@ export default function ShopByBrandScreen({
 
   const handleFollowPress = () => {
     toggleFollow({
-      onSuccess: (nowFollowing) => {
-        Toast.show({
-          type: "success",
-          text1: nowFollowing ? "Followed" : "Unfollowed",
-          text2: `You ${nowFollowing ? "now follow" : "unfollowed"} ${brand?.name ?? "this brand"}`,
-        })
+      onSuccess: async (nowFollowing) => {
+        if (!nowFollowing) {
+          Toast.show({
+            type: "success",
+            text1: "Unfollowed",
+            text2: `You unfollowed ${brand?.name ?? "this brand"}`,
+          })
+          return
+        }
+
+        // New follow: let them know they'll get this brand's push notifications,
+        // and nudge them to enable notifications if the device has them off.
+        const permission = await getNotificationPermission()
+        setNotifyMode(permission === "authorized" ? "enabled" : "blocked")
       },
       onError: (message) => {
         Toast.show({
@@ -221,13 +246,28 @@ export default function ShopByBrandScreen({
     })
   }
 
-  useEffect(() => {
-    if (token && brandId) {
-      checkFollowingStatus()
-    } else {
-      setIsFollowing(false)
+  const handleEnableNotifications = async () => {
+    const status = await getNotificationPermission()
+
+    // Never asked yet → show the OS prompt; if they accept, we're done.
+    if (status === "undetermined") {
+      const granted = await requestNotificationPermission()
+      if (granted) {
+        setNotifyMode(null)
+        Toast.show({
+          type: "success",
+          text1: "Notifications on 🔔",
+          text2: `You'll get ${brand?.name ?? "this brand"}'s latest updates`,
+        })
+        return
+      }
     }
-  }, [token, brandId, checkFollowingStatus])
+
+    // Already blocked (or prompt declined) — the OS won't re-prompt, so send the
+    // user straight to the app's notification settings to allow it.
+    setNotifyMode(null)
+    await openAppNotificationSettings()
+  }
 
   const getBrandLogo = (): string | null => {
     return brand?.logo ?? brand?.brand_image ?? brand?.image ?? null
@@ -557,6 +597,15 @@ export default function ShopByBrandScreen({
           </View>
         </Pressable>
       </Modal>
+
+      <FollowNotifyModal
+        visible={notifyMode !== null}
+        mode={notifyMode}
+        brandName={brand?.name}
+        isDarkMode={isDarkMode}
+        onClose={() => setNotifyMode(null)}
+        onEnable={handleEnableNotifications}
+      />
     </View>
   )
 }
