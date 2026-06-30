@@ -11,11 +11,10 @@ import { Image } from "expo-image"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Icon from "../ui/Icon"
 import { Colors } from "../../constants/colors"
-import { getColors, tw } from "../../theme/theme"
 
 // AF Home brand wordmark — bundled locally so it renders instantly (no network
 // flash) and works offline. The full "AF HOME" lockup (149×50, ~3:1).
-const BRAND_LOGO = require("../../../assets/af_home_logo.png")
+const BRAND_LOGO = require("../../../assets/adaptive-icon3.png")
 
 interface HomeHeaderProps {
   user?: { name?: string } | null
@@ -44,15 +43,18 @@ function HomeHeader({
   containerStyle,
 }: HomeHeaderProps) {
   const insets = useSafeAreaInsets()
-  const t = getColors(isDarkMode)
-  const firstName = user?.name?.split(" ")[0] ?? "there"
 
+  // The header sits on top of the home "hero" gradient (rendered by the parent),
+  // so its own background is transparent. Text/icons go light to read on it.
   const colors = {
-    bg: t.card,
-    text: t.text,
-    textSec: t.textSecondary,
-    border: t.border,
-    searchBg: isDarkMode ? tw.slate[900] : tw.slate[100],
+    bg: "transparent",
+    text: "#ffffff",
+    textSec: "rgba(255,255,255,0.82)",
+    border: "transparent",
+    // Solid white search pill that pops on the sky gradient; its icon + text use
+    // a muted slate so they read on the white (the header icons stay white).
+    searchBg: "#ffffff",
+    searchText: "#64748b",
   }
 
   return (
@@ -67,14 +69,21 @@ function HomeHeader({
         containerStyle,
       ]}
     >
-      {/* Brand row: logo on the left, actions on the right */}
+      {/* Single row: search field · notification + cart. */}
       <View style={styles.topRow}>
-        <Image
-          source={BRAND_LOGO}
-          style={styles.logo}
-          contentFit="contain"
-          transition={150}
-        />
+        <TouchableOpacity
+          style={[styles.searchField, { backgroundColor: colors.searchBg }]}
+          activeOpacity={0.7}
+          onPress={onSearchPress}
+        >
+          <Icon name="search" size={18} color={colors.searchText} />
+          <Text
+            style={[styles.searchPlaceholder, { color: colors.searchText }]}
+            numberOfLines={1}
+          >
+            Search...
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity
@@ -83,11 +92,7 @@ function HomeHeader({
             activeOpacity={0.7}
             hitSlop={8}
           >
-            <Icon
-              name="notifications-outline"
-              size={23}
-              color={colors.text}
-            />
+            <Icon name="notifications-outline" size={23} color={colors.text} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -114,33 +119,6 @@ function HomeHeader({
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Greeting */}
-      <View style={styles.greetingWrap}>
-        <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
-          Hi, {firstName} 👋
-        </Text>
-        <Text
-          style={[styles.subtitle, { color: colors.textSec }]}
-          numberOfLines={1}
-        >
-          Find the best products for your lifestyle
-        </Text>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.searchField, { backgroundColor: colors.searchBg }]}
-        activeOpacity={0.7}
-        onPress={onSearchPress}
-      >
-        <Icon name="search" size={18} color={colors.textSec} />
-        <Text
-          style={[styles.searchPlaceholder, { color: colors.textSec }]}
-          numberOfLines={1}
-        >
-          Search products, brands...
-        </Text>
-      </TouchableOpacity>
     </View>
   )
 }
@@ -149,21 +127,20 @@ export default React.memo(HomeHeader)
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
+    // Align the header content with the body content's inset (12).
+    paddingHorizontal: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   logo: {
-    // Full "AF HOME" wordmark (149×50, ~3:1) — size the box to that ratio so it
-    // reads as a wordmark instead of letterboxing inside a square.
-    height: 34,
-    width: 101,
+    // Compact square brand icon on the right of the header.
+    height: 36,
+    width: 36,
   },
   greetingWrap: {
     marginTop: 12,
@@ -207,13 +184,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   searchField: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    height: 44,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginTop: 14,
+    height: 40,
+    // Match the ItemCard corner radius (8) so the search pill feels consistent.
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
   searchPlaceholder: {
     flex: 1,
