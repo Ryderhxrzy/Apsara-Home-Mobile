@@ -10,8 +10,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Animated,
 } from "react-native"
 import { Image } from "expo-image"
+import { FlashList } from "@shopify/flash-list"
+
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList)
 import Ionicons from "../../components/ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
@@ -289,6 +293,11 @@ interface ShopByBrandProductsScreenProps {
   onWishlistChange?: () => void
   onProductPress?: (id: number) => void
   isDarkMode?: boolean
+  // Brand header rendered at the top of the list (scrolls away) + scroll wiring
+  // so the parent can collapse it into the compact bar.
+  header?: React.ReactNode
+  onScroll?: (e: any) => void
+  listRef?: React.Ref<any>
 }
 
 export default function ShopByBrandProductsScreen({
@@ -301,6 +310,9 @@ export default function ShopByBrandProductsScreen({
   onWishlistChange = () => {},
   onProductPress = () => {},
   isDarkMode = false,
+  header = null,
+  onScroll,
+  listRef,
 }: ShopByBrandProductsScreenProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [sortBy, setSortBy] = useState<SortKey>("default")
@@ -493,9 +505,11 @@ export default function ShopByBrandProductsScreen({
     )
   }, [isLoading, isError, viewMode, isDarkMode, colors.textSec, refetch])
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* ── Toolbar ── */}
+  // Brand header (passed from parent) + the sort/view toolbar, both rendered at
+  // the top of the list so they scroll away with the content.
+  const listHeader = (
+    <>
+      {header}
       <View
         style={[
           styles.toolbar,
@@ -555,19 +569,26 @@ export default function ShopByBrandProductsScreen({
           </Pressable>
         </View>
       </View>
+    </>
+  )
 
-      {/* ── Product list ── */}
-      <FlatList
+  return (
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      {/* ── Product list (masonry grid / list) ── */}
+      <AnimatedFlashList
+        ref={listRef}
         key={viewMode}
         data={sortedProducts}
+        masonry={viewMode === "grid"}
+        numColumns={viewMode === "grid" ? 2 : 1}
         renderItem={viewMode === "grid" ? renderGridItem : renderListItem}
         keyExtractor={keyExtractor}
-        numColumns={viewMode === "grid" ? 2 : 1}
-        columnWrapperStyle={viewMode === "grid" ? styles.gridRow : undefined}
-        contentContainerStyle={[
-          styles.listContent,
-          sortedProducts.length === 0 && styles.listContentEmpty,
-        ]}
+        contentContainerStyle={
+          sortedProducts.length === 0
+            ? styles.listContentEmpty
+            : styles.listContent
+        }
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={ListFooter}
         refreshControl={
@@ -580,8 +601,9 @@ export default function ShopByBrandProductsScreen({
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
       />
 
       {/* ── Sort modal ── */}
@@ -685,21 +707,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
 
-  // FlatList
+  // List content — header is full-width; items carry their own insets.
   listContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
     paddingBottom: 32,
-    gap: 8,
   },
   listContentEmpty: {
     flexGrow: 1,
   },
-  gridRow: {
-    gap: 8,
-  },
   gridItemWrap: {
-    flex: 1,
+    paddingHorizontal: 4,
+    paddingBottom: 8,
   },
 
   // List row card
@@ -710,6 +727,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
     marginBottom: 8,
+    marginHorizontal: 8,
   },
   listRowThumb: {
     width: 100,
