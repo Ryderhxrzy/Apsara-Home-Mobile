@@ -303,6 +303,12 @@ const styles = StyleSheet.create({
     padding: 10,
     ...shadow.sm,
   },
+  brandRowMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   brandRowLogo: {
     width: 52,
     height: 52,
@@ -487,6 +493,15 @@ const styles = StyleSheet.create({
   },
   brandSeparator: {
     width: 14,
+  },
+  brandCardWrap: {
+    position: "relative",
+  },
+  brandCardFollowBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 2,
   },
   brandCard: {
     width: 184,
@@ -770,7 +785,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
   },
-
 })
 
 export default styles

@@ -35,6 +35,7 @@ import { usePrefetchProducts } from "../hooks/usePrefetchProducts"
 import { useShowcaseProducts } from "../hooks/query/useShowcaseProducts"
 import { useBehaviorRecommendations } from "../hooks/query/useBehaviorRecommendations"
 import HomeProductRail from "../components/HomeProductRail/HomeProductRail"
+import BrandFollowButton from "../components/BrandFollowButton/BrandFollowButton"
 import { getRoomIcon, getCategoryIcon } from "../utils/categoryIcons"
 import { FlashList } from "@shopify/flash-list"
 import styles, { BANNER_HEIGHT } from "../styles/HomeScreen.styles"
@@ -152,7 +153,10 @@ function CategoryCircle({
   isDarkMode?: boolean
   colors?: any
 }) {
-  const iconName = useMemo(() => getCategoryIcon(category.name), [category.name])
+  const iconName = useMemo(
+    () => getCategoryIcon(category.name),
+    [category.name]
+  )
   const scale = useState(() => new Animated.Value(1))[0]
 
   const badgeType = index === 0 ? "Hot" : index === 2 ? "New" : null
@@ -474,7 +478,8 @@ function HomeScreen({
     return [
       {
         type: "video" as const,
-        videoSource: "https://res.cloudinary.com/dc05ncs6l/video/upload/v1780969092/home-login_dja56x.mp4",
+        videoSource:
+          "https://res.cloudinary.com/dc05ncs6l/video/upload/v1780969092/home-login_dja56x.mp4",
         eyebrow: "Welcome",
         title: "Discover Your Dream Home",
         subtitle: "Explore our curated collection of premium home essentials.",
@@ -518,72 +523,97 @@ function HomeScreen({
     ({ item }: { item: BrandItem }) => {
       const logo = getBrandLogo(item)
       return (
-        <Pressable onPress={() => onShopByBrandPress?.(item.id)}>
-          <View
-            style={[
-              styles.brandCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            {/* Logo tile — contained on a soft gradient so logos stay crisp */}
-            <LinearGradient
-              colors={
-                isDarkMode ? ["#1e293b", "#0f172a"] : ["#ffffff", "#eef4fb"]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.brandLogoBox}
-            >
-              {logo ? (
-                <Image
-                  source={{ uri: logo }}
-                  style={styles.brandLogoImage}
-                  contentFit="contain"
-                  transition={200}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.brandLogoFallback,
-                    { backgroundColor: Colors.sky },
-                  ]}
-                >
-                  <Text style={styles.brandFallbackInitialLarge}>
-                    {getBrandInitial(item)}
-                  </Text>
-                </View>
-              )}
-            </LinearGradient>
-
+        <View style={styles.brandCardWrap}>
+          {/* Sibling of the navigation Pressable (not nested) so tapping Follow
+              doesn't also open the brand store. */}
+          <BrandFollowButton
+            token={token}
+            brandId={item.id}
+            isDarkMode={isDarkMode}
+            compact
+            style={styles.brandCardFollowBtn}
+          />
+          <Pressable onPress={() => onShopByBrandPress?.(item.id)}>
             <View
-              style={[styles.brandDivider, { backgroundColor: colors.border }]}
-            />
+              style={[
+                styles.brandCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              {/* Logo tile — contained on a soft gradient so logos stay crisp */}
+              <LinearGradient
+                colors={
+                  isDarkMode ? ["#1e293b", "#0f172a"] : ["#ffffff", "#eef4fb"]
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.brandLogoBox}
+              >
+                {logo ? (
+                  <Image
+                    source={{ uri: logo }}
+                    style={styles.brandLogoImage}
+                    contentFit="contain"
+                    transition={200}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.brandLogoFallback,
+                      { backgroundColor: Colors.sky },
+                    ]}
+                  >
+                    <Text style={styles.brandFallbackInitialLarge}>
+                      {getBrandInitial(item)}
+                    </Text>
+                  </View>
+                )}
+              </LinearGradient>
 
-            {/* Footer — name + product count, with a circular CTA */}
-            <View style={styles.brandFooter}>
-              <View style={styles.brandFooterInfo}>
-                <Text
-                  style={[styles.brandFooterName, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {item.name}
-                </Text>
-                <View style={styles.brandFooterCountRow}>
-                  <Ionicons name="cube-outline" size={11} color={colors.textSec} />
+              <View
+                style={[
+                  styles.brandDivider,
+                  { backgroundColor: colors.border },
+                ]}
+              />
+
+              {/* Footer — name + product count, with a circular CTA */}
+              <View style={styles.brandFooter}>
+                <View style={styles.brandFooterInfo}>
                   <Text
-                    style={[styles.brandFooterCount, { color: colors.textSec }]}
+                    style={[styles.brandFooterName, { color: colors.text }]}
                     numberOfLines={1}
                   >
-                    {item.total_products ?? 0} products
+                    {item.name}
                   </Text>
+                  <View style={styles.brandFooterCountRow}>
+                    <Ionicons
+                      name="cube-outline"
+                      size={11}
+                      color={colors.textSec}
+                    />
+                    <Text
+                      style={[
+                        styles.brandFooterCount,
+                        { color: colors.textSec },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.total_products ?? 0} products
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.brandArrowBtn}>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={15}
+                    color={Colors.white}
+                  />
                 </View>
               </View>
-              <View style={styles.brandArrowBtn}>
-                <Ionicons name="arrow-forward" size={15} color={Colors.white} />
-              </View>
             </View>
-          </View>
-        </Pressable>
+          </Pressable>
+        </View>
       )
     },
     [
@@ -593,6 +623,7 @@ function HomeScreen({
       colors.textSec,
       isDarkMode,
       onShopByBrandPress,
+      token,
     ]
   )
 
@@ -796,9 +827,8 @@ function HomeScreen({
               {brands.map((item) => {
                 const logo = getBrandLogo(item)
                 return (
-                  <Pressable
+                  <View
                     key={`brand-all-${item.id}`}
-                    onPress={() => onShopByBrandPress?.(item.id)}
                     style={[
                       styles.brandRow,
                       {
@@ -807,44 +837,54 @@ function HomeScreen({
                       },
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.brandRowLogo,
-                        { backgroundColor: isDarkMode ? "#0f172a" : "#f8fafc" },
-                      ]}
+                    <Pressable
+                      style={styles.brandRowMain}
+                      onPress={() => onShopByBrandPress?.(item.id)}
                     >
-                      {logo ? (
-                        <Image
-                          source={{ uri: logo }}
-                          style={styles.brandRowLogoImg}
-                          contentFit="contain"
-                          transition={200}
-                        />
-                      ) : (
-                        <Text style={styles.brandRowInitial}>
-                          {getBrandInitial(item)}
+                      <View
+                        style={[
+                          styles.brandRowLogo,
+                          {
+                            backgroundColor: isDarkMode ? "#0f172a" : "#f8fafc",
+                          },
+                        ]}
+                      >
+                        {logo ? (
+                          <Image
+                            source={{ uri: logo }}
+                            style={styles.brandRowLogoImg}
+                            contentFit="contain"
+                            transition={200}
+                          />
+                        ) : (
+                          <Text style={styles.brandRowInitial}>
+                            {getBrandInitial(item)}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.brandRowInfo}>
+                        <Text
+                          style={[styles.brandRowName, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {item.name}
                         </Text>
-                      )}
-                    </View>
-                    <View style={styles.brandRowInfo}>
-                      <Text
-                        style={[styles.brandRowName, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      <Text
-                        style={[styles.brandRowCount, { color: colors.textSec }]}
-                      >
-                        {item.total_products ?? 0} products
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={18}
-                      color={colors.textSec}
+                        <Text
+                          style={[
+                            styles.brandRowCount,
+                            { color: colors.textSec },
+                          ]}
+                        >
+                          {item.total_products ?? 0} products
+                        </Text>
+                      </View>
+                    </Pressable>
+                    <BrandFollowButton
+                      token={token}
+                      brandId={item.id}
+                      isDarkMode={isDarkMode}
                     />
-                  </Pressable>
+                  </View>
                 )
               })}
             </View>
