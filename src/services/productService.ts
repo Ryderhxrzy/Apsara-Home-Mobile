@@ -404,10 +404,9 @@ export const productService = {
     const headers = { Authorization: `Bearer ${token}` }
     const lim = Math.min(50, Math.max(1, limit))
     try {
-      const response = await api.get(
-        `/wishlist/recommendations?limit=${lim}`,
-        { headers }
-      )
+      const response = await api.get(`/wishlist/recommendations?limit=${lim}`, {
+        headers,
+      })
       const body = response.data ?? {}
       const raw = Array.isArray(body.data) ? body.data : []
       const products = raw.map((p: any) => toProductCard(p as Product))
@@ -447,7 +446,8 @@ export const productService = {
           image: p.image,
           soldCount: p.soldCount ?? 0,
           originalPrice: p.originalPrice ?? 0,
-          memberPrice: p.discountedPrice ?? p.memberPrice ?? p.originalPrice ?? 0,
+          memberPrice:
+            p.discountedPrice ?? p.memberPrice ?? p.originalPrice ?? 0,
           pv: p.pv ?? 0,
           brandName: p.brandName ?? "",
           variantCount: p.variantCount ?? 0,
@@ -570,7 +570,7 @@ export const productService = {
   },
 
   async getBrandProductsPaged(
-    token: string,
+    token: string | null | undefined,
     brandType: number,
     options: {
       page?: number
@@ -580,7 +580,10 @@ export const productService = {
       search?: string
     } = {}
   ): Promise<{ products: any[]; totalPages: number; total: number }> {
-    const headers = { Authorization: `Bearer ${token}` }
+    // Public catalog endpoint — guests (no token) can browse a brand's products.
+    // Only attach the auth header when signed in (member pricing, etc.).
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
     const {
       page = 1,
       perPage = 20,
@@ -630,7 +633,11 @@ export const productService = {
       products.length
     const totalPages = Math.ceil(total / perPage) || 1
 
-    return { products: Array.isArray(products) ? products : [], total, totalPages }
+    return {
+      products: Array.isArray(products) ? products : [],
+      total,
+      totalPages,
+    }
   },
 
   /**

@@ -672,6 +672,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  guestFormField: {
+    marginBottom: 12,
+  },
+  guestFormLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  guestRequiredStar: {
+    color: "#ef4444",
+  },
+  guestFormInput: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  guestFormTextarea: {
+    minHeight: 72,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    fontSize: 14,
+    textAlignVertical: "top",
+  },
+  guestFormHint: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  guestReferralStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  guestReferralStatusText: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
   loadingOverlay: {
     position: "absolute",
     top: 0,

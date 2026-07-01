@@ -80,7 +80,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 10,
+    // 8px — one shared content edge with the feed sections + product grid so the
+    // whole brand page lines up (matches the Shop screen's max-width).
+    paddingHorizontal: 8,
   },
   iconButton: {
     width: 38,
@@ -212,8 +214,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    // 10px to match the nav, tabs, and feed sections — one consistent content edge.
-    paddingHorizontal: 10,
+    // 8px to match the nav, tabs, and feed sections — one consistent content edge
+    // shared with the Shop screen's max-width.
+    paddingHorizontal: 8,
     paddingTop: 12,
     paddingBottom: 10,
   },
@@ -273,6 +276,9 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: "800",
     letterSpacing: -0.3,
+    // Shrink + truncate so a long brand name doesn't push the verified badge
+    // out of view (the badge sits right after it).
+    flexShrink: 1,
   },
   brandMetaRow: {
     flexDirection: "row",
@@ -313,7 +319,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   tabItem: {
     flex: 1,

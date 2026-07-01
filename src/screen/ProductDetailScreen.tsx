@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import {  View,
+import {
+  View,
   Text,
   ScrollView,
   TouchableOpacity,
@@ -41,6 +42,8 @@ import YouMayAlsoLike from "../components/YouMayAlsoLike/YouMayAlsoLike"
 import RelatedProducts from "../components/RelatedProducts/RelatedProducts"
 import axios from "axios"
 import { API_CONFIG } from "../config/api"
+import { getDisplayPricing } from "../utils/pricing"
+import { guestCartService } from "../services/guestCartService"
 import Toast from "react-native-toast-message"
 import styles from "../styles/ProductDetailScreen.styles"
 
@@ -72,6 +75,8 @@ interface ProductDetailScreenProps {
   onWishlistToggle?: (productId: number, isWishlisted: boolean) => void
   onShopNavigate?: (brandType: number, shopName: string) => void
   onCheckout?: (product: any, quantity: number, variant?: any) => void
+  /** Guest-mode login gate — opens the auth flow for account-only actions. */
+  onRequestLogin?: () => void
   user?: {
     name?: string
     avatar_url?: string
@@ -136,6 +141,7 @@ export default function ProductDetailScreen({
   onWishlistToggle,
   onShopNavigate,
   onCheckout,
+  onRequestLogin,
   user,
   cartCount = 0,
   wishlistItems = [],
@@ -147,10 +153,11 @@ export default function ProductDetailScreen({
   // Primary product detail GET migrated to React Query. `isZq` routes to the
   // ZQ separate backend; the response is normalized to the canonical Product
   // type so everything below renders identically to a regular product.
-  const {
-    data: product = null,
-    isLoading: loading,
-  } = useProductDetail({ productId, token, isZq })
+  const { data: product = null, isLoading: loading } = useProductDetail({
+    productId,
+    token,
+    isZq,
+  })
 
   // Server-ranked related products (GET /products/{id}/related) — public, cached
   // per product id. Replaces the old brand-shuffle fetch in the effect below.
@@ -466,9 +473,11 @@ export default function ProductDetailScreen({
     scrollRef.current?.scrollTo({ y: Math.max(0, y - headerH), animated: true })
   }
 
-  const hasDiscount = product
-    ? (product.priceMember ?? 0) < (product.priceSrp ?? 0)
-    : false
+  // Guests see SRP only, so they never show a member discount badge.
+  const hasDiscount =
+    product && token
+      ? (product.priceMember ?? 0) < (product.priceSrp ?? 0)
+      : false
   const activeBadges = product
     ? BADGE_CONFIG.filter((b) => (product as any)[b.key])
     : []
@@ -538,8 +547,42 @@ export default function ProductDetailScreen({
     selected_size?: string | null
     selected_type?: string | null
   }) => {
+    // Guests add to the local on-device cart at SRP (no server, no token).
     if (!token) {
-      console.log("Missing token")
+      const variant =
+        cartData.variant_id && product?.variants
+          ? product.variants.find((v: any) => v.id === cartData.variant_id)
+          : null
+      const unitSrp = variant?.priceSrp ?? product?.priceSrp ?? 0
+      try {
+        await guestCartService.addItem({
+          productId: cartData.product_id,
+          productName: product?.name || "",
+          productImage: product?.image || product?.images?.[0],
+          brandName: product?.brand,
+          unitPriceSrp: unitSrp,
+          pv: variant?.prodpv ?? product?.prodpv ?? 0,
+          quantity: cartData.quantity,
+          variantId: cartData.variant_id ?? null,
+          variantName: variant?.name ?? null,
+          variantColor: cartData.selected_color ?? variant?.color ?? null,
+          variantSize: cartData.selected_size ?? variant?.name ?? null,
+          variantImage: variant?.images?.[0] ?? null,
+        })
+        setShowAddToCartModal(false)
+        Toast.show({
+          type: "success",
+          text1: "Added to cart",
+          text2: "Item saved to your cart",
+        })
+        onCartUpdate?.()
+      } catch (e) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to add item to cart",
+        })
+      }
       return
     }
 
@@ -722,11 +765,16 @@ export default function ProductDetailScreen({
         "user:",
         !!user
       )
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Please log in to add items to wishlist",
-      })
+      // Guest tapped the heart — open login if we can, else hint.
+      if (onRequestLogin) {
+        onRequestLogin()
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Please log in to add items to wishlist",
+        })
+      }
       return
     }
 
@@ -1015,7 +1063,10 @@ export default function ProductDetailScreen({
                   activeOpacity={0.7}
                 >
                   <View
-                    style={[styles.galleryIconBtnInner, { position: "relative" }]}
+                    style={[
+                      styles.galleryIconBtnInner,
+                      { position: "relative" },
+                    ]}
                   >
                     <Ionicons name="cart" size={22} color={Colors.white} />
                     {cartCount + optimisticCartCount > 0 && (
@@ -1104,7 +1155,6 @@ export default function ProductDetailScreen({
               {(() => {
                 let memberPrice = product.priceMember ?? 0
                 let srpPrice = product.priceSrp ?? 0
-                let variantDiscount = 0
 
                 // If variant is selected, use variant prices
                 if (selectedVariant && product.variants) {
@@ -1117,10 +1167,14 @@ export default function ProductDetailScreen({
                   }
                 }
 
-                variantDiscount =
-                  memberPrice < srpPrice
-                    ? Math.round(((srpPrice - memberPrice) / srpPrice) * 100)
-                    : 0
+                // Guests (no token) see SRP only, with no member discount/badge.
+                const pricing = getDisplayPricing(
+                  { memberPrice, originalPrice: srpPrice },
+                  !token
+                )
+                // `memberPrice` drives the big price; for guests it becomes SRP.
+                memberPrice = pricing.displayPrice
+                const variantDiscount = pricing.discountPct
 
                 return (
                   <>
@@ -2099,7 +2153,6 @@ export default function ProductDetailScreen({
           onSelectVariant={handleSelectVariant}
         />
       )}
-
 
       <BuyNowModal
         visible={showBuyModal}

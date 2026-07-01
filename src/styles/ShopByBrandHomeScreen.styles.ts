@@ -299,12 +299,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Header wrapper around the DB sections inside the FlashList — inner 3px so the
-  // cards/banners line up at ~8px with the masonry items below.
+  // Full-bleed wrapper for the profile header (cover photo) so it ignores the
+  // list's horizontal padding below and still runs edge-to-edge.
+  headerBleed: {
+    marginHorizontal: -5,
+  },
+  // Header wrapper around the DB sections. The list content already insets 5px
+  // (see forYouListContent); +3 here brings sections to an 8px content edge —
+  // matching the Shop screen's max-width exactly.
   headerWrap: {
-    // 10px inset — the shared content edge used by the brand header rows (nav,
-    // brand profile, tabs) so the feed sections line up exactly with them.
-    paddingHorizontal: 10,
+    paddingHorizontal: 3,
     paddingTop: 10,
   },
   // "For You" — a plain label (no card background) above the masonry feed.
@@ -316,15 +320,15 @@ const styles = StyleSheet.create({
     // Sits inside headerWrap's 12px inset already — no extra padding needed.
     paddingHorizontal: 0,
   },
-  // Masonry feed (mirrors the Shop screen's grid spacing).
+  // Masonry feed — mirrors the Shop screen's grid metrics EXACTLY so cards share
+  // the same max-width: listContent padH 5 + item padH 3 → 8px outer inset, 6px
+  // gutter. The cover header opts out of this padding via `headerBleed`.
   forYouListContent: {
-    // No horizontal padding here — it would inset the whole list, including the
-    // brand header + cover photo. The header bleeds edge-to-edge; the sections
-    // carry their own 10px inset instead.
+    paddingHorizontal: 5,
     paddingBottom: 24,
   },
   forYouItem: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     paddingBottom: 8,
   },
   footer: {

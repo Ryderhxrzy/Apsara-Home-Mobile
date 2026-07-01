@@ -543,7 +543,7 @@ export default function ShopByBrandHomeScreen({
   const ListHeader = useMemo(
     () => (
       <>
-        {profileHeader}
+        <View style={styles.headerBleed}>{profileHeader}</View>
         <View style={styles.headerWrap}>
           {visibleSections.map((section) => {
             if (section.type === "banner") {

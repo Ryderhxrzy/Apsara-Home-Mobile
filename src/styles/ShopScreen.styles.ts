@@ -6,6 +6,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.white,
   },
+  // Content lifts off the sky gradient with a rounded top (same hero treatment
+  // as Home), which also gives the top of the list breathing room.
+  sheet: {
+    flex: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+    marginTop: 6,
+    paddingTop: 6,
+  },
   flatList: {
     flex: 1,
     backgroundColor: Colors.white,
@@ -100,6 +110,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 5,
+    // Space so the first product row isn't flush against the product-count bar.
+    paddingTop: 14,
     paddingBottom: 24,
   },
   dummyCard: {
@@ -179,9 +191,12 @@ const styles = StyleSheet.create({
   viewToolbar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    // Only the view-mode toggle remains (product count removed), kept right-aligned.
+    justifyContent: "flex-end",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    // Breathing room above the view-option bar so it isn't stuck to the filters.
+    marginTop: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   viewToolbarCount: {

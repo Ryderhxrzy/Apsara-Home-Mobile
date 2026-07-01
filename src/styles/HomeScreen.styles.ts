@@ -11,7 +11,34 @@ const styles = StyleSheet.create({
   // no main-background line peeking between them. Spacing below the banner is
   // handled by `bannerShell.marginBottom`; the last band fills to the bottom
   // via `sectionBlockLast`.
-  content: { paddingHorizontal: 8, paddingTop: 4, paddingBottom: 0, gap: 0 },
+  content: { paddingHorizontal: 8, paddingTop: 6, paddingBottom: 0, gap: 0 },
+  // ── Sticky section headers ───────────────────────────────────────────────
+  // Each section is split into a sticky header band + a content band. The band
+  // carries the section's (opaque) background so, once pinned, content scrolls
+  // cleanly beneath it. Full-bleed like the old section bands (marginHorizontal
+  // -8 cancels the content inset), header inset to 8 to match the cards.
+  stickyHeader: {
+    marginHorizontal: -8,
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 4,
+    zIndex: 2,
+    // Flat top — no rounded corners. The section's opaque surface is applied
+    // inline (theme-aware) and matches its content band below, so header +
+    // content read as one continuous sheet. As you scroll, each section pins
+    // with an identical shape and only the header title text changes.
+  },
+  sectionContent: {
+    marginHorizontal: -8,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
+  },
+  // The product rail pads its own list to 8, so its content band adds no
+  // horizontal padding (avoids a double inset).
+  sectionContentRail: {
+    marginHorizontal: -8,
+    paddingBottom: 16,
+  },
   loadingWrap: { paddingVertical: 42, alignItems: "center", gap: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
   bannerShell: {
@@ -21,13 +48,16 @@ const styles = StyleSheet.create({
 
   // ── Sponsored zone (under the banner, inside the hero fade) ──────────────
   // Each hero ad row is its own wrapper so it can fade independently on scroll.
+  // 0 horizontal padding so the ad rows line up with the section content edge
+  // (content already insets 8; sections inset 8 too). Keeps ads + sections at
+  // the same left/right max-width.
   sponsoredColsWrap: {
-    paddingHorizontal: 4,
     marginBottom: 12,
   },
   portraitWrap: {
-    paddingHorizontal: 4,
-    marginBottom: 14,
+    // Extra breathing room so the portrait ads don't sit flush against the
+    // first product section below them.
+    marginBottom: 24,
   },
   sponsoredCols: {
     flexDirection: "row",
@@ -45,8 +75,91 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.4,
-    paddingHorizontal: 2,
     textTransform: "uppercase",
+  },
+  // Title + small icon for each sponsored panel (less plain than bare text).
+  sponsoredColTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+  // ── Eye-catching promo banner at the top of the ads zone ─────────────────
+  promoBanner: {
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    marginBottom: 12,
+    ...shadow.md,
+  },
+  promoBannerGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 12,
+    position: "relative",
+    overflow: "hidden",
+  },
+  promoBannerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  promoBannerText: {
+    flex: 1,
+    gap: 2,
+  },
+  promoBannerEyebrow: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  promoBannerTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+  promoBannerSubtitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  promoBannerCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  promoBannerCtaText: {
+    color: "#ea580c",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  promoBannerBlob1: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    top: -50,
+    right: -30,
+  },
+  promoBannerBlob2: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    bottom: -40,
+    right: 70,
   },
   sponsoredColRow: {
     gap: 8,
@@ -376,19 +489,23 @@ const styles = StyleSheet.create({
   // so each band's background runs edge-to-edge. Backgrounds alternate per
   // section and are applied inline from the theme. The thin page-bg gap
   // between bands comes from `content.gap`.
+  // Flat banded feed: alternating colour bands sit flush (gap 0). Only the FIRST
+  // section (sectionBlockRail) carries the rounded top; every other band is flat.
   sectionBlock: {
     marginHorizontal: -8,
-    paddingHorizontal: 12,
-    paddingTop: 14,
+    // 8px content inset so the home grids/cards line up with the Shop screen
+    // (Shop card edge = listContent 5 + gridItem 3 = 8).
+    paddingHorizontal: 8,
+    paddingTop: 16,
     paddingBottom: 16,
     gap: 0,
   },
-  // Variant for HomeProductRail — the rail pads its own header + list to 12,
-  // so the band itself adds no horizontal padding (avoids a double inset and
-  // keeps the rail's header aligned with its cards).
+  // Variant for HomeProductRail — the rail pads its own header + list to 12, so
+  // the band itself adds no horizontal padding. The rounded top now lives on the
+  // fixed `screenRounded` frame, so this section stays flat like the rest.
   sectionBlockRail: {
     marginHorizontal: -8,
-    paddingTop: 14,
+    paddingTop: 16,
     paddingBottom: 16,
     gap: 0,
   },

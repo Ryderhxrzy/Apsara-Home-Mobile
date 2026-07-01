@@ -39,6 +39,7 @@ import HomeProductRail from "../components/HomeProductRail/HomeProductRail"
 import ItemCard from "../components/Items/ItemCard"
 import BrandFollowButton from "../components/BrandFollowButton/BrandFollowButton"
 import { getRoomIcon, getCategoryIcon } from "../utils/categoryIcons"
+import { getDisplayPricing } from "../utils/pricing"
 import { FlashList } from "@shopify/flash-list"
 import styles, { BANNER_HEIGHT } from "../styles/HomeScreen.styles"
 
@@ -399,6 +400,7 @@ function HomeScreen({
   onShopByCategoryPress = () => {},
   onShopByBrandPress = () => {},
   onViewAllProducts = () => {},
+  onReferralPress,
   onRefresh: onRefreshProp,
 }: HomeScreenProps) {
   // Palette now sourced from the centralized theme (slate spine + sky accent),
@@ -410,20 +412,22 @@ function HomeScreen({
     text: t.text,
     textSec: t.textSecondary,
     border: t.border,
-    // Alternating section surfaces for the banded home feed. `sectionA` is the
-    // neutral surface (white / slate-800), `sectionB` a soft tint — sections
-    // toggle A/B down the page so each block is visually distinct.
-    sectionA: isDarkMode ? t.card : "#ffffff",
-    sectionB: isDarkMode ? "#16202e" : "#f0f9ff",
+    // Single unified surface for the whole banded home feed. Every section
+    // header + content band shares this one colour so that, as the user scrolls,
+    // sections pin with an identical shape/colour and ONLY the header title text
+    // changes — no alternating tint bleeding in from the ad zone above.
+    sectionSurface: isDarkMode ? t.card : "#ffffff",
   }
 
   const [refreshing, setRefreshing] = useState(false)
   const [activeBanner, setActiveBanner] = useState(0)
 
   // Scroll-driven fade for the hero ad sections (above Popular Picks). Each
-  // section fades only once the scroll actually REACHES it: we measure each
-  // section's Y (onLayout) and fade it out over the ~130px right after its top
-  // hits the viewport top — sections still below the scroll stay fully visible.
+  // section stays fully visible until its top reaches the viewport top, then
+  // fades out ACROSS ITS OWN MEASURED HEIGHT — so it only hits fully-invisible
+  // exactly as it finishes scrolling out of view (covered by the header). This
+  // avoids the old bug where a fixed ~130px fade emptied a tall section while it
+  // was still on screen, leaving a blank gap.
   const scrollY = useRef(new Animated.Value(0)).current
   const onScrollEvent = useMemo(
     () =>
@@ -432,11 +436,13 @@ function HomeScreen({
       }),
     [scrollY]
   )
-  const [colsY, setColsY] = useState(0)
-  const [portraitY, setPortraitY] = useState(0)
-  const fadeFromY = (y: number) =>
+  const [promoRect, setPromoRect] = useState({ y: 0, h: 0 })
+  const [colsRect, setColsRect] = useState({ y: 0, h: 0 })
+  const [portraitRect, setPortraitRect] = useState({ y: 0, h: 0 })
+  const fadeFromRect = (rect: { y: number; h: number }) =>
     scrollY.interpolate({
-      inputRange: [y, y + 130],
+      // Fall back to a sane span until the real height is measured.
+      inputRange: [rect.y, rect.y + (rect.h > 0 ? rect.h : 200)],
       outputRange: [1, 0],
       extrapolate: "clamp",
     })
@@ -667,7 +673,8 @@ function HomeScreen({
                     source={{ uri: logo }}
                     style={styles.brandLogoImage}
                     contentFit="contain"
-                    transition={200}
+                    transition={150}
+                    cachePolicy="memory-disk"
                   />
                 ) : (
                   <View
@@ -766,7 +773,8 @@ function HomeScreen({
                 source={{ uri: logo }}
                 style={styles.adMiniMedia}
                 contentFit="contain"
-                transition={200}
+                transition={150}
+                cachePolicy="memory-disk"
               />
             ) : (
               <Text style={styles.adMiniFallback}>{getBrandInitial(item)}</Text>
@@ -800,7 +808,8 @@ function HomeScreen({
   // Sponsored product card (right carousel)
   const renderAdProductCard = useCallback(
     ({ item }: { item: ProductCard }) => {
-      const price = item.memberPrice || item.originalPrice
+      // Guests see SRP only.
+      const price = getDisplayPricing(item, !token).displayPrice
       return (
         <Pressable
           style={[
@@ -822,7 +831,8 @@ function HomeScreen({
               source={{ uri: item.image }}
               style={styles.adMiniMedia}
               contentFit="cover"
-              transition={200}
+              transition={150}
+              cachePolicy="memory-disk"
             />
           </View>
           <Text
@@ -835,7 +845,7 @@ function HomeScreen({
         </Pressable>
       )
     },
-    [colors.card, colors.border, colors.text, isDarkMode, onProductPress]
+    [colors.card, colors.border, colors.text, isDarkMode, onProductPress, token]
   )
 
   // Optional portrait ad banner (advertiser-bought vertical placement)
@@ -863,6 +873,12 @@ function HomeScreen({
     [onViewAllProducts]
   )
 
+  const showReco = justForYouProducts.length > 0 || showcaseLoading
+  // Sticky section headers. Lead children are promo(0), sponsored(1) and
+  // portrait(2); after them every section contributes [header, content] as two
+  // adjacent children, so the header indices are 3,5,7,9 (+11 for Recommended).
+  const stickyHeaderIndices = showReco ? [3, 5, 7, 9, 11] : [3, 5, 7, 9]
+
   return (
     <View style={{ flex: 1, position: "relative" }}>
       <AnimatedScrollView
@@ -871,6 +887,7 @@ function HomeScreen({
         showsVerticalScrollIndicator={false}
         onScroll={onScrollEvent}
         scrollEventThrottle={16}
+        stickyHeaderIndices={stickyHeaderIndices}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -972,16 +989,65 @@ function HomeScreen({
           </View>
         ) : null}
 
+        {/* Membership promo — becoming a member unlocks discounts; they just
+            need an affiliate to join. Fades out on scroll with the ad zone. */}
+        <Animated.View
+          onLayout={(e) =>
+            setPromoRect({
+              y: e.nativeEvent.layout.y,
+              h: e.nativeEvent.layout.height,
+            })
+          }
+          style={{ opacity: fadeFromRect(promoRect) }}
+        >
+          <Pressable
+            style={styles.promoBanner}
+            onPress={() => onReferralPress?.()}
+          >
+            <LinearGradient
+              colors={["#f97316", "#ea580c"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.promoBannerGradient}
+            >
+              <View style={styles.promoBannerBlob1} pointerEvents="none" />
+              <View style={styles.promoBannerBlob2} pointerEvents="none" />
+              <View style={styles.promoBannerIconWrap}>
+                <Ionicons name="ribbon" size={22} color={Colors.white} />
+              </View>
+              <View style={styles.promoBannerText}>
+                <Text style={styles.promoBannerEyebrow}>MEMBERS SAVE MORE</Text>
+                <Text style={styles.promoBannerTitle}>Become a Member</Text>
+                <Text style={styles.promoBannerSubtitle}>
+                  Unlock exclusive discounts — just find an affiliate to join
+                </Text>
+              </View>
+              <View style={styles.promoBannerCta}>
+                <Text style={styles.promoBannerCtaText}>Join</Text>
+                <Ionicons name="arrow-forward" size={13} color="#ea580c" />
+              </View>
+            </LinearGradient>
+          </Pressable>
+        </Animated.View>
+
         {/* Sponsored zone (inside the hero fade): brands carousel on the left,
             products carousel on the right, then an optional portrait ad banner
-            carousel. Transparent container so the gradient shows through. */}
-        {/* Sponsored brands + products — fades out only once the scroll reaches
-            this section (its measured top hits the viewport top). */}
-        {promotedBrands.length > 0 || promotedProducts.length > 0 ? (
-          <Animated.View
-            onLayout={(e) => setColsY(e.nativeEvent.layout.y)}
-            style={[styles.sponsoredColsWrap, { opacity: fadeFromY(colsY) }]}
-          >
+            carousel. Transparent container so the gradient shows through.
+            Always rendered (empty → nothing inside) so the lead child count stays
+            fixed for the sticky-header indices below. */}
+        <Animated.View
+          onLayout={(e) =>
+            setColsRect({
+              y: e.nativeEvent.layout.y,
+              h: e.nativeEvent.layout.height,
+            })
+          }
+          style={[
+            styles.sponsoredColsWrap,
+            { opacity: fadeFromRect(colsRect) },
+          ]}
+        >
+          {promotedBrands.length > 0 || promotedProducts.length > 0 ? (
             <View style={styles.sponsoredCols}>
               <View
                 style={[
@@ -989,11 +1055,14 @@ function HomeScreen({
                   { backgroundColor: isDarkMode ? "#16202e" : "#eef5fb" },
                 ]}
               >
-                <Text
-                  style={[styles.sponsoredColTitle, { color: colors.text }]}
-                >
-                  Sponsored Brands
-                </Text>
+                <View style={styles.sponsoredColTitleRow}>
+                  <Ionicons name="pricetags" size={12} color={Colors.sky} />
+                  <Text
+                    style={[styles.sponsoredColTitle, { color: colors.text }]}
+                  >
+                    Sponsored Brands
+                  </Text>
+                </View>
                 <FlatList
                   data={promotedBrands}
                   renderItem={renderAdBrandCard}
@@ -1009,11 +1078,14 @@ function HomeScreen({
                   { backgroundColor: isDarkMode ? "#1a1f2e" : "#eef7f0" },
                 ]}
               >
-                <Text
-                  style={[styles.sponsoredColTitle, { color: colors.text }]}
-                >
-                  Sponsored Products
-                </Text>
+                <View style={styles.sponsoredColTitleRow}>
+                  <Ionicons name="flame" size={12} color="#f97316" />
+                  <Text
+                    style={[styles.sponsoredColTitle, { color: colors.text }]}
+                  >
+                    Sponsored Products
+                  </Text>
+                </View>
                 <FlatList
                   data={promotedProducts}
                   renderItem={renderAdProductCard}
@@ -1024,13 +1096,18 @@ function HomeScreen({
                 />
               </View>
             </View>
-          </Animated.View>
-        ) : null}
+          ) : null}
+        </Animated.View>
 
         {/* Portrait ad banners — also fades only once the scroll reaches it. */}
         <Animated.View
-          onLayout={(e) => setPortraitY(e.nativeEvent.layout.y)}
-          style={[styles.portraitWrap, { opacity: fadeFromY(portraitY) }]}
+          onLayout={(e) =>
+            setPortraitRect({
+              y: e.nativeEvent.layout.y,
+              h: e.nativeEvent.layout.height,
+            })
+          }
+          style={[styles.portraitWrap, { opacity: fadeFromRect(portraitRect) }]}
         >
           <FlatList
             data={SAMPLE_PORTRAIT_ADS}
@@ -1042,36 +1119,61 @@ function HomeScreen({
           />
         </Animated.View>
 
-        {/* Popular Picks — randomized product rail so the page feels alive */}
-        <HomeProductRail
-          title="Popular Picks"
-          icon="sparkles"
-          products={showcaseProducts}
-          offset={0}
-          limit={12}
-          loading={showcaseLoading}
-          token={token}
-          isDarkMode={isDarkMode}
-          wishlistItems={wishlistItems}
-          onProductPress={onProductPress}
-          onWishlistChange={onWishlistChange}
-          actionLabel="Shuffle"
-          onAction={() => refetchShowcase()}
-          containerStyle={[
-            styles.sectionBlockRail,
-            styles.sectionTopRounded,
-            { backgroundColor: colors.sectionA },
+        {/* Popular Picks — sticky header (with the rounded top) + rail content */}
+        <View
+          style={[
+            styles.stickyHeader,
+            { backgroundColor: colors.sectionSurface },
           ]}
-        />
+        >
+          <SectionHeader
+            title="Popular Picks"
+            icon="sparkles"
+            isDarkMode={isDarkMode}
+            actionLabel="Shuffle"
+            onAction={() => refetchShowcase()}
+          />
+        </View>
+        <View
+          style={[
+            styles.sectionContentRail,
+            { backgroundColor: colors.sectionSurface },
+          ]}
+        >
+          <HomeProductRail
+            title="Popular Picks"
+            icon="sparkles"
+            hideHeader
+            products={showcaseProducts}
+            offset={0}
+            limit={12}
+            loading={showcaseLoading}
+            token={token}
+            isDarkMode={isDarkMode}
+            wishlistItems={wishlistItems}
+            onProductPress={onProductPress}
+            onWishlistChange={onWishlistChange}
+          />
+        </View>
 
         <View
-          style={[styles.sectionBlock, { backgroundColor: colors.sectionB }]}
+          style={[
+            styles.stickyHeader,
+            { backgroundColor: colors.sectionSurface },
+          ]}
         >
           <SectionHeader
             title="Shop by Rooms"
             icon="bed-outline"
             isDarkMode={isDarkMode}
           />
+        </View>
+        <View
+          style={[
+            styles.sectionContent,
+            { backgroundColor: colors.sectionSurface },
+          ]}
+        >
           <FlatList
             data={roomColumns}
             renderItem={({ item: column }) => (
@@ -1095,7 +1197,10 @@ function HomeScreen({
         </View>
 
         <View
-          style={[styles.sectionBlock, { backgroundColor: colors.sectionA }]}
+          style={[
+            styles.stickyHeader,
+            { backgroundColor: colors.sectionSurface },
+          ]}
         >
           <SectionHeader
             title="Shop by Categories"
@@ -1104,6 +1209,13 @@ function HomeScreen({
             actionLabel={showAllCategories ? "Show less" : "View all"}
             onAction={() => setShowAllCategories((v) => !v)}
           />
+        </View>
+        <View
+          style={[
+            styles.sectionContent,
+            { backgroundColor: colors.sectionSurface },
+          ]}
+        >
           {loadingFeatured && categories.length === 0 ? (
             <CategoryRowSkeleton isDarkMode={isDarkMode} />
           ) : showAllCategories ? (
@@ -1140,7 +1252,10 @@ function HomeScreen({
         </View>
 
         <View
-          style={[styles.sectionBlock, { backgroundColor: colors.sectionB }]}
+          style={[
+            styles.stickyHeader,
+            { backgroundColor: colors.sectionSurface },
+          ]}
         >
           <SectionHeader
             title="Top Brands"
@@ -1149,6 +1264,13 @@ function HomeScreen({
             actionLabel={showAllBrands ? "Show less" : "View all"}
             onAction={() => setShowAllBrands((v) => !v)}
           />
+        </View>
+        <View
+          style={[
+            styles.sectionContent,
+            { backgroundColor: colors.sectionSurface },
+          ]}
+        >
           {loadingFeatured && brands.length === 0 ? (
             <BrandCardSkeleton isDarkMode={isDarkMode} />
           ) : showAllBrands ? (
@@ -1233,12 +1355,11 @@ function HomeScreen({
         {/* Recommended for you — personalized via user-behavior recommendations
             (falls back to the random showcase slice for new users). Rendered as
             a 2-column grid like the Shop screen, not a single horizontal rail. */}
-        {justForYouProducts.length > 0 || showcaseLoading ? (
+        {showReco ? (
           <View
             style={[
-              styles.sectionBlock,
-              styles.sectionBlockLast,
-              { backgroundColor: colors.sectionA },
+              styles.stickyHeader,
+              { backgroundColor: colors.sectionSurface },
             ]}
           >
             <SectionHeader
@@ -1246,6 +1367,16 @@ function HomeScreen({
               icon="sparkles"
               isDarkMode={isDarkMode}
             />
+          </View>
+        ) : null}
+        {showReco ? (
+          <View
+            style={[
+              styles.sectionContent,
+              styles.sectionBlockLast,
+              { backgroundColor: colors.sectionSurface },
+            ]}
+          >
             {showcaseLoading && justForYouProducts.length === 0 ? (
               <View style={styles.masonryGrid}>
                 {[0, 1].map((col) => (

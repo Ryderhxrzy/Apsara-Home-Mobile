@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react"
-import {  View,
+import {
+  View,
   Text,
   FlatList,
   ActivityIndicator,
@@ -26,6 +27,7 @@ import { getColors } from "../theme/theme"
 import Toast from "react-native-toast-message"
 import { userBehaviorService } from "../services/userBehaviorService"
 import { productService } from "../services/productService"
+import { guestCartService } from "../services/guestCartService"
 import { CartSkeleton } from "../components/SkeletonLoader/SkeletonLoader"
 import styles from "../styles/CartScreen.styles"
 import CartHeader from "../components/CartHeader/CartHeader"
@@ -142,6 +144,8 @@ export default function CartScreen({
   refreshTrigger = 0,
 }: CartScreenProps) {
   const insets = useSafeAreaInsets()
+  // Guests (no token) use the local on-device cart; members use the server cart.
+  const isGuest = !token
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -365,6 +369,23 @@ export default function CartScreen({
   }
 
   const fetchCart = async () => {
+    // Guest cart lives on-device — no server round-trip.
+    if (isGuest) {
+      try {
+        setLoading(true)
+        const guestItems = await guestCartService.getItems()
+        const nextCartItems = getOrderedCartItems(guestItems as any)
+        setCartItems(nextCartItems)
+        setSelectedItems((prevSelected) => {
+          const nextIds = new Set(nextCartItems.map((item) => item.crt_id))
+          return new Set([...prevSelected].filter((id) => nextIds.has(id)))
+        })
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     if (!token) return
     try {
       setLoading(true)
@@ -425,7 +446,17 @@ export default function CartScreen({
   // tap-burst (debounced), so rapid +/- taps collapse into a single request.
   const syncQuantity = async (crtId: number) => {
     const quantity = desiredQtyRef.current[crtId]
-    if (quantity === undefined || !token) return
+    if (quantity === undefined) return
+
+    // Guest cart persists locally; the optimistic state update already happened.
+    if (isGuest) {
+      await guestCartService.updateQuantity(crtId, quantity)
+      delete qtyOriginalRef.current[crtId]
+      delete desiredQtyRef.current[crtId]
+      return
+    }
+
+    if (!token) return
     try {
       await axios.put(
         `${API_CONFIG.BASE_URL}/cart/${crtId}/variant`,
@@ -640,9 +671,13 @@ export default function CartScreen({
       setRemovingItem(crtId)
       setConfirmDeleteModal(false)
 
-      await axios.delete(`${API_CONFIG.BASE_URL}/cart/${crtId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      if (isGuest) {
+        await guestCartService.removeItem(crtId)
+      } else {
+        await axios.delete(`${API_CONFIG.BASE_URL}/cart/${crtId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
 
       setCartItems(cartItems.filter((item) => item.crt_id !== crtId))
       delete cartOrderRef.current[crtId]

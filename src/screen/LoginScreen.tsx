@@ -50,6 +50,7 @@ export default function LoginScreen({
   onAuthenticated,
   onResetOnboarding,
   onShowAffiliateScreen,
+  onContinueAsGuest,
 }: {
   onGoToSignup?: () => void
   onGoToIndex?: () => void
@@ -59,6 +60,7 @@ export default function LoginScreen({
   ) => void
   onResetOnboarding?: () => Promise<void>
   onShowAffiliateScreen?: () => void
+  onContinueAsGuest?: () => void
 }) {
   const { control, handleSubmit, trigger, getValues, reset } = useForm({
     resolver: zodResolver(loginSchema),
@@ -184,7 +186,10 @@ export default function LoginScreen({
     Toast.show({ type: "success", text1: "Login successful!" })
     setTimeout(
       () =>
-        onAuthenticated?.(response.user, response.token ?? response.accessToken),
+        onAuthenticated?.(
+          response.user,
+          response.token ?? response.accessToken
+        ),
       700
     )
   }
@@ -442,6 +447,16 @@ export default function LoginScreen({
     <View style={styles.root}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        {/* Back to browsing (Home) — Login is optional, so guests can leave it. */}
+        {onContinueAsGuest ? (
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={onContinueAsGuest}
+            hitSlop={8}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          </TouchableOpacity>
+        ) : null}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -561,7 +576,11 @@ export default function LoginScreen({
                     activeOpacity={0.8}
                     disabled={biometricLoading}
                   >
-                    <Ionicons name="finger-print" size={20} color={Colors.sky} />
+                    <Ionicons
+                      name="finger-print"
+                      size={20}
+                      color={Colors.sky}
+                    />
                     <Text style={styles.biometricBtnText}>
                       Login with Biometric
                     </Text>
@@ -574,7 +593,9 @@ export default function LoginScreen({
                     activeOpacity={0.8}
                   >
                     <Ionicons name="logo-google" size={20} color="#4285F4" />
-                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                    <Text style={styles.googleBtnText}>
+                      Continue with Google
+                    </Text>
                   </TouchableOpacity>
 
                   {/* Forgot password */}
@@ -733,7 +754,10 @@ export default function LoginScreen({
         onRequestClose={() => setLegalDoc(null)}
       >
         {legalDoc ? (
-          <LegalWebViewScreen doc={legalDoc} onClose={() => setLegalDoc(null)} />
+          <LegalWebViewScreen
+            doc={legalDoc}
+            onClose={() => setLegalDoc(null)}
+          />
         ) : null}
       </Modal>
     </View>

@@ -5,6 +5,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#f4f6f8" },
   safe: { flex: 1 },
   flex: { flex: 1 },
+  // Back-to-Home arrow (Login is optional for guests).
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+    marginTop: 4,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -128,6 +137,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: Colors.sky,
+  },
+
+  // ── Continue as guest ──
+  guestBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "transparent",
+  },
+  guestBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#64748b",
   },
 
   // ── Affiliate CTA banner ──

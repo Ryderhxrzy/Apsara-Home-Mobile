@@ -17,16 +17,21 @@ import {
 } from "react-native"
 import { Image } from "expo-image"
 import { FlashList, FlashListRef } from "@shopify/flash-list"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { LinearGradient } from "expo-linear-gradient"
 import Ionicons from "../components/ui/Icon"
 import { Colors } from "../constants/colors"
 import { getColors } from "../theme/theme"
 import { Product } from "../services/productService"
+import { getDisplayPricing } from "../utils/pricing"
 import ItemCard from "../components/Items/ItemCard"
-import ShopHeader from "../components/ShopHeader/ShopHeader"
+import HomeHeader from "../components/HomeHeader/HomeHeader"
 import HeaderFilter from "../components/AppHeader/HeaderFilter"
 import { useOptimizedProducts } from "../hooks/useOptimizedProducts"
 import styles from "../styles/ShopScreen.styles"
+
+// Toggle to bring back the grid/list view-mode toolbar. Hidden for now.
+const SHOW_VIEW_TOOLBAR = false
 
 const ROOMS = [
   { room_id: 1, slug: "bedroom", room_name: "Bedroom" },
@@ -53,6 +58,8 @@ interface ShopScreenProps {
   onCartPress?: () => void
   onOpenSearch?: () => void
   onWishlistPress?: () => void
+  onNotificationPress?: () => void
+  unreadCount?: number
   wishlistItems?: any[]
   onWishlistChange?: () => void
   onWishlistToggle?: (
@@ -75,13 +82,18 @@ function ShopScreen({
   onCartPress = () => {},
   onOpenSearch = () => {},
   onWishlistPress,
+  onNotificationPress,
+  unreadCount = 0,
   wishlistItems = [],
   onWishlistChange = () => {},
   onWishlistToggle,
   isDarkMode = false,
 }: ShopScreenProps) {
+  const insets = useSafeAreaInsets()
   const flashListRef = useRef<FlashListRef<Product>>(null)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
+  // The view-mode bar hides while scrolling down and reappears on scroll up.
+  const [toolbarVisible, setToolbarVisible] = useState(true)
   const lastScrollOffsetRef = useRef(0)
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
@@ -215,8 +227,10 @@ function ShopScreen({
 
     if (selectedPrice && selectedPrice !== "All") {
       list = list.filter((product: Product) => {
-        const price =
-          product.priceMember ?? product.priceDp ?? product.priceSrp ?? 0
+        // Match the price the user actually sees: SRP for guests, member otherwise.
+        const price = token
+          ? (product.priceMember ?? product.priceDp ?? product.priceSrp ?? 0)
+          : (product.priceSrp ?? 0)
         switch (selectedPrice) {
           case "Under ₱5k":
             return price < 5000
@@ -241,7 +255,7 @@ function ShopScreen({
     }
 
     return list
-  }, [data?.pages, selectedPrice])
+  }, [data?.pages, selectedPrice, token])
 
   // Restore scroll position when products are available
   useEffect(() => {
@@ -273,6 +287,14 @@ function ShopScreen({
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const scrollY = event.nativeEvent.contentOffset.y
+      const prevY = lastScrollOffsetRef.current
+      // Scrolling down past a small threshold hides the view-mode bar; scrolling
+      // back up (or reaching the top) brings it back.
+      if (scrollY > prevY + 4 && scrollY > 60) {
+        setToolbarVisible(false)
+      } else if (scrollY < prevY - 4 || scrollY <= 0) {
+        setToolbarVisible(true)
+      }
       lastScrollOffsetRef.current = scrollY
       setShowScrollToTop(scrollY > 300)
     },
@@ -343,17 +365,26 @@ function ShopScreen({
   const renderListItem = useCallback(
     ({ item }: { item: Product }) => {
       const wishlistItem = wishlistItems?.find((w) => w.product.id === item.id)
-      const price = item.priceMember ?? item.priceDp ?? item.priceSrp ?? 0
-      const srp = item.priceSrp ?? 0
-      const hasDiscount = price > 0 && srp > price
-      const discountPct = hasDiscount ? Math.round(((srp - price) / srp) * 100) : 0
+      // Guests (no token) see SRP only — see getDisplayPricing.
+      const {
+        displayPrice: price,
+        originalPrice: srp,
+        hasDiscount,
+        discountPct,
+      } = getDisplayPricing(
+        {
+          memberPrice: item.priceMember ?? item.priceDp ?? item.priceSrp,
+          originalPrice: item.priceSrp,
+        },
+        !token
+      )
       const badge = item.musthave
         ? { label: "Must Have", color: "#f97316" }
         : item.bestseller
-        ? { label: "Bestseller", color: "#d4a017" }
-        : item.salespromo
-        ? { label: "On Sale", color: "#10b981" }
-        : null
+          ? { label: "Bestseller", color: "#d4a017" }
+          : item.salespromo
+            ? { label: "On Sale", color: "#10b981" }
+            : null
 
       return (
         <Pressable
@@ -364,7 +395,12 @@ function ShopScreen({
           ]}
           android_ripple={{ color: "rgba(0,0,0,0.04)" }}
         >
-          <View style={[styles.listRowThumb, { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" }]}>
+          <View
+            style={[
+              styles.listRowThumb,
+              { backgroundColor: isDarkMode ? "#0f172a" : "#f1f5f9" },
+            ]}
+          >
             <Image
               source={{ uri: item.image }}
               style={styles.listRowImg}
@@ -379,15 +415,23 @@ function ShopScreen({
           </View>
           <View style={styles.listRowDetails}>
             {badge && (
-              <View style={[styles.listRowBadge, { backgroundColor: badge.color }]}>
+              <View
+                style={[styles.listRowBadge, { backgroundColor: badge.color }]}
+              >
                 <Text style={styles.listRowBadgeText}>{badge.label}</Text>
               </View>
             )}
-            <Text style={[styles.listRowName, { color: colors.text }]} numberOfLines={2}>
+            <Text
+              style={[styles.listRowName, { color: colors.text }]}
+              numberOfLines={2}
+            >
               {item.name}
             </Text>
             {!!item.brand && (
-              <Text style={[styles.listRowBrandText, { color: colors.textSec }]} numberOfLines={1}>
+              <Text
+                style={[styles.listRowBrandText, { color: colors.textSec }]}
+                numberOfLines={1}
+              >
                 {item.brand}
               </Text>
             )}
@@ -399,7 +443,7 @@ function ShopScreen({
                 </Text>
               )}
             </View>
-            {!!item.prodpv && (
+            {!!token && !!item.prodpv && (
               <Text style={[styles.listRowPv, { color: colors.textSec }]}>
                 PV: {item.prodpv}
               </Text>
@@ -415,7 +459,7 @@ function ShopScreen({
         </Pressable>
       )
     },
-    [wishlistItems, isDarkMode, onProductPress, colors]
+    [wishlistItems, isDarkMode, onProductPress, colors, token]
   )
 
   const keyExtractor = useCallback(
@@ -444,8 +488,8 @@ function ShopScreen({
           >
             <Image
               source={{
-              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-            }}
+                uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
+              }}
               style={styles.dummyImage}
               contentFit="contain"
               transition={200}
@@ -520,22 +564,41 @@ function ShopScreen({
   }, [isFetchingNextPage, colors.bg, colors.text])
 
   return (
-    <View style={{ flex: 1, position: "relative" }}>
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.bg }]}
-        edges={[]}
-      >
-        <ShopHeader
-          cartCount={cartCount}
-          wishlistCount={wishlistItems?.length ?? 0}
-          isDarkMode={isDarkMode}
-          filterActive={showFilters}
-          onSearchPress={onOpenSearch}
-          onCartPress={onCartPress}
-          onWishlistPress={onWishlistPress}
-          onFilterPress={() => setShowFilters((v) => !v)}
-        />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* Same sky hero gradient as Home, behind the shared header. */}
+      <LinearGradient
+        colors={
+          isDarkMode
+            ? ["#38bdf8", "#38bdf8", "rgba(56,189,248,0)"]
+            : ["#0ea5e9", "#0ea5e9", "rgba(14,165,233,0)"]
+        }
+        locations={[0, 0.5, 1]}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top + 200,
+        }}
+        pointerEvents="none"
+      />
 
+      {/* Same header as Home — the only difference is the filter toggle. */}
+      <HomeHeader
+        cartCount={cartCount}
+        unreadCount={unreadCount}
+        isDarkMode={isDarkMode}
+        onCartPress={onCartPress}
+        onSearchPress={onOpenSearch}
+        onNotificationPress={onNotificationPress}
+        showFilter
+        filterActive={showFilters}
+        onFilterPress={() => setShowFilters((v) => !v)}
+      />
+
+      {/* Content sheet lifts off the gradient with a rounded top, giving the top
+          of the Shop screen the same breathing room as Home. */}
+      <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
         {showFilters && (
           <HeaderFilter
             showRoomFilter={true}
@@ -581,75 +644,76 @@ function ShopScreen({
           />
         )}
 
-        {/* View-mode toolbar */}
-        <View
-          style={[
-            styles.viewToolbar,
-            {
-              backgroundColor: colors.toolbar,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.viewToolbarCount, { color: colors.textSec }]}>
-            {products.length > 0 ? `${total} Products` : ""}
-          </Text>
-          <View style={[styles.viewToggleGroup, { borderColor: colors.border }]}>
-            <Pressable
-              style={[
-                styles.viewModeBtn,
-                viewMode === "grid" && { backgroundColor: Colors.sky },
-              ]}
-              onPress={() => setViewMode("grid")}
+        {/* View-mode toolbar — hidden for now (flip SHOW_VIEW_TOOLBAR to bring
+            it back). It also auto-hides while scrolling down when enabled. */}
+        {SHOW_VIEW_TOOLBAR && toolbarVisible && (
+          <View
+            style={[
+              styles.viewToolbar,
+              {
+                backgroundColor: colors.toolbar,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[styles.viewToggleGroup, { borderColor: colors.border }]}
             >
-              <Ionicons
-                name="grid-outline"
-                size={16}
-                color={viewMode === "grid" ? Colors.white : colors.textSec}
-              />
-            </Pressable>
-            <Pressable
-              style={[
-                styles.viewModeBtn,
-                viewMode === "list" && { backgroundColor: Colors.sky },
-              ]}
-              onPress={() => setViewMode("list")}
-            >
-              <Ionicons
-                name="list-outline"
-                size={16}
-                color={viewMode === "list" ? Colors.white : colors.textSec}
-              />
-            </Pressable>
+              <Pressable
+                style={[
+                  styles.viewModeBtn,
+                  viewMode === "grid" && { backgroundColor: Colors.sky },
+                ]}
+                onPress={() => setViewMode("grid")}
+              >
+                <Ionicons
+                  name="grid-outline"
+                  size={16}
+                  color={viewMode === "grid" ? Colors.white : colors.textSec}
+                />
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.viewModeBtn,
+                  viewMode === "list" && { backgroundColor: Colors.sky },
+                ]}
+                onPress={() => setViewMode("list")}
+              >
+                <Ionicons
+                  name="list-outline"
+                  size={16}
+                  color={viewMode === "list" ? Colors.white : colors.textSec}
+                />
+              </Pressable>
+            </View>
           </View>
-        </View>
+        )}
 
         <FlashList
-            key={viewMode}
-            ref={flashListRef}
-            masonry={viewMode === "grid"}
-            numColumns={viewMode === "grid" ? 2 : 1}
-            data={products}
-            renderItem={viewMode === "grid" ? renderItem : renderListItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={renderEmpty}
-            ListFooterComponent={renderFooter}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={handleRefresh}
-                tintColor={isDarkMode ? "#fff" : Colors.sky}
-              />
-            }
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
-          />
-      </SafeAreaView>
-
+          key={viewMode}
+          ref={flashListRef}
+          masonry={viewMode === "grid"}
+          numColumns={viewMode === "grid" ? 2 : 1}
+          data={products}
+          renderItem={viewMode === "grid" ? renderItem : renderListItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={handleRefresh}
+              tintColor={isDarkMode ? "#fff" : Colors.sky}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+        />
+      </View>
     </View>
   )
 }

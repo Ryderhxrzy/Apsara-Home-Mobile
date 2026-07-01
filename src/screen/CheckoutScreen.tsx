@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react"
-import {  View,
+import {
+  View,
   Text,
   ScrollView,
   TouchableOpacity,
@@ -25,6 +26,8 @@ import {
   paymentService,
   type VoucherValidation,
 } from "../services/paymentService"
+import { referralService } from "../services/referralService"
+import { normalizeReferralCode, getStoredReferralCode } from "../utils/referral"
 
 const SCREEN_WIDTH = Dimensions.get("window").width
 
@@ -128,6 +131,10 @@ interface CheckoutScreenProps {
   ) => void
   brands?: BrandItem[]
   isDarkMode?: boolean
+  /** Guest checkout (no auth): show contact/address form + required referral, SRP pricing. */
+  isGuest?: boolean
+  /** Referral code to prefill for guests (from deep link / stored capture). */
+  initialReferralCode?: string
 }
 
 export default function CheckoutScreen({
@@ -142,7 +149,11 @@ export default function CheckoutScreen({
   onNavigateToShippingAddress,
   brands = [],
   isDarkMode = false,
+  isGuest,
+  initialReferralCode,
 }: CheckoutScreenProps) {
+  // Treat as guest when explicitly flagged or when there's no auth token.
+  const isGuestCheckout = isGuest ?? !token
   console.log("[CheckoutScreen] RENDER - Component mounted/updated")
   console.log("[CheckoutScreen] Props received:", {
     hasItem: !!item,
@@ -159,15 +170,42 @@ export default function CheckoutScreen({
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null)
   const [voucherCode, setVoucherCode] = useState("")
   // The validated voucher (from POST /payments/validate-voucher) once applied.
-  const [appliedVoucher, setAppliedVoucher] = useState<VoucherValidation | null>(
-    null
-  )
+  const [appliedVoucher, setAppliedVoucher] =
+    useState<VoucherValidation | null>(null)
   const [validatingVoucher, setValidatingVoucher] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
     null
   )
   const [isShippingExpanded, setIsShippingExpanded] = useState(true)
   const [isAddressExpanded, setIsAddressExpanded] = useState(false)
+
+  // Guest contact + delivery details (guests have no saved account/address).
+  const [guestName, setGuestName] = useState("")
+  const [guestEmail, setGuestEmail] = useState("")
+  const [guestPhone, setGuestPhone] = useState("")
+  const [guestAddress, setGuestAddress] = useState("")
+  // Referral is REQUIRED for guest checkout (affiliate model).
+  const [referralInput, setReferralInput] = useState(
+    normalizeReferralCode(initialReferralCode)
+  )
+  const [referralStatus, setReferralStatus] = useState<
+    "idle" | "valid" | "invalid"
+  >("idle")
+
+  // Prefill the referral from the stored capture (deep link) when guest and the
+  // prop didn't already provide one.
+  useEffect(() => {
+    if (!isGuestCheckout || initialReferralCode) return
+    let active = true
+    getStoredReferralCode().then((stored) => {
+      if (active && stored) {
+        setReferralInput((prev) => prev || stored)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [isGuestCheckout, initialReferralCode])
 
   // Addresses GET migrated to React Query
   const {
@@ -302,10 +340,14 @@ export default function CheckoutScreen({
     const srpPrice = i.product_price_srp || i.product_price_member
     return sum + srpPrice * (i.quantity || 1)
   }, 0)
-  const memberTotal = checkoutItems.reduce(
-    (sum, i) => sum + i.product_price_member * (i.quantity || 1),
-    0
-  )
+  // Guests are billed at SRP (no member discount), so their "memberTotal" is the
+  // SRP subtotal — this keeps shopDiscount at 0 and total === SRP subtotal.
+  const memberTotal = isGuestCheckout
+    ? subtotal
+    : checkoutItems.reduce(
+        (sum, i) => sum + i.product_price_member * (i.quantity || 1),
+        0
+      )
   // Absolute peso discount from the validated voucher, clamped so it can't
   // exceed the order total.
   const voucherDiscount = Math.min(appliedVoucher?.discount ?? 0, memberTotal)
@@ -375,7 +417,214 @@ export default function CheckoutScreen({
     setVoucherCode("")
   }
 
+  // Guest checkout: no auth, referral required, SRP pricing. Hits the public
+  // /mobile/payments/guest-checkout endpoint instead of /mobile/payments/create.
+  const handleGuestPlaceOrder = async () => {
+    if (!selectedPaymentMethod) {
+      Toast.show({
+        type: "error",
+        text1: "Payment Method Required",
+        text2: "Please select a payment method",
+      })
+      return
+    }
+
+    const name = guestName.trim()
+    const email = guestEmail.trim()
+    const phone = guestPhone.trim()
+    const address = guestAddress.trim()
+
+    if (!name || !email || !phone || !address) {
+      Toast.show({
+        type: "error",
+        text1: "Missing Information",
+        text2: "Please complete your contact and delivery details",
+      })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Email",
+        text2: "Please enter a valid email address",
+      })
+      return
+    }
+
+    const normalizedReferral = normalizeReferralCode(referralInput)
+    if (!normalizedReferral) {
+      setReferralStatus("invalid")
+      Toast.show({
+        type: "error",
+        text1: "Referral Required",
+        text2: "A referral code is required to check out as a guest",
+      })
+      return
+    }
+
+    if (checkoutItems.length === 0) {
+      Toast.show({
+        type: "error",
+        text1: "Empty Cart",
+        text2: "No items to check out",
+      })
+      return
+    }
+
+    setLoading(true)
+    const startTime = Date.now()
+
+    try {
+      // 1) Validate the referral against the backend (public endpoint).
+      const availability =
+        await referralService.checkReferral(normalizedReferral)
+      if (!availability?.available) {
+        setReferralStatus("invalid")
+        Toast.show({
+          type: "error",
+          text1: "Invalid Referral",
+          text2:
+            availability?.message ||
+            "Referral code is invalid or the referrer is not verified.",
+        })
+        return
+      }
+      setReferralStatus("valid")
+      const referredBy = availability.normalized_referral || normalizedReferral
+
+      // 2) Build the guest payment payload (SRP pricing).
+      const deviceId = await getCheckoutDeviceId()
+      const appVersion = Application.nativeApplicationVersion || "1.0.0"
+      const platformName = Platform.OS === "ios" ? "ios" : "android"
+      const totalQuantity = checkoutItems.reduce(
+        (sum, i) => sum + (i.quantity || 1),
+        0
+      )
+
+      const unitSrp = (i: CheckoutItem) =>
+        i.product_price_srp || i.product_price_member || 0
+
+      const paymentPayload: any = {
+        amount: Math.round(total * 100) / 100,
+        description: `Order - ${checkoutItems.length} item${checkoutItems.length > 1 ? "s" : ""} (${totalQuantity} total)`,
+        payment_method: selectedPaymentMethod,
+        platform: platformName,
+        app_version: appVersion,
+        payment_source: "app",
+        payment_mode: "test",
+        device_id: deviceId,
+        customer: {
+          name,
+          email,
+          phone,
+          address,
+          referred_by: referredBy,
+          is_member: false,
+        },
+      }
+
+      if (checkoutItems.length === 1) {
+        const singleItem = checkoutItems[0]
+        paymentPayload.order = {
+          product_name: singleItem?.product_name || "Unknown Product",
+          product_id: singleItem?.product_id || 0,
+          product_sku: `SKU-${singleItem?.product_id}`,
+          product_image:
+            singleItem?.variant_image || singleItem?.product_image || "",
+          quantity: singleItem?.quantity || 1,
+          subtotal: Math.round(subtotal * 100) / 100,
+          handling_fee: 0,
+        }
+        if (singleItem?.variant_color)
+          paymentPayload.order.selected_color = singleItem.variant_color
+        if (singleItem?.variant_size)
+          paymentPayload.order.selected_size = singleItem.variant_size
+      } else {
+        paymentPayload.order = {
+          items: checkoutItems.map((i) => ({
+            product_name: i?.product_name || "Unknown Product",
+            product_id: i?.product_id || 0,
+            product_sku: `SKU-${i?.product_id}`,
+            product_image: i?.variant_image || i?.product_image || "",
+            quantity: i?.quantity || 1,
+            price: unitSrp(i) * (i?.quantity || 1),
+            variant_color: i?.variant_color || undefined,
+            variant_size: i?.variant_size || undefined,
+          })),
+          subtotal: Math.round(subtotal * 100) / 100,
+          handling_fee: 0,
+        }
+      }
+
+      const apiUrl = `${API_CONFIG.BASE_URL}/mobile/payments/guest-checkout`
+      console.log("[CheckoutScreen] Guest checkout ->", apiUrl)
+
+      // No Authorization header — this is the public guest endpoint.
+      const response = await axios.post(apiUrl, paymentPayload, {
+        headers: { "Content-Type": "application/json" },
+      })
+
+      if (response.data?.checkout_url) {
+        const orderData = {
+          item: checkoutItems.length === 1 ? checkoutItems[0] : undefined,
+          items: checkoutItems,
+          user: {
+            name,
+            email,
+            phone,
+            referrer_username: referredBy,
+          },
+          selectedPaymentMethod,
+          shippingCost,
+          voucherDiscount: 0,
+          subtotal,
+          shopDiscount: 0,
+          total,
+          token: null,
+          isGuest: true,
+          checkoutUrl: response.data.checkout_url,
+          orderId: response.data?.order_id,
+          checkoutId: response.data?.checkout_id,
+          mobileOrderId: response.data?.mobile_order_id,
+          paymentIntentId: response.data?.payment_intent_id,
+        }
+        onNavigateToOrderSuccess?.(orderData)
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "No checkout URL received from server",
+        })
+      }
+    } catch (error: any) {
+      console.error("[CheckoutScreen] ❌ Guest checkout error:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      })
+      Toast.show({
+        type: "error",
+        text1: "Payment Error",
+        text2:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create payment",
+      })
+    } finally {
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 800 - elapsedTime)
+      if (remainingTime > 0) {
+        setTimeout(() => setLoading(false), remainingTime)
+      } else {
+        setLoading(false)
+      }
+    }
+  }
+
   const handlePlaceOrder = async () => {
+    if (isGuestCheckout) {
+      return handleGuestPlaceOrder()
+    }
     console.log("[CheckoutScreen] ====== PLACE ORDER CLICKED ======")
     console.log(
       "[CheckoutScreen] Raw items prop:",
@@ -735,7 +984,7 @@ export default function CheckoutScreen({
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Image
           source={{
-            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/checkout_bg_zkqmal.png"
+            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969375/checkout_bg_zkqmal.png",
           }}
           style={styles.headerBackgroundImage}
           contentFit="cover"
@@ -909,9 +1158,15 @@ export default function CheckoutScreen({
                   <View style={styles.itemFooter}>
                     <View style={styles.itemPriceContainer}>
                       <Text style={[styles.itemPrice, { color: Colors.sky }]}>
-                        ₱{checkoutItem.product_price_member.toLocaleString()}
+                        ₱
+                        {(isGuestCheckout
+                          ? checkoutItem.product_price_srp ||
+                            checkoutItem.product_price_member
+                          : checkoutItem.product_price_member
+                        ).toLocaleString()}
                       </Text>
-                      {checkoutItem.product_price_srp &&
+                      {!isGuestCheckout &&
+                        checkoutItem.product_price_srp &&
                         checkoutItem.product_price_srp >
                           checkoutItem.product_price_member && (
                           <Text
@@ -934,205 +1189,417 @@ export default function CheckoutScreen({
           </View>
         ))}
 
-        {/* Shipping Address Section */}
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: colors.containerBg, padding: 0 },
-          ]}
-        >
-          <TouchableOpacity
+        {/* Guest contact + delivery form (guests have no saved address) */}
+        {isGuestCheckout ? (
+          <View
             style={[
-              styles.shippingHeaderRow,
-              {
-                borderBottomColor: colors.border,
-                backgroundColor: colors.containerBg,
-              },
+              styles.section,
+              { backgroundColor: colors.containerBg, padding: 0 },
             ]}
-            onPress={() => setIsAddressExpanded(!isAddressExpanded)}
-            activeOpacity={0.7}
           >
-            <View style={styles.shippingHeaderInfo}>
-              <Ionicons name="location" size={16} color={Colors.sky} />
-              <Text style={[styles.shippingTitle, { color: colors.text }]}>
-                Shipping To
-              </Text>
+            <View
+              style={[
+                styles.shippingHeaderRow,
+                {
+                  borderBottomColor: colors.border,
+                  backgroundColor: colors.containerBg,
+                },
+              ]}
+            >
+              <View style={styles.shippingHeaderInfo}>
+                <Ionicons name="person" size={16} color={Colors.sky} />
+                <Text style={[styles.shippingTitle, { color: colors.text }]}>
+                  Contact & Delivery
+                </Text>
+              </View>
             </View>
-            <View style={styles.viewShippingContainer}>
-              {!isAddressExpanded && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation()
-                    onNavigateToShippingAddress?.(
-                      addresses,
-                      selectedAddress,
-                      setSelectedAddress
-                    )
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[styles.viewShippingText, { color: colors.textSec }]}
-                  >
-                    {selectedAddress ? "Change Address" : "Add Address"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <Ionicons
-                name={isAddressExpanded ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={Colors.sky}
-              />
-            </View>
-          </TouchableOpacity>
 
-          {!isAddressExpanded ? (
-            // Sneak peek - collapsed view
             <View
               style={[
                 styles.shippingContent,
-                { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
+                { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
               ]}
             >
-              {selectedAddress ? (
-                <View
+              <View style={styles.guestFormField}>
+                <Text style={[styles.guestFormLabel, { color: colors.text }]}>
+                  Full Name <Text style={styles.guestRequiredStar}>*</Text>
+                </Text>
+                <TextInput
+                  value={guestName}
+                  onChangeText={setGuestName}
+                  placeholder="Juan Dela Cruz"
+                  placeholderTextColor={colors.textSec}
+                  autoCapitalize="words"
                   style={[
-                    styles.addressCardCompact,
+                    styles.guestFormInput,
                     {
                       backgroundColor: colors.borderLight,
                       borderColor: colors.border,
-                      borderWidth: 1,
+                      color: colors.text,
                     },
                   ]}
-                >
-                  <Text
-                    style={[styles.addressNameCompact, { color: colors.text }]}
-                    numberOfLines={1}
-                  >
-                    {selectedAddress.full_name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.addressTextCompact,
-                      { color: colors.textSec },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedAddress.full_address}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={[styles.emptyText, { color: colors.textSec }]}>
-                  No address found
+                />
+              </View>
+
+              <View style={styles.guestFormField}>
+                <Text style={[styles.guestFormLabel, { color: colors.text }]}>
+                  Email <Text style={styles.guestRequiredStar}>*</Text>
                 </Text>
-              )}
+                <TextInput
+                  value={guestEmail}
+                  onChangeText={setGuestEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.textSec}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[
+                    styles.guestFormInput,
+                    {
+                      backgroundColor: colors.borderLight,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.guestFormField}>
+                <Text style={[styles.guestFormLabel, { color: colors.text }]}>
+                  Phone <Text style={styles.guestRequiredStar}>*</Text>
+                </Text>
+                <TextInput
+                  value={guestPhone}
+                  onChangeText={setGuestPhone}
+                  placeholder="09XX XXX XXXX"
+                  placeholderTextColor={colors.textSec}
+                  keyboardType="phone-pad"
+                  style={[
+                    styles.guestFormInput,
+                    {
+                      backgroundColor: colors.borderLight,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.guestFormField}>
+                <Text style={[styles.guestFormLabel, { color: colors.text }]}>
+                  Delivery Address{" "}
+                  <Text style={styles.guestRequiredStar}>*</Text>
+                </Text>
+                <TextInput
+                  value={guestAddress}
+                  onChangeText={setGuestAddress}
+                  placeholder="House/Unit, Street, Barangay, City, Province, ZIP"
+                  placeholderTextColor={colors.textSec}
+                  multiline
+                  numberOfLines={3}
+                  style={[
+                    styles.guestFormTextarea,
+                    {
+                      backgroundColor: colors.borderLight,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
+                />
+              </View>
             </View>
-          ) : (
-            // Full view - expanded
-            <View
+          </View>
+        ) : (
+          /* Shipping Address Section */
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: colors.containerBg, padding: 0 },
+            ]}
+          >
+            <TouchableOpacity
               style={[
-                styles.shippingContent,
-                { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
+                styles.shippingHeaderRow,
+                {
+                  borderBottomColor: colors.border,
+                  backgroundColor: colors.containerBg,
+                },
               ]}
+              onPress={() => setIsAddressExpanded(!isAddressExpanded)}
+              activeOpacity={0.7}
             >
-              {loadingAddresses ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={Colors.sky} />
-                  <Text style={[styles.loadingText, { color: colors.textSec }]}>
-                    Loading addresses...
-                  </Text>
-                </View>
-              ) : selectedAddress ? (
-                <View>
+              <View style={styles.shippingHeaderInfo}>
+                <Ionicons name="location" size={16} color={Colors.sky} />
+                <Text style={[styles.shippingTitle, { color: colors.text }]}>
+                  Shipping To
+                </Text>
+              </View>
+              <View style={styles.viewShippingContainer}>
+                {!isAddressExpanded && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation()
+                      onNavigateToShippingAddress?.(
+                        addresses,
+                        selectedAddress,
+                        setSelectedAddress
+                      )
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.viewShippingText,
+                        { color: colors.textSec },
+                      ]}
+                    >
+                      {selectedAddress ? "Change Address" : "Add Address"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <Ionicons
+                  name={isAddressExpanded ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={Colors.sky}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {!isAddressExpanded ? (
+              // Sneak peek - collapsed view
+              <View
+                style={[
+                  styles.shippingContent,
+                  { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
+                ]}
+              >
+                {selectedAddress ? (
                   <View
                     style={[
-                      styles.addressCard,
+                      styles.addressCardCompact,
                       {
                         backgroundColor: colors.borderLight,
                         borderColor: colors.border,
+                        borderWidth: 1,
                       },
                     ]}
                   >
                     <Text
-                      style={[styles.addressType, { color: Colors.forest }]}
-                    >
-                      {selectedAddress.address_type}
-                    </Text>
-                    <Text
-                      style={[styles.addressName, { color: colors.text }]}
+                      style={[
+                        styles.addressNameCompact,
+                        { color: colors.text },
+                      ]}
                       numberOfLines={1}
                     >
-                      {selectedAddress.full_name}{" "}
-                      <Text
-                        style={[styles.addressPhone, { color: colors.textSec }]}
-                      >
-                        ({selectedAddress.phone})
-                      </Text>
+                      {selectedAddress.full_name}
                     </Text>
                     <Text
-                      style={[styles.addressText, { color: colors.text }]}
-                      numberOfLines={3}
+                      style={[
+                        styles.addressTextCompact,
+                        { color: colors.textSec },
+                      ]}
+                      numberOfLines={1}
                     >
                       {selectedAddress.full_address}
                     </Text>
-                    {selectedAddress.notes && (
-                      <Text
-                        style={[styles.addressNotes, { color: colors.textSec }]}
-                      >
-                        Notes: {selectedAddress.notes}
-                      </Text>
-                    )}
                   </View>
-
-                  {/* Shipping Cost Display */}
-                  {selectedShippingMethod ? (
+                ) : (
+                  <Text style={[styles.emptyText, { color: colors.textSec }]}>
+                    No address found
+                  </Text>
+                )}
+              </View>
+            ) : (
+              // Full view - expanded
+              <View
+                style={[
+                  styles.shippingContent,
+                  { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
+                ]}
+              >
+                {loadingAddresses ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={Colors.sky} />
+                    <Text
+                      style={[styles.loadingText, { color: colors.textSec }]}
+                    >
+                      Loading addresses...
+                    </Text>
+                  </View>
+                ) : selectedAddress ? (
+                  <View>
                     <View
                       style={[
-                        styles.shippingInfo,
-                        { backgroundColor: colors.borderLight, marginTop: 8 },
+                        styles.addressCard,
+                        {
+                          backgroundColor: colors.borderLight,
+                          borderColor: colors.border,
+                        },
                       ]}
                     >
-                      <View style={styles.shippingDetail}>
-                        <Ionicons name="car" size={16} color={Colors.sky} />
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[
-                              styles.shippingLabel,
-                              { color: colors.textSec },
-                            ]}
-                          >
-                            Shipping
-                          </Text>
-                          <Text
-                            style={[
-                              styles.shippingCity,
-                              { color: colors.text },
-                            ]}
-                          >
-                            {selectedShippingMethod.city},{" "}
-                            {selectedShippingMethod.province}
-                          </Text>
-                        </View>
-                      </View>
                       <Text
-                        style={[styles.shippingCost, { color: Colors.sky }]}
+                        style={[styles.addressType, { color: Colors.forest }]}
                       >
-                        ₱{shippingCost.toLocaleString()}
+                        {selectedAddress.address_type}
                       </Text>
+                      <Text
+                        style={[styles.addressName, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
+                        {selectedAddress.full_name}{" "}
+                        <Text
+                          style={[
+                            styles.addressPhone,
+                            { color: colors.textSec },
+                          ]}
+                        >
+                          ({selectedAddress.phone})
+                        </Text>
+                      </Text>
+                      <Text
+                        style={[styles.addressText, { color: colors.text }]}
+                        numberOfLines={3}
+                      >
+                        {selectedAddress.full_address}
+                      </Text>
+                      {selectedAddress.notes && (
+                        <Text
+                          style={[
+                            styles.addressNotes,
+                            { color: colors.textSec },
+                          ]}
+                        >
+                          Notes: {selectedAddress.notes}
+                        </Text>
+                      )}
                     </View>
-                  ) : null}
+
+                    {/* Shipping Cost Display */}
+                    {selectedShippingMethod ? (
+                      <View
+                        style={[
+                          styles.shippingInfo,
+                          { backgroundColor: colors.borderLight, marginTop: 8 },
+                        ]}
+                      >
+                        <View style={styles.shippingDetail}>
+                          <Ionicons name="car" size={16} color={Colors.sky} />
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.shippingLabel,
+                                { color: colors.textSec },
+                              ]}
+                            >
+                              Shipping
+                            </Text>
+                            <Text
+                              style={[
+                                styles.shippingCity,
+                                { color: colors.text },
+                              ]}
+                            >
+                              {selectedShippingMethod.city},{" "}
+                              {selectedShippingMethod.province}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text
+                          style={[styles.shippingCost, { color: Colors.sky }]}
+                        >
+                          ₱{shippingCost.toLocaleString()}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : (
+                  <Text style={[styles.emptyText, { color: colors.textSec }]}>
+                    No address found
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Guest referral input — required for guest checkout */}
+        {isGuestCheckout && (
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: colors.containerBg, padding: 0 },
+            ]}
+          >
+            <View
+              style={[
+                styles.shippingHeaderRow,
+                {
+                  borderBottomColor: colors.border,
+                  backgroundColor: colors.containerBg,
+                },
+              ]}
+            >
+              <View style={styles.shippingHeaderInfo}>
+                <Ionicons name="people" size={16} color={Colors.sky} />
+                <Text style={[styles.shippingTitle, { color: colors.text }]}>
+                  Referral Code <Text style={styles.guestRequiredStar}>*</Text>
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.shippingContent,
+                { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12 },
+              ]}
+            >
+              <TextInput
+                value={referralInput}
+                onChangeText={(text) => {
+                  setReferralInput(text)
+                  if (referralStatus !== "idle") setReferralStatus("idle")
+                }}
+                placeholder="Enter your referrer's code or username"
+                placeholderTextColor={colors.textSec}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[
+                  styles.guestFormInput,
+                  {
+                    backgroundColor: colors.borderLight,
+                    borderColor:
+                      referralStatus === "invalid" ? "#ef4444" : colors.border,
+                    color: colors.text,
+                  },
+                ]}
+              />
+              {referralStatus === "valid" ? (
+                <View style={styles.guestReferralStatusRow}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={14}
+                    color={Colors.forest}
+                  />
+                  <Text
+                    style={[
+                      styles.guestReferralStatusText,
+                      { color: Colors.forest },
+                    ]}
+                  >
+                    Referral verified
+                  </Text>
                 </View>
               ) : (
-                <Text style={[styles.emptyText, { color: colors.textSec }]}>
-                  No address found
+                <Text style={[styles.guestFormHint, { color: colors.textSec }]}>
+                  A valid referral is required to place a guest order.
                 </Text>
               )}
             </View>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Referred By Section */}
-        {user?.referrer_username && (
+        {!isGuestCheckout && user?.referrer_username && (
           <View
             style={[
               styles.section,
@@ -1414,84 +1881,88 @@ export default function CheckoutScreen({
           )}
         </View>
 
-        {/* Voucher Section */}
-        <View style={[styles.section, { backgroundColor: colors.containerBg }]}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, marginBottom: 12 },
-            ]}
+        {/* Voucher Section — members only (validation requires auth) */}
+        {!isGuestCheckout && (
+          <View
+            style={[styles.section, { backgroundColor: colors.containerBg }]}
           >
-            Vouchers
-          </Text>
-
-          {appliedVoucher ? (
-            /* Applied voucher card */
-            <View
+            <Text
               style={[
-                styles.voucherCard,
-                {
-                  backgroundColor: `${Colors.sky}12`,
-                  borderColor: Colors.sky,
-                },
+                styles.sectionTitle,
+                { color: colors.text, marginBottom: 12 },
               ]}
             >
-              <Ionicons name="pricetag" size={20} color={Colors.sky} />
-              <View style={[styles.voucherContent, { marginLeft: 10 }]}>
-                <Text style={[styles.voucherCode, { color: Colors.sky }]}>
-                  {appliedVoucher.voucher?.code}
-                </Text>
-                <Text style={[styles.voucherDesc, { color: colors.textSec }]}>
-                  You saved ₱
-                  {Number(appliedVoucher.discount || 0).toLocaleString()}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={handleRemoveVoucher} hitSlop={8}>
-                <Text style={styles.removeVoucherText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            /* Voucher Input Field */
-            <View style={styles.voucherInputContainer}>
-              <TextInput
-                placeholder="Enter voucher code"
-                placeholderTextColor={colors.textSec}
-                value={voucherCode}
-                onChangeText={setVoucherCode}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                editable={!validatingVoucher}
-                onSubmitEditing={handleApplyVoucher}
-                returnKeyType="done"
+              Vouchers
+            </Text>
+
+            {appliedVoucher ? (
+              /* Applied voucher card */
+              <View
                 style={[
-                  styles.voucherInput,
+                  styles.voucherCard,
                   {
-                    backgroundColor: colors.borderLight,
-                    borderColor: colors.border,
-                    color: colors.text,
+                    backgroundColor: `${Colors.sky}12`,
+                    borderColor: Colors.sky,
                   },
                 ]}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.applyVoucherButton,
-                  {
-                    backgroundColor: Colors.sky,
-                    opacity: validatingVoucher ? 0.6 : 1,
-                  },
-                ]}
-                onPress={handleApplyVoucher}
-                disabled={validatingVoucher}
               >
-                {validatingVoucher ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                ) : (
-                  <Text style={styles.applyVoucherButtonText}>Apply</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+                <Ionicons name="pricetag" size={20} color={Colors.sky} />
+                <View style={[styles.voucherContent, { marginLeft: 10 }]}>
+                  <Text style={[styles.voucherCode, { color: Colors.sky }]}>
+                    {appliedVoucher.voucher?.code}
+                  </Text>
+                  <Text style={[styles.voucherDesc, { color: colors.textSec }]}>
+                    You saved ₱
+                    {Number(appliedVoucher.discount || 0).toLocaleString()}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={handleRemoveVoucher} hitSlop={8}>
+                  <Text style={styles.removeVoucherText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Voucher Input Field */
+              <View style={styles.voucherInputContainer}>
+                <TextInput
+                  placeholder="Enter voucher code"
+                  placeholderTextColor={colors.textSec}
+                  value={voucherCode}
+                  onChangeText={setVoucherCode}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  editable={!validatingVoucher}
+                  onSubmitEditing={handleApplyVoucher}
+                  returnKeyType="done"
+                  style={[
+                    styles.voucherInput,
+                    {
+                      backgroundColor: colors.borderLight,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.applyVoucherButton,
+                    {
+                      backgroundColor: Colors.sky,
+                      opacity: validatingVoucher ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={handleApplyVoucher}
+                  disabled={validatingVoucher}
+                >
+                  {validatingVoucher ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <Text style={styles.applyVoucherButtonText}>Apply</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Price Summary Section */}
         <View

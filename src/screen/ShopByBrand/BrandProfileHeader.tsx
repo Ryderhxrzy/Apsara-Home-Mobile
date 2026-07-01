@@ -179,7 +179,7 @@ export default function BrandProfileHeader({
               size={16}
               color="#ffffff"
               fill={Colors.sky}
-              style={{ marginLeft: 4 }}
+              style={{ marginLeft: 4, flexShrink: 0 }}
             />
           </View>
           <View style={styles.brandMetaRow}>
