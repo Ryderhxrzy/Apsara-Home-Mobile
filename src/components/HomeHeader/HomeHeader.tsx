@@ -25,6 +25,11 @@ interface HomeHeaderProps {
   onCartPress?: () => void
   onNotificationPress?: () => void
   containerStyle?: StyleProp<ViewStyle>
+  /** Shop reuses this header but adds a filter toggle inside the search pill.
+   *  Home leaves these undefined so it renders exactly as before. */
+  showFilter?: boolean
+  filterActive?: boolean
+  onFilterPress?: () => void
 }
 
 /**
@@ -41,6 +46,9 @@ function HomeHeader({
   onCartPress,
   onNotificationPress,
   containerStyle,
+  showFilter = false,
+  filterActive = false,
+  onFilterPress,
 }: HomeHeaderProps) {
   const insets = useSafeAreaInsets()
 
@@ -83,6 +91,22 @@ function HomeHeader({
           >
             Search...
           </Text>
+          {showFilter && (
+            <TouchableOpacity
+              onPress={onFilterPress}
+              hitSlop={8}
+              style={[
+                styles.filterBtn,
+                filterActive && { backgroundColor: Colors.sky },
+              ]}
+            >
+              <Icon
+                name="options-outline"
+                size={18}
+                color={filterActive ? Colors.white : colors.searchText}
+              />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
 
         <View style={styles.actions}>
@@ -191,10 +215,20 @@ const styles = StyleSheet.create({
     height: 40,
     // Match the ItemCard corner radius (8) so the search pill feels consistent.
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    // Tighter on the right so the optional filter button tucks into the pill.
+    paddingRight: 6,
   },
   searchPlaceholder: {
     flex: 1,
     fontSize: 14,
+  },
+  // Optional filter toggle inside the search pill (Shop only).
+  filterBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
 })
