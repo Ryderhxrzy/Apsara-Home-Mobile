@@ -18,6 +18,7 @@ import ReferralSignupScreen from "./src/screen/ReferralSignupScreen"
 import ReferralOtpScreen from "./src/screen/ReferralOtpScreen"
 import AFHomeAffiliateScreen from "./src/screen/AFHomeAffiliateScreen"
 import { referralService } from "./src/services/referralService"
+import { setStoredReferralCode } from "./src/utils/referral"
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -101,6 +102,10 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasOnboarded, setHasOnboarded] = useState(false)
+  // Default entry is guest browsing → the app opens straight to Home with a
+  // null token/user. A login gate (onRequestLogin) flips this to false to show
+  // the Login screen; logging in sets `authenticated` which takes precedence.
+  const [guestMode, setGuestMode] = useState(true)
   const [referralCodeFromDeepLink, setReferralCodeFromDeepLink] = useState<
     string | null
   >(null)
@@ -166,6 +171,9 @@ export default function App() {
         const username = url.split("/ref/")[1]?.split("?")[0] || ""
         if (username) {
           setReferralCodeFromDeepLink(username)
+          // Persist so guest checkout can prefill the referral field even if
+          // the user keeps browsing without signing up.
+          setStoredReferralCode(username)
           setShowReferralScreenModal(true)
           // Fetch referrer's public profile
           try {
@@ -228,6 +236,7 @@ export default function App() {
     setShowReferralScreenModal(false)
     setReferralOtpEmail("")
     setReferralOtpToken("")
+    setGuestMode(false)
     setAuthenticated(true)
   }
 
@@ -251,6 +260,8 @@ export default function App() {
       setAuthenticated(false)
       setAuthUser(null)
       setAuthToken(null)
+      // Drop back to guest Home (login is optional), not the Login screen.
+      setGuestMode(true)
       setScreen("login")
 
       // Clear referral state on logout
@@ -334,6 +345,7 @@ export default function App() {
         onAuthenticated={(user, token) => goAuthenticated(user, token)}
         onResetOnboarding={resetOnboarding}
         onShowAffiliateScreen={() => setShowAffiliateScreen(true)}
+        onContinueAsGuest={() => setGuestMode(true)}
       />
     )
   }
@@ -352,6 +364,16 @@ export default function App() {
               token={authToken}
               onLogout={logout}
               onUserUpdate={updateAuthUser}
+              productSlugFromDeepLink={productSlugFromDeepLink}
+              onProductDeepLinkHandled={() => setProductSlugFromDeepLink(null)}
+            />
+          </NavigationContainer>
+        ) : guestMode ? (
+          <NavigationContainer>
+            <AppNavigator
+              user={null}
+              token={null}
+              onRequestLogin={() => setGuestMode(false)}
               productSlugFromDeepLink={productSlugFromDeepLink}
               onProductDeepLinkHandled={() => setProductSlugFromDeepLink(null)}
             />
