@@ -13,6 +13,8 @@ import Ionicons from "../ui/Icon"
 import { LinearGradient } from "expo-linear-gradient"
 import { Colors } from "../../constants/colors"
 import type { ProductCard } from "../../services/productService"
+import { getDisplayPricing } from "../../utils/pricing"
+import { useAppContextSafe } from "../../context/AppContext"
 import { userBehaviorService } from "../../services/userBehaviorService"
 import axios from "axios"
 import { API_CONFIG } from "../../config/api"
@@ -55,6 +57,11 @@ const BADGE_CONFIG = [
   },
 ] as const
 
+// Backend ORIGIN (no `/api`) — product images are served from `/storage/...`,
+// not under the API path. Derived from the configured base URL so it follows
+// EXPO_PUBLIC_API_URL overrides too.
+const BACKEND_ORIGIN = API_CONFIG.BASE_URL.replace(/\/api\/?$/, "")
+
 const getValidImageUrl = (
   imageUrl: string | undefined
 ): ImageSourcePropType | null => {
@@ -62,17 +69,24 @@ const getValidImageUrl = (
     return null
   }
 
-  // Ensure the URL is absolute
   let url = imageUrl.trim()
-  if (!url.startsWith("http") && !url.startsWith("file://")) {
-    // Try to make it absolute if it's relative
-    if (!url.startsWith("/")) {
-      url = "/" + url
-    }
-    url = "https://backend.afhome.ph/api" + url
+
+  // Already absolute (http/https) or a local file — use as-is.
+  if (url.startsWith("http") || url.startsWith("file://")) {
+    return { uri: url }
   }
 
-  return { uri: url }
+  // Protocol-relative (`//cdn.../x.jpg`) — just add the scheme.
+  if (url.startsWith("//")) {
+    return { uri: "https:" + url }
+  }
+
+  // Relative asset path — resolve against the backend ORIGIN (NOT `/api`, which
+  // would 404 the image). This is what made some product images fail to load.
+  if (!url.startsWith("/")) {
+    url = "/" + url
+  }
+  return { uri: BACKEND_ORIGIN + url }
 }
 
 function ItemCard({
@@ -89,6 +103,8 @@ function ItemCard({
   imageHeight = 200,
   uniformHeight = false,
 }: ItemCardProps) {
+  // Optional — undefined when this card is rendered outside the app provider.
+  const appCtx = useAppContextSafe()
   const [wishlisted, setWishlisted] = useState(isWishlisted)
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -139,19 +155,12 @@ function ItemCard({
     imageBg: isDarkMode ? "#0f172a" : "#f1f5f9",
   }
 
-  // Memoize price calculations
-  const priceData = useMemo(() => {
-    const displayPrice = product.memberPrice || product.originalPrice
-    const hasDiscount = displayPrice < product.originalPrice
-    const discountPct = hasDiscount
-      ? Math.round(
-          (((product.originalPrice || 0) - displayPrice) /
-            (product.originalPrice || 0)) *
-            100
-        )
-      : 0
-    return { displayPrice, hasDiscount, discountPct }
-  }, [product.memberPrice, product.originalPrice])
+  // Memoize price calculations. Guests (no token) see SRP only — see
+  // getDisplayPricing.
+  const priceData = useMemo(
+    () => getDisplayPricing(product, !token),
+    [product.memberPrice, product.originalPrice, token]
+  )
 
   const { displayPrice, hasDiscount, discountPct } = priceData
 
@@ -164,11 +173,16 @@ function ItemCard({
   const handleWishlistToggle = useCallback(async () => {
     if (!token || togglingRef.current || isTogglingWishlist) {
       if (!token) {
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Please log in to add items to wishlist",
-        })
+        // Guest tapped the heart — open the login flow if available, else hint.
+        if (appCtx?.onRequestLogin) {
+          appCtx.onRequestLogin()
+        } else {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Please log in to add items to wishlist",
+          })
+        }
       }
       return
     }
@@ -237,7 +251,7 @@ function ItemCard({
       togglingRef.current = false
       setIsTogglingWishlist(false)
     }
-  }, [token, product, wishlisted, onWishlistToggle, isTogglingWishlist])
+  }, [token, product, wishlisted, onWishlistToggle, isTogglingWishlist, appCtx])
 
   const handlePress = () => {
     console.log(`👆 ItemCard pressed: ${product.name} (ID: ${product.id})`)
@@ -255,7 +269,12 @@ function ItemCard({
       activeOpacity={0.8}
     >
       {/* Image */}
-      <View style={[styles.imageContainer, { height: imageHeight }]}>
+      <View
+        style={[
+          styles.imageContainer,
+          { height: imageHeight, backgroundColor: colors.imageBg },
+        ]}
+      >
         {imageError || !product.image ? (
           <Image
             source={{
@@ -278,7 +297,15 @@ function ItemCard({
             }
             style={styles.productImage}
             contentFit="cover"
-            transition={200}
+            transition={150}
+            // Keep decoded bitmaps in memory (not just on disk) so cards render
+            // instantly on scroll / re-render instead of re-decoding each time —
+            // biggest win for guests, who start with a cold cache.
+            cachePolicy="memory-disk"
+            // NOTE: no `priority="high"` — a grid mounts dozens of cards at once;
+            // forcing every one to "high" floods expo-image's loader queue and
+            // leaves many stuck blank (the "white card" bug). Default priority
+            // lets the queue drain in order.
             recyclingKey={String(product.id)}
             onError={() => {
               setImageError(true)
@@ -400,9 +427,10 @@ function ItemCard({
         <View
           style={[styles.badgesRow, uniformHeight && styles.badgesRowUniform]}
         >
-          {/* PV badge — only when the product carries PV (recommendation feeds
-              may omit it; "PV 0" would be misleading) */}
-          {Number(product.pv) > 0 && (
+          {/* PV badge — members only. Guests (no token) never see PV, and we
+              also hide it when the product carries no PV (recommendation feeds
+              may omit it; "PV 0" would be misleading). */}
+          {Boolean(token) && Number(product.pv) > 0 && (
             <LinearGradient
               colors={[Colors.sky, Colors.skyDark]}
               start={{ x: 0, y: 0 }}
@@ -677,11 +705,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    // Shrink + truncate a long brand name instead of shoving the sold count off
+    // the card. marginRight keeps a gap before the sold pill.
+    flexShrink: 1,
+    marginRight: 6,
   },
   soldRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+    // Never shrink — the sold count stays fully visible next to the brand name.
+    flexShrink: 0,
   },
   soldCountText: {
     fontSize: 11,
@@ -703,9 +737,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 5,
   },
-  // Reserve two badge rows so cards with/without a variants badge stay aligned.
+  // Reserve a single badge row so cards with/without a badge stay aligned
+  // without leaving a tall empty gap — most rail cards carry 0–1 badges (guests
+  // never see the PV badge), so reserving two rows made short cards look stretched.
   badgesRowUniform: {
-    minHeight: 48,
+    minHeight: 24,
     alignItems: "flex-start",
     alignContent: "flex-start",
   },

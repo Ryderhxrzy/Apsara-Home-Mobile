@@ -88,16 +88,23 @@ export const useInfiniteBrandProducts = ({
       search.trim(),
     ],
     queryFn: async ({ pageParam = 1 }) => {
-      if (!token) throw new Error("Token is required")
       const page = pageParam as number
 
       if (isZqBrand) {
-        const { products: raw, total, totalPages } =
-          await productService.getZqCachedProducts(token, {
-            page,
-            perPage,
-            search,
-          })
+        // ZQ catalog requires auth — guests get an empty (but valid) page so the
+        // brand store still renders instead of erroring.
+        if (!token) {
+          return { products: [], total: 0, hasMore: false, pageParam: page }
+        }
+        const {
+          products: raw,
+          total,
+          totalPages,
+        } = await productService.getZqCachedProducts(token, {
+          page,
+          perPage,
+          search,
+        })
         return {
           products: normalizeZq(raw as Record<string, unknown>[], search),
           total,
@@ -128,7 +135,10 @@ export const useInfiniteBrandProducts = ({
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.pageParam + 1 : undefined,
     initialPageParam: 1,
-    enabled: enabled && !!token && (isZqBrand || !!brandId),
+    // No token gate — the regular brand catalog is public, so guests can browse a
+    // brand's "For You" products too (previously this stayed disabled for guests,
+    // leaving the store empty → "This brand hasn't set up its store yet").
+    enabled: enabled && (isZqBrand || !!brandId),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   })

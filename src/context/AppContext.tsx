@@ -40,6 +40,10 @@ export interface AppContextType {
   // Auth & User
   token: string | null
   enrichedUser: User | null
+  /** True when browsing without an account (no token). */
+  isGuest: boolean
+  /** Open the login flow overlay (used by login gates / guest-only actions). */
+  onRequestLogin: () => void
   onLogout?: () => void
 
   // Dark Mode
@@ -208,4 +212,11 @@ export function useAppContext(): AppContextType {
     throw new Error("useAppContext must be used within AppContextProvider")
   }
   return context
+}
+
+/** Non-throwing variant — returns undefined when rendered outside the provider
+ *  (e.g. a component reused in the auth overlay). Use for optional reads like
+ *  the guest login prompt. */
+export function useAppContextSafe(): AppContextType | undefined {
+  return useContext(AppContext)
 }

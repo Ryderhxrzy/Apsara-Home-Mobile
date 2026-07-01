@@ -31,6 +31,7 @@ import axios from "axios"
 import { API_CONFIG } from "../config/api"
 import { productService, type ProductCard } from "../services/productService"
 import { referralService } from "../services/referralService"
+import { guestCartService } from "../services/guestCartService"
 import TabNavigator from "./TabNavigator"
 import SearchScreen from "../screen/SearchScreen"
 import SearchResultScreen from "../screen/SearchResultScreen"
@@ -179,6 +180,7 @@ export default function AppNavigator({
   token,
   onLogout,
   onUserUpdate,
+  onRequestLogin,
   productSlugFromDeepLink,
   onProductDeepLinkHandled,
 }: {
@@ -187,9 +189,14 @@ export default function AppNavigator({
   onLogout?: () => void
   /** Merge a partial update into the global user (avatar, etc.) + persist. */
   onUserUpdate?: (patch: Record<string, any>) => void
+  /** Drop back to the auth/login flow (used by guest-mode login gates). */
+  onRequestLogin?: () => void
   productSlugFromDeepLink?: string | null
   onProductDeepLinkHandled?: () => void
 }) {
+  // Guest mode = mounted without an auth token. Member-only features
+  // (wishlist, notifications, profile, server cart) gate on this.
+  const isGuest = !token
   console.log("[AppNavigator] User object received:", {
     name: user?.name,
     badge_name: user?.badge_name,
@@ -287,6 +294,31 @@ export default function AppNavigator({
   const [referrerProfileData, setReferrerProfileData] = useState<any>(null)
   const [, setReferrerProfileLoading] = useState(false)
   const [cartCount, setCartCount] = useState(0)
+
+  // Refresh the cart-count badge from the right source: the local guest cart
+  // when there's no token, the server cart otherwise.
+  const refreshCartCount = useCallback(async () => {
+    if (!token) {
+      setCartCount(await guestCartService.count())
+      return
+    }
+    try {
+      const cartRes = await axios.get(`${API_CONFIG.BASE_URL}/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setCartCount(extractCount(cartRes.data))
+    } catch (error) {
+      console.error("Failed to update cart count:", error)
+    }
+  }, [token])
+
+  // Seed the guest cart-count badge on mount / when entering guest mode.
+  useEffect(() => {
+    if (!token) {
+      refreshCartCount()
+    }
+  }, [token, refreshCartCount])
+
   const [previousTab, setPreviousTab] = useState<TabKey>("home")
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -440,7 +472,6 @@ export default function AppNavigator({
 
   // Navigation ref for notification handling
   const navigationRef = useRef<any>(null)
-
 
   // Create navigation handler for notifications
   const handleNotificationNavigation = (screen: string, params?: any) => {
@@ -837,164 +868,186 @@ export default function AppNavigator({
     return () => clearInterval(interval)
   }, [isDarkMode])
 
-  const fetchHomeData = useCallback(async (forceRefresh = false) => {
-    if (!token) return
-
-    try {
-      const totalStart = performance.now()
-
-      console.log("═══════════════════════════════════════════════════════════")
-      console.log("🔄 [APP-NAVIGATOR] FETCH HOME DATA CALLED")
-      console.log("═══════════════════════════════════════════════════════════")
-
-      // CHECK CACHE FIRST - skip fetch if recent cache exists
-      if (!forceRefresh && homeCategories.length > 0 && homeBrands.length > 0) {
-        console.log("✅ [APP-NAVIGATOR] CACHE HIT - Using cached data")
-        console.log(
-          "   Cached: Categories=%d, Brands=%d, Rooms=%d, Products=%d",
-          homeCategories.length,
-          homeBrands.length,
-          homeRoomTypes.length,
-          homeFeaturedProducts.length
-        )
+  const fetchHomeData = useCallback(
+    async (forceRefresh = false) => {
+      // Runs for guests too (token is undefined) — productService omits the auth
+      // header when there's no token and the API returns SRP-based pricing.
+      try {
+        const totalStart = performance.now()
 
         console.log(
           "═══════════════════════════════════════════════════════════"
         )
+        console.log("🔄 [APP-NAVIGATOR] FETCH HOME DATA CALLED")
+        console.log(
+          "═══════════════════════════════════════════════════════════"
+        )
+
+        // CHECK CACHE FIRST - skip fetch if recent cache exists
+        if (
+          !forceRefresh &&
+          homeCategories.length > 0 &&
+          homeBrands.length > 0
+        ) {
+          console.log("✅ [APP-NAVIGATOR] CACHE HIT - Using cached data")
+          console.log(
+            "   Cached: Categories=%d, Brands=%d, Rooms=%d, Products=%d",
+            homeCategories.length,
+            homeBrands.length,
+            homeRoomTypes.length,
+            homeFeaturedProducts.length
+          )
+
+          console.log(
+            "═══════════════════════════════════════════════════════════"
+          )
+          setIsInitialHomeDataReady(true)
+          return
+        }
+
+        console.log(
+          "❌ [APP-NAVIGATOR] CACHE MISS - Fetching fresh data from API"
+        )
+
+        setHomeLoadingFeatured(true)
+
+        // STEP 1: Fetch only categories first (fast, ~200ms)
+        console.log("⏱️  STEP 1: Fetching categories...")
+        const categoryStart = performance.now()
+        const categoryData = await productService.getShopByCategories(token)
+        const sortedCategories = categoryData.sort(
+          (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+        )
+        const categoryTime = performance.now() - categoryStart
+        console.log(
+          `✅ Categories fetched: ${Math.round(categoryTime)}ms (${sortedCategories.length} items)`
+        )
+
+        // Update state immediately with categories
+        setHomeCategories(sortedCategories)
+        await cacheUtils.set("home_categories", sortedCategories)
+
+        // Ready to show home screen with at least categories
+        const readyTime = performance.now() - totalStart
+        console.log(
+          `🎉 HOME SCREEN READY FOR DISPLAY: ${Math.round(readyTime)}ms`
+        )
         setIsInitialHomeDataReady(true)
-        return
-      }
 
-      console.log(
-        "❌ [APP-NAVIGATOR] CACHE MISS - Fetching fresh data from API"
-      )
+        // STEP 2: Lazy load brands, rooms, and featured products in background
+        console.log("⏱️  STEP 2: Lazy loading brands, rooms, products...")
+        const lazyStart = performance.now()
+        const [brandData, roomData, productData, zqBrandNames] =
+          await Promise.all([
+            productService.getShopByBrands(token),
+            productService.getShopByRooms(token),
+            productService.getProductCards(token).catch(() => []),
+            productService.getZqBrandNames(token),
+          ])
 
-      setHomeLoadingFeatured(true)
+        const lazyTime = performance.now() - lazyStart
+        console.log(`✅ Lazy load complete: ${Math.round(lazyTime)}ms`)
 
-      // STEP 1: Fetch only categories first (fast, ~200ms)
-      console.log("⏱️  STEP 1: Fetching categories...")
-      const categoryStart = performance.now()
-      const categoryData = await productService.getShopByCategories(token)
-      const sortedCategories = categoryData.sort(
-        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
-      )
-      const categoryTime = performance.now() - categoryStart
-      console.log(
-        `✅ Categories fetched: ${Math.round(categoryTime)}ms (${sortedCategories.length} items)`
-      )
+        // Keep brands that have products in the regular DB OR in external (ZQ) sources
+        const visibleBrands = (brandData || [])
+          .filter(
+            (b: any) =>
+              (b.total_products ?? 0) > 0 ||
+              zqBrandNames.has((b.name ?? "").trim().toLowerCase())
+          )
+          .map((b: any) => ({
+            ...b,
+            isZqBrand: zqBrandNames.has((b.name ?? "").trim().toLowerCase()),
+          }))
+        console.log(
+          `🏷️  Brands: ${(brandData || []).length} total → ${visibleBrands.length} with products`
+        )
 
-      // Update state immediately with categories
-      setHomeCategories(sortedCategories)
-      await cacheUtils.set("home_categories", sortedCategories)
+        // Filter for affordahome brand products
+        const affordahomeProducts = Array.isArray(productData)
+          ? productData.filter(
+              (p) => p.brandName?.toLowerCase() === "affordahome"
+            )
+          : []
 
-      // Ready to show home screen with at least categories
-      const readyTime = performance.now() - totalStart
-      console.log(
-        `🎉 HOME SCREEN READY FOR DISPLAY: ${Math.round(readyTime)}ms`
-      )
-      setIsInitialHomeDataReady(true)
+        console.log("🏠 AFFORDAHOME PRODUCTS:", affordahomeProducts.length)
 
-      // STEP 2: Lazy load brands, rooms, and featured products in background
-      console.log("⏱️  STEP 2: Lazy loading brands, rooms, products...")
-      const lazyStart = performance.now()
-      const [brandData, roomData, productData, zqBrandNames] =
+        // Update state with lazy-loaded data
+        setHomeBrands(visibleBrands)
+        setHomeRoomTypes(roomData || [])
+        setHomeFeaturedProducts(affordahomeProducts.slice(0, 10))
+
+        // Update cache
         await Promise.all([
-          productService.getShopByBrands(token),
-          productService.getShopByRooms(token),
-          productService.getProductCards(token).catch(() => []),
-          productService.getZqBrandNames(token),
+          cacheUtils.set("home_brands", brandData || []),
+          cacheUtils.set("home_rooms", roomData || []),
+          cacheUtils.set(
+            "home_featured_products",
+            affordahomeProducts.slice(0, 10)
+          ),
         ])
 
-      const lazyTime = performance.now() - lazyStart
-      console.log(`✅ Lazy load complete: ${Math.round(lazyTime)}ms`)
-
-      // Keep brands that have products in the regular DB OR in external (ZQ) sources
-      const visibleBrands = (brandData || [])
-        .filter(
-          (b: any) =>
-            (b.total_products ?? 0) > 0 ||
-            zqBrandNames.has((b.name ?? "").trim().toLowerCase())
+        const totalTime = performance.now() - totalStart
+        console.log(
+          "═══════════════════════════════════════════════════════════"
         )
-        .map((b: any) => ({
-          ...b,
-          isZqBrand: zqBrandNames.has((b.name ?? "").trim().toLowerCase()),
-        }))
-      console.log(
-        `🏷️  Brands: ${(brandData || []).length} total → ${visibleBrands.length} with products`
-      )
-
-      // Filter for affordahome brand products
-      const affordahomeProducts = Array.isArray(productData)
-        ? productData.filter(
-            (p) => p.brandName?.toLowerCase() === "affordahome"
-          )
-        : []
-
-      console.log("🏠 AFFORDAHOME PRODUCTS:", affordahomeProducts.length)
-
-      // Update state with lazy-loaded data
-      setHomeBrands(visibleBrands)
-      setHomeRoomTypes(roomData || [])
-      setHomeFeaturedProducts(affordahomeProducts.slice(0, 10))
-
-      // Update cache
-      await Promise.all([
-        cacheUtils.set("home_brands", brandData || []),
-        cacheUtils.set("home_rooms", roomData || []),
-        cacheUtils.set(
-          "home_featured_products",
-          affordahomeProducts.slice(0, 10)
-        ),
-      ])
-
-      const totalTime = performance.now() - totalStart
-      console.log("═══════════════════════════════════════════════════════════")
-      console.log("✅ [APP-NAVIGATOR] COMPLETE LOAD SUMMARY")
-      console.log("═══════════════════════════════════════════════════════════")
-      console.log("Step 1 (Categories):        %dms", Math.round(categoryTime))
-      console.log("Display Ready:              %dms", Math.round(readyTime))
-      console.log("Step 2 (Lazy Load):         %dms", Math.round(lazyTime))
-      console.log("Total:                      %dms", Math.round(totalTime))
-      console.log("Data Loaded:", {
-        categories: sortedCategories.length,
-        brands: (brandData || []).length,
-        rooms: (roomData || []).length,
-        products: affordahomeProducts.length,
-      })
-      console.log("═══════════════════════════════════════════════════════════")
-    } catch (error: any) {
-      console.error("❌ Home data fetch error:", error?.message)
-      setIsInitialHomeDataReady(true)
-    } finally {
-      setHomeLoadingFeatured(false)
-    }
-  }, [
-    token,
-    homeCategories.length,
-    homeBrands.length,
-    homeRoomTypes.length,
-    homeFeaturedProducts.length,
-  ])
+        console.log("✅ [APP-NAVIGATOR] COMPLETE LOAD SUMMARY")
+        console.log(
+          "═══════════════════════════════════════════════════════════"
+        )
+        console.log(
+          "Step 1 (Categories):        %dms",
+          Math.round(categoryTime)
+        )
+        console.log("Display Ready:              %dms", Math.round(readyTime))
+        console.log("Step 2 (Lazy Load):         %dms", Math.round(lazyTime))
+        console.log("Total:                      %dms", Math.round(totalTime))
+        console.log("Data Loaded:", {
+          categories: sortedCategories.length,
+          brands: (brandData || []).length,
+          rooms: (roomData || []).length,
+          products: affordahomeProducts.length,
+        })
+        console.log(
+          "═══════════════════════════════════════════════════════════"
+        )
+      } catch (error: any) {
+        console.error("❌ Home data fetch error:", error?.message)
+        setIsInitialHomeDataReady(true)
+      } finally {
+        setHomeLoadingFeatured(false)
+      }
+    },
+    [
+      token,
+      homeCategories.length,
+      homeBrands.length,
+      homeRoomTypes.length,
+      homeFeaturedProducts.length,
+    ]
+  )
 
   // Fetch cart count, notification count, and home data once the auth token is
   // available. Declared after fetchHomeData so it can call it directly. This is a
   // legitimate on-token data-fetch effect (pre-React-Query migration); the home
   // fetch runs a single time, guarded by homeInitialFetchRef.
   useEffect(() => {
-    if (!token) return
+    // Cart count + notifications are member-only (server-side, need a token).
+    // Guests get their cart count from the local guest cart (see effect below).
+    if (token) {
+      const headers = { Authorization: `Bearer ${token}` }
+      axios
+        .get(`${API_CONFIG.BASE_URL}/cart`, { headers })
+        .then((cartRes) => setCartCount(extractCount(cartRes.data)))
+        .catch(() => {})
 
-    // Fetch cart count
-    const headers = { Authorization: `Bearer ${token}` }
-    axios
-      .get(`${API_CONFIG.BASE_URL}/cart`, { headers })
-      .then((cartRes) => setCartCount(extractCount(cartRes.data)))
-      .catch(() => {})
+      // Initial notification fetch only — real-time updates come from push notifications
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on token change; to be migrated to React Query
+      refreshNotificationCount()
+    }
 
-    // Initial notification fetch only — real-time updates come from push notifications
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on token change; to be migrated to React Query
-    refreshNotificationCount()
-
-    // Fetch home screen data ONCE when token becomes available
+    // Fetch home screen data ONCE — runs for guests and members alike so the
+    // app can render Home/Shop without an account.
     if (!homeInitialFetchRef.current) {
       homeInitialFetchRef.current = true
       fetchHomeData()
@@ -1183,7 +1236,6 @@ export default function AppNavigator({
     // a re-fetch once it's set, so this can't loop.
   }, [referralCodeFromDeepLink, referrerProfileData])
 
-
   // Navigation context value for notifications to use. Memoized so it doesn't
   // recreate every render (its callback only uses stable setters + a module-level
   // helper), preventing needless re-renders of NavigationProvider consumers.
@@ -1263,6 +1315,8 @@ export default function AppNavigator({
     () => ({
       token: token || "",
       enrichedUser,
+      isGuest,
+      onRequestLogin: onRequestLogin || (() => {}),
       isDarkMode,
       setIsDarkMode,
       cartCount,
@@ -1392,6 +1446,8 @@ export default function AppNavigator({
     [
       token,
       enrichedUser,
+      isGuest,
+      onRequestLogin,
       isDarkMode,
       cartCount,
       wishlistItems,
@@ -1470,6 +1526,7 @@ export default function AppNavigator({
                 productId={selectedProductId}
                 token={token}
                 user={enrichedUser}
+                onRequestLogin={onRequestLogin}
                 cartCount={cartCount}
                 wishlistItems={wishlistItems}
                 onBack={() => {
@@ -1649,6 +1706,7 @@ export default function AppNavigator({
               isZq={shopSelectedProductIsZq}
               token={token}
               user={enrichedUser}
+              onRequestLogin={onRequestLogin}
               cartCount={cartCount}
               wishlistItems={wishlistItems}
               onBack={() => {
@@ -1791,6 +1849,8 @@ export default function AppNavigator({
               items={checkoutCartItems.length > 0 ? checkoutCartItems : []}
               token={token}
               user={enrichedUser}
+              isGuest={isGuest}
+              initialReferralCode={referralCodeFromDeepLink || ""}
               isDarkMode={isDarkMode}
               brands={homeBrands}
               onBack={() => {
@@ -1987,6 +2047,17 @@ export default function AppNavigator({
                         err
                       )
                     })
+                } else {
+                  // Guest checkout: no account to fetch — clear the local cart,
+                  // reset the badge, and show the generic success screen.
+                  guestCartService
+                    .clear()
+                    .catch(() => {})
+                    .finally(() => {
+                      setCartRefreshTrigger((prev) => prev + 1)
+                      refreshCartCount()
+                    })
+                  setShowPaymentSuccess(true)
                 }
               }}
             />

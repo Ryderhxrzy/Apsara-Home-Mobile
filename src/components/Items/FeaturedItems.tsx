@@ -14,6 +14,7 @@ import { Colors } from "../../constants/colors"
 import axios from "axios"
 import Toast from "react-native-toast-message"
 import { API_CONFIG } from "../../config/api"
+import { getDisplayPricing } from "../../utils/pricing"
 
 interface Product {
   id: number
@@ -87,15 +88,16 @@ function FeaturedItems({
     imageBg: isDarkMode ? "#0f172a" : "#f1f5f9",
   }
 
-  const displayPrice =
-    product.priceMember || product.priceDp || product.price || 0
-  const originalPrice = product.original_price || product.price || 0
-  const hasDiscount = displayPrice < originalPrice
-  const discountPct = hasDiscount
-    ? Math.round(
-        (((originalPrice || 0) - displayPrice) / (originalPrice || 0)) * 100
-      )
-    : 0
+  // Guests (no token) see SRP only — see getDisplayPricing.
+  const { displayPrice, originalPrice, hasDiscount, discountPct } =
+    getDisplayPricing(
+      {
+        memberPrice:
+          product.priceMember ?? product.priceDp ?? product.price ?? 0,
+        originalPrice: product.original_price ?? product.price ?? 0,
+      },
+      !token
+    )
   const pv = parseFloat(String(product.prodpv || product.pv || 0))
 
   const activeBadges = BADGE_CONFIG.filter(
@@ -170,8 +172,8 @@ function FeaturedItems({
         {imageError || !product.image ? (
           <Image
             source={{
-            uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png"
-          }}
+              uri: "https://res.cloudinary.com/dc05ncs6l/image/upload/v1780969765/af_home_logo_hh2qjv.png",
+            }}
             style={[
               styles.productImage,
               { tintColor: isDarkMode ? "#cbd5e1" : "#4b5563" },

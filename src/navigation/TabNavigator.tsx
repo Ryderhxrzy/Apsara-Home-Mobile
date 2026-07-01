@@ -276,6 +276,7 @@ function ShopTabScreen() {
     onSearchPress,
     previousTab,
     setActiveTab,
+    unreadCount,
   } = useAppContext()
 
   const handleShopProductPress = useCallback(
@@ -344,6 +345,8 @@ function ShopTabScreen() {
           onCartPress={onCartPress}
           onOpenSearch={onSearchPress}
           onWishlistPress={() => navigation.navigate("wishlist" as any)}
+          onNotificationPress={() => navigation.navigate("notification" as any)}
+          unreadCount={unreadCount}
           wishlistItems={wishlistItems}
           isDarkMode={isDarkMode}
           onWishlistChange={onWishlistChange}
@@ -466,7 +469,12 @@ function CustomTabBar({
     unreadCount,
     enrichedUser,
     setShowPurchases,
+    isGuest,
+    onRequestLogin,
   } = useAppContext() as any
+
+  // Tabs that require an account. Guests tapping these get the login flow.
+  const GUEST_GATED_TABS = ["wishlist", "notification", "profile"]
   const safeAreaInsets = useSafeAreaInsets()
   // Inactive tab tint — a muted slate that reads on both the white (light) and
   // slate-800 (dark) bar. Colors.textSecondary is slate-700, too dark on dark.
@@ -506,10 +514,18 @@ function CustomTabBar({
           // The "notification" slot is an Orders button: it opens the My
           // Purchases screen instead of navigating to a tab. (Chat support now
           // lives in the floating button; notifications open via the header bell.)
-          const handlePress =
-            route.name === "notification"
-              ? () => setShowPurchases?.(true)
-              : onPress
+          const handlePress = () => {
+            // Guests can't open account-only tabs — send them to login instead.
+            if (isGuest && GUEST_GATED_TABS.includes(route.name)) {
+              onRequestLogin?.()
+              return
+            }
+            if (route.name === "notification") {
+              setShowPurchases?.(true)
+              return
+            }
+            onPress()
+          }
 
           // Get badge count (Orders slot shows no badge — notifications live in
           // the top header bell).
@@ -734,8 +750,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   homeLogoImage: {
-    width: 36,
-    height: 36,
+    width: 46,
+    height: 46,
     resizeMode: "contain",
   },
   badge: {

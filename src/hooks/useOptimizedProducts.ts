@@ -79,12 +79,17 @@ export const useOptimizedProducts = ({
   }, [filterKeyString])
 
   const query = useInfiniteQuery({
-    queryKey: ["products_optimized", filterKey],
+    // token is part of the key so guest (SRP-only) and member responses cache
+    // separately — logging in won't surface stale guest pricing.
+    queryKey: ["products_optimized", token, filterKey],
     queryFn: async ({ pageParam = 1 }) => {
-      if (!token) throw new Error("Token is required")
-
       const startTime = Date.now()
-      const headers = { Authorization: `Bearer ${token}` }
+      // Guests (no token) still get the public product list — the backend
+      // returns SRP-only pricing for unauthenticated requests, same as the home
+      // showcase. Only attach the auth header when we actually have a token.
+      const headers: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
       const url = new URL(`${API_CONFIG.BASE_URL}/products`)
 
       url.searchParams.set("status", "1")
@@ -135,7 +140,8 @@ export const useOptimizedProducts = ({
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.pageParam + 1 : undefined,
     initialPageParam: 1,
-    enabled: !!token && enabled,
+    // Runs for guests too — the product list is public.
+    enabled,
     // CRITICAL: placeholderData with keepPreviousData maintains old data while fetching new data
     // This prevents blank screens during filter changes
     placeholderData: keepPreviousData,
@@ -149,7 +155,7 @@ export const useOptimizedProducts = ({
       if (!token) return
       try {
         await queryClient.prefetchInfiniteQuery({
-          queryKey: ["products_optimized", presetFilter],
+          queryKey: ["products_optimized", token, presetFilter],
           queryFn: async ({ pageParam = 1 }) => {
             const headers = { Authorization: `Bearer ${token}` }
             const url = new URL(`${API_CONFIG.BASE_URL}/products`)
