@@ -34,6 +34,9 @@ interface HomeProductRailProps {
   actionLabel?: string
   onAction?: () => void
   containerStyle?: StyleProp<ViewStyle>
+  /** When the header is rendered externally (e.g. as a sticky section header),
+   *  the rail skips its own header and shows only the product list. */
+  hideHeader?: boolean
 }
 
 /**
@@ -58,6 +61,7 @@ function HomeProductRail({
   actionLabel,
   onAction,
   containerStyle,
+  hideHeader = false,
 }: HomeProductRailProps) {
   const items =
     limit != null
@@ -73,15 +77,17 @@ function HomeProductRail({
 
   return (
     <View style={containerStyle}>
-      <View style={styles.header}>
-        <SectionHeader
-          title={title}
-          icon={icon}
-          isDarkMode={isDarkMode}
-          actionLabel={actionLabel}
-          onAction={onAction}
-        />
-      </View>
+      {!hideHeader && (
+        <View style={styles.header}>
+          <SectionHeader
+            title={title}
+            icon={icon}
+            isDarkMode={isDarkMode}
+            actionLabel={actionLabel}
+            onAction={onAction}
+          />
+        </View>
+      )}
       {loading && items.length === 0 ? (
         <View style={styles.skeletonRow}>
           {[0, 1, 2].map((i) => (
@@ -121,11 +127,11 @@ function HomeProductRail({
 }
 
 const styles = StyleSheet.create({
-  // Inset the header to match the list's contentContainer padding (12), so the
-  // title lines up with the first card. The parent rail band adds no horizontal
-  // padding of its own.
-  header: { paddingHorizontal: 12 },
-  listContent: { paddingHorizontal: 12, paddingVertical: 4 },
+  // Inset the header + list to 8 so the rail lines up with the other home
+  // sections and the Shop screen's card edge (both 8). The parent rail band adds
+  // no horizontal padding of its own.
+  header: { paddingHorizontal: 8 },
+  listContent: { paddingHorizontal: 8, paddingVertical: 4 },
   card: { width: CARD_W, marginRight: 12 },
   skeletonRow: {
     flexDirection: "row",
